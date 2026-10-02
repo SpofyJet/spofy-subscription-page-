@@ -38,7 +38,12 @@ export function SpofyMainPage() {
                 <div className={classes.backdropGrid} />
             </div>
             <div className={classes.page}>
-                <TopBar state={state} supportUrl={supportUrl} user={user} />
+                <TopBar
+                    displayName={spofy.displayName}
+                    state={state}
+                    supportUrl={supportUrl}
+                    user={user}
+                />
 
                 <SubscriptionBanner
                     renewUrl={spofy.renewUrl}

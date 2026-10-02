@@ -43,14 +43,20 @@ const toneOf = (state: TSpofyState) =>
 
 /* ───────────────────────── top bar ───────────────────────── */
 
-export function TopBar(props: { state: TSpofyState; supportUrl: null | string; user: TSpofyUser }) {
-    const { state, supportUrl, user } = props
+export function TopBar(props: {
+    displayName: null | string
+    state: TSpofyState
+    supportUrl: null | string
+    user: TSpofyUser
+}) {
+    const { displayName, state, supportUrl, user } = props
     const config = useAppConfig()
     const currentLang = useCurrentLang()
     const { setLanguage } = useAppConfigStoreActions()
     const { t } = useSpofyT()
     const tone = toneOf(state)
-    const initial = (user.username.replace(/^[^\p{L}\p{N}]+/u, '')[0] ?? 'S').toUpperCase()
+    const name = displayName ?? user.username
+    const initial = (name.replace(/^[^\p{L}\p{N}]+/u, '')[0] ?? 'S').toUpperCase()
 
     return (
         <header className={classes.topBar}>
@@ -59,8 +65,8 @@ export function TopBar(props: { state: TSpofyState; supportUrl: null | string; u
                     {initial}
                 </span>
                 <span className={classes.whoText}>
-                    <span className={classes.whoName} title={user.username}>
-                        {user.username}
+                    <span className={classes.whoName} title={name}>
+                        {name}
                     </span>
                     <span className={clsx(classes.whoStatus, classes[`tone_${tone}`])}>
                         <span aria-hidden className={classes.dot} />

@@ -4,6 +4,7 @@ import { create } from 'zustand'
 export interface ISpofyPageData {
     bypassDisabled: boolean
     cabinetUrl: null | string
+    displayName: null | string
     renewUrl: null | string
     supportUrl: null | string
     trafficUrl: null | string
@@ -12,6 +13,7 @@ export interface ISpofyPageData {
 const EMPTY: ISpofyPageData = {
     bypassDisabled: false,
     cabinetUrl: null,
+    displayName: null,
     renewUrl: null,
     supportUrl: null,
     trafficUrl: null
@@ -37,6 +39,7 @@ export const useSpofyStore = create<IStore>()((set) => ({
             data: {
                 bypassDisabled: raw.bypassDisabled === true,
                 cabinetUrl: str(raw.cabinetUrl),
+                displayName: str(raw.displayName),
                 renewUrl: str(raw.renewUrl),
                 supportUrl: str(raw.supportUrl),
                 trafficUrl: str(raw.trafficUrl)

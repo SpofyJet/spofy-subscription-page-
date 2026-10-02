@@ -3,7 +3,7 @@ import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { SpofyService } from '../src/modules/spofy/spofy.service';
+import { deriveDisplayName, maskEmail, SpofyService } from '../src/modules/spofy/spofy.service';
 
 const SQUAD = '11111111-1111-1111-1111-111111111111';
 const env = (over: Record<string, string | undefined> = {}) => ({
@@ -49,10 +49,39 @@ test('false when not in squad', async () => {
     const { s } = make(user(['x']));
     assert.equal((await s.getPageData('u1')).bypassDisabled, false);
 });
-test('flag unset -> no panel call', async () => {
-    const { s, calls } = make(user([SQUAD]), { SPOFY_BYPASS_OFF_SQUAD_UUID: '' });
+test('flag unset -> never bypassDisabled (lookup still runs for the name)', async () => {
+    const { s } = make(user([SQUAD]), { SPOFY_BYPASS_OFF_SQUAD_UUID: '' });
     assert.equal((await s.getPageData('u1')).bypassDisabled, false);
-    assert.equal(calls.length, 0);
+});
+
+test('display name: Telegram nick > masked email > Telegram name > null', () => {
+    assert.equal(
+        deriveDisplayName({ description: 'Bot user: Test Person @test_nick' }),
+        '@test_nick',
+    );
+    assert.equal(
+        deriveDisplayName({ description: 'Bot user: Te @abc @second_nick' }),
+        '@second_nick',
+    );
+    assert.equal(
+        deriveDisplayName({ description: 'Bot user: Name', email: 'someone.example@mail.test' }),
+        'so•••le@mail.test',
+    );
+    assert.equal(deriveDisplayName({ description: 'Bot user: Test Person' }), 'Test Person');
+    assert.equal(deriveDisplayName({ description: '' }), null);
+    assert.equal(deriveDisplayName({ description: null, email: null }), null);
+});
+
+test('maskEmail keeps short local parts mostly hidden', () => {
+    assert.equal(maskEmail('abc@mail.test'), 'a•••@mail.test');
+    assert.equal(maskEmail('not-an-email'), 'not-an-email');
+});
+
+test('page data carries the derived display name', async () => {
+    const { s } = make(async () => ({
+        data: { response: { activeInternalSquads: [], description: 'Bot user: X @nick_name' } },
+    }));
+    assert.equal((await s.getPageData('u9')).displayName, '@nick_name');
 });
 test('fail open on error / timeout / malformed', async () => {
     for (const impl of [

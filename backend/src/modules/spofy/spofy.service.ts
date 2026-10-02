@@ -11,12 +11,59 @@ export interface ISpofyPageData {
     supportUrl: string | null;
     cabinetUrl: string | null;
     bypassDisabled: boolean;
+    /** Telegram @nickname, else masked email, else Telegram name; null → page falls back */
+    displayName: string | null;
+}
+
+interface IUserFacts {
+    bypassDisabled: boolean;
+    displayName: string | null;
 }
 
 const CACHE_TTL_MS = 60_000;
 const CACHE_ERROR_TTL_MS = 15_000;
 const CACHE_MAX_ENTRIES = 5_000;
 const LOOKUP_TIMEOUT_MS = 3_000;
+
+const NO_FACTS: IUserFacts = { bypassDisabled: false, displayName: null };
+
+/** "ivan.petrov@gmail.com" → "iv•••ov@gmail.com"; short local parts keep their first letter only. */
+export function maskEmail(email: string): string {
+    const at = email.lastIndexOf('@');
+    if (at <= 0) return email;
+    const local = email.slice(0, at);
+    const domain = email.slice(at);
+    if (local.length <= 4) return `${local[0]}•••${domain}`;
+    return `${local.slice(0, 2)}•••${local.slice(-2)}${domain}`;
+}
+
+/**
+ * The bot writes "Bot user: {full_name} @{username}" into the Remnawave description
+ * (REMNAWAVE_USER_DESCRIPTION_TEMPLATE). Prefer the Telegram nickname, then the email,
+ * then the Telegram name — never the technical Remnawave username (user_<tg id>).
+ */
+export function deriveDisplayName(user: {
+    description?: string | null;
+    email?: string | null;
+}): string | null {
+    const description = (user.description ?? '').trim();
+
+    const nick = description
+        .match(/(?:^|\s)@([A-Za-z0-9_]{4,32})\b/g)
+        ?.pop()
+        ?.trim();
+    if (nick) return nick;
+
+    if (user.email && user.email.includes('@')) return maskEmail(user.email.trim());
+
+    const afterLabel = description.includes(':')
+        ? description.slice(description.indexOf(':') + 1)
+        : '';
+    const name = afterLabel.replace(/\s+/g, ' ').trim();
+    if (name && name.length <= 48) return name;
+
+    return null;
+}
 
 /**
  * Extra data for the Spofy web page. Only used when serving the HTML page —
@@ -30,7 +77,7 @@ export class SpofyService {
     private readonly supportUrl: string | null;
     private readonly cabinetUrl: string | null;
     private readonly bypassOffSquadUuid: string | null;
-    private readonly bypassCache = new Map<string, { value: boolean; expiresAt: number }>();
+    private readonly factsCache = new Map<string, { value: IUserFacts; expiresAt: number }>();
 
     constructor(
         private readonly configService: TypedConfigService,
@@ -47,14 +94,14 @@ export class SpofyService {
         );
     }
 
-    /** Never throws: any failure degrades to "no notice". */
+    /** Never throws: any failure degrades to "no notice" and the Remnawave username. */
     public async getPageData(shortUuid: string): Promise<ISpofyPageData> {
-        let bypassDisabled = false;
+        let facts = NO_FACTS;
 
         try {
-            bypassDisabled = await this.isBypassDisabled(shortUuid);
+            facts = await this.getUserFacts(shortUuid);
         } catch {
-            bypassDisabled = false;
+            facts = NO_FACTS;
         }
 
         return {
@@ -62,23 +109,20 @@ export class SpofyService {
             trafficUrl: this.trafficUrl,
             supportUrl: this.supportUrl,
             cabinetUrl: this.cabinetUrl,
-            bypassDisabled,
+            bypassDisabled: facts.bypassDisabled,
+            displayName: facts.displayName,
         };
     }
 
-    private async isBypassDisabled(shortUuid: string): Promise<boolean> {
-        if (!this.bypassOffSquadUuid) {
-            return false;
-        }
-
+    private async getUserFacts(shortUuid: string): Promise<IUserFacts> {
         const now = Date.now();
-        const cached = this.bypassCache.get(shortUuid);
+        const cached = this.factsCache.get(shortUuid);
 
         if (cached && cached.expiresAt > now) {
             return cached.value;
         }
 
-        let value = false;
+        let value = NO_FACTS;
         let ttl = CACHE_TTL_MS;
 
         try {
@@ -89,31 +133,38 @@ export class SpofyService {
                     timeout: LOOKUP_TIMEOUT_MS,
                 });
 
-            const squads = response.data?.response?.activeInternalSquads ?? [];
-            value = squads.some((squad) => squad.uuid === this.bypassOffSquadUuid);
+            const user = response.data?.response;
+            const squads = user?.activeInternalSquads ?? [];
+
+            value = {
+                bypassDisabled: this.bypassOffSquadUuid
+                    ? squads.some((squad) => squad.uuid === this.bypassOffSquadUuid)
+                    : false,
+                displayName: user ? deriveDisplayName(user) : null,
+            };
         } catch (error) {
             this.logger.warn(
-                `Bypass lookup failed, rendering without notice: ${error instanceof Error ? error.message : error}`,
+                `User lookup failed, rendering with defaults: ${error instanceof Error ? error.message : error}`,
             );
-            value = false;
+            value = NO_FACTS;
             ttl = CACHE_ERROR_TTL_MS;
         }
 
         this.pruneCache(now);
-        this.bypassCache.set(shortUuid, { value, expiresAt: now + ttl });
+        this.factsCache.set(shortUuid, { value, expiresAt: now + ttl });
 
         return value;
     }
 
     private pruneCache(now: number): void {
-        if (this.bypassCache.size < CACHE_MAX_ENTRIES) return;
+        if (this.factsCache.size < CACHE_MAX_ENTRIES) return;
 
-        for (const [key, entry] of this.bypassCache) {
-            if (entry.expiresAt <= now) this.bypassCache.delete(key);
+        for (const [key, entry] of this.factsCache) {
+            if (entry.expiresAt <= now) this.factsCache.delete(key);
         }
 
-        if (this.bypassCache.size >= CACHE_MAX_ENTRIES) {
-            this.bypassCache.clear();
+        if (this.factsCache.size >= CACHE_MAX_ENTRIES) {
+            this.factsCache.clear();
         }
     }
 
