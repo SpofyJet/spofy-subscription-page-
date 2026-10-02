@@ -19,7 +19,7 @@
     --sp-error: #e5484d;
 
     /* text-safe variants (AA on surface/background); fills keep the brand values */
-    --sp-accent-text: #2b63f5;
+    --sp-accent-text: #2457e0;
     --sp-success-text: #137a4b;
     --sp-warning-text: #9a5b00;
     --sp-error-text: #c4262b;
@@ -27,6 +27,14 @@
     --sp-warning-line: rgba(240, 163, 58, 0.45);
     --sp-error-soft: rgba(229, 72, 77, 0.08);
     --sp-error-line: rgba(229, 72, 77, 0.4);
+
+    --sp-surface-2: #f7f8fb;
+    --sp-accent-soft: rgba(43, 99, 245, 0.1);
+    --sp-success-soft: rgba(34, 181, 115, 0.12);
+    --sp-brand: #ff4040;
+    --sp-brand-soft: rgba(255, 64, 64, 0.08);
+    --sp-brand-line: rgba(255, 64, 64, 0.2);
+    --sp-icon-tile: #151c2b;
 
     --sp-radius-lg: 16px;
     --sp-radius-md: 12px;
@@ -46,6 +54,13 @@
         --sp-border-strong: rgba(255, 255, 255, 0.14);
         --sp-subtle: rgba(255, 255, 255, 0.04);
         --sp-subtle-hover: rgba(255, 255, 255, 0.08);
+
+        --sp-surface-2: #131a27;
+        --sp-accent-soft: rgba(43, 99, 245, 0.18);
+        --sp-success-soft: rgba(34, 181, 115, 0.14);
+        --sp-brand-soft: rgba(255, 64, 64, 0.1);
+        --sp-brand-line: rgba(255, 64, 64, 0.24);
+        --sp-icon-tile: #1a2335;
 
         --sp-accent-text: #7c9dff;
         --sp-success-text: #22b573;

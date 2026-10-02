@@ -45,28 +45,30 @@ export function LinkCard({ supportUrl }: { supportUrl: null | string }) {
     const showLink = !config.baseSettings.hideGetLinkButton
     if (!showLink && !supportUrl) return null
 
-    const displayUrl = subscriptionUrl.replace(/^https?:\/\//, '')
-    const SupportIcon = supportUrl?.includes('t.me') ? IconBrandTelegram : IconMessageCircle
+    const isTelegram = !!supportUrl?.includes('t.me')
+    const SupportIcon = isTelegram ? IconBrandTelegram : IconMessageCircle
 
     return (
-        <section aria-labelledby={headingId} className={classes.card}>
-            <h2 className={classes.sectionTitle} id={headingId}>
-                {t('subscriptionLink')}
-            </h2>
+        <section aria-labelledby={headingId} className={clsx(classes.card, classes.linkCard)}>
+            <div className={classes.sectionHead}>
+                <h2 className={classes.sectionTitle} id={headingId}>
+                    {t('subscriptionLink')}
+                </h2>
+                {showLink && <p className={classes.sectionHint}>{t('linkHint')}</p>}
+            </div>
 
             {showLink && (
-                <div className={classes.linkRow}>
+                <div className={classes.linkField}>
                     <span className={classes.linkText} title={subscriptionUrl}>
-                        {displayUrl}
+                        {subscriptionUrl.replace(/^https?:\/\//, '')}
                     </span>
                     <button
                         aria-label={clipboard.copied ? t('copied') : t('copyLinkFull')}
                         className={clsx(
                             classes.btn,
-                            classes.btnSecondary,
                             classes.btnSmall,
                             classes.copyBtn,
-                            clipboard.copied && classes.copied
+                            clipboard.copied && classes.copyBtnDone
                         )}
                         onClick={() => {
                             clipboard.copy(subscriptionUrl)
@@ -75,7 +77,7 @@ export function LinkCard({ supportUrl }: { supportUrl: null | string }) {
                         type="button"
                     >
                         {clipboard.copied ? (
-                            <IconCheck aria-hidden size={18} stroke={2.25} />
+                            <IconCheck aria-hidden size={18} stroke={2.5} />
                         ) : (
                             <IconCopy aria-hidden size={18} stroke={2} />
                         )}
@@ -87,29 +89,41 @@ export function LinkCard({ supportUrl }: { supportUrl: null | string }) {
                 </div>
             )}
 
-            <div className={classes.footerLinks}>
+            <div className={classes.tiles}>
                 {showLink && (
                     <button
-                        className={clsx(classes.btn, classes.btnSecondary)}
+                        className={classes.tile}
                         onClick={() => {
                             vibrate('tap')
                             setQrOpen(true)
                         }}
                         type="button"
                     >
-                        <IconQrcode aria-hidden size={20} stroke={2} />
-                        {t('showQr')}
+                        <span aria-hidden className={classes.tileIcon}>
+                            <IconQrcode size={20} stroke={1.9} />
+                        </span>
+                        <span className={classes.tileText}>
+                            <span className={classes.tileTitle}>{t('qrShort')}</span>
+                            <span className={classes.tileCaption}>{t('qrCaption')}</span>
+                        </span>
                     </button>
                 )}
                 {supportUrl && (
                     <a
-                        className={clsx(classes.btn, classes.btnSecondary)}
+                        className={classes.tile}
                         href={supportUrl}
                         rel="noopener noreferrer"
                         target="_blank"
                     >
-                        <SupportIcon aria-hidden size={20} stroke={2} />
-                        {t('writeSupport')}
+                        <span aria-hidden className={classes.tileIcon}>
+                            <SupportIcon size={20} stroke={1.9} />
+                        </span>
+                        <span className={classes.tileText}>
+                            <span className={classes.tileTitle}>{t('supportShort')}</span>
+                            <span className={classes.tileCaption}>
+                                {isTelegram ? t('supportCaption') : t('supportCaptionOther')}
+                            </span>
+                        </span>
                     </a>
                 )}
             </div>

@@ -67,7 +67,27 @@ const ru = {
     qrTitle: 'Подписка для другого устройства',
     qrText: 'Откройте VPN-приложение на другом устройстве и отсканируйте код.',
     close: 'Закрыть',
-    writeSupport: 'Написать в поддержку'
+    writeSupport: 'Написать в поддержку',
+
+    yourSubscription: 'Ваша подписка',
+    status: 'Статус',
+    remaining: 'Осталось',
+    untilDate: 'до {date}',
+    ended: 'Закончилась',
+    term: 'Срок',
+    indefiniteShort: 'Бессрочно',
+    unlimited: 'Безлимит',
+    usedAmount: 'использовано {used}',
+    connectHint: 'Выберите платформу и приложение',
+    app: 'Приложение',
+    alsoWorks: 'Тоже подходит',
+    setupApp: 'Как подключить {name}',
+    linkHint: 'Подходит для любого VPN-приложения.',
+    qrShort: 'QR-код',
+    qrCaption: 'для другого устройства',
+    supportShort: 'Поддержка',
+    supportCaption: 'ответим в Telegram',
+    supportCaptionOther: 'напишите нам'
 }
 
 type TKey = keyof typeof ru
@@ -123,7 +143,26 @@ const en: TDict = {
     qrTitle: 'Subscription for another device',
     qrText: 'Open the VPN app on your other device and scan this code.',
     close: 'Close',
-    writeSupport: 'Contact support'
+    writeSupport: 'Contact support',
+    yourSubscription: 'Your subscription',
+    status: 'Status',
+    remaining: 'Left',
+    untilDate: 'until {date}',
+    ended: 'Ended',
+    term: 'Term',
+    indefiniteShort: 'No expiry',
+    unlimited: 'Unlimited',
+    usedAmount: '{used} used',
+    connectHint: 'Pick your platform and app',
+    app: 'App',
+    alsoWorks: 'Also works',
+    setupApp: 'How to connect {name}',
+    linkHint: 'Works with any VPN app.',
+    qrShort: 'QR code',
+    qrCaption: 'for another device',
+    supportShort: 'Support',
+    supportCaption: 'we reply in Telegram',
+    supportCaptionOther: 'write to us'
 }
 
 const fr: TDict = {
@@ -177,7 +216,26 @@ const fr: TDict = {
     qrTitle: 'Abonnement pour un autre appareil',
     qrText: "Ouvrez l'application VPN sur l'autre appareil et scannez ce code.",
     close: 'Fermer',
-    writeSupport: "Contacter l'assistance"
+    writeSupport: "Contacter l'assistance",
+    yourSubscription: 'Votre abonnement',
+    status: 'Statut',
+    remaining: 'Reste',
+    untilDate: "jusqu'au {date}",
+    ended: 'Terminé le',
+    term: 'Durée',
+    indefiniteShort: 'Illimitée',
+    unlimited: 'Illimité',
+    usedAmount: '{used} utilisés',
+    connectHint: "Choisissez la plateforme et l'application",
+    app: 'Application',
+    alsoWorks: 'Fonctionne aussi',
+    setupApp: 'Connecter {name}',
+    linkHint: 'Fonctionne avec toute application VPN.',
+    qrShort: 'QR code',
+    qrCaption: 'pour un autre appareil',
+    supportShort: 'Assistance',
+    supportCaption: 'réponse sur Telegram',
+    supportCaptionOther: 'écrivez-nous'
 }
 
 const DICTS: Partial<Record<TSubscriptionPageLanguageCode, TDict>> = { ru, en, fr }

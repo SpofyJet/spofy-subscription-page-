@@ -115,3 +115,16 @@ export const PLATFORM_ORDER: TSubscriptionPagePlatformKey[] = [
     'androidTV',
     'appleTV'
 ]
+
+/** "2 окт. 2026 г." — for compact tiles */
+export function formatDateShort(date: Date | string, lang: TSubscriptionPageLanguageCode): string {
+    try {
+        return new Intl.DateTimeFormat(intlLocale(lang), {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+        }).format(new Date(date))
+    } catch {
+        return new Date(date).toLocaleDateString()
+    }
+}

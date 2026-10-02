@@ -6,7 +6,7 @@ import {
     TSubscriptionPageLocalizedText,
     TSubscriptionPagePlatformKey
 } from '@remnawave/subscription-page-types'
-import { IconCheck, IconChevronDown, IconDownload, IconPlus } from '@tabler/icons-react'
+import { IconCheck, IconDownload, IconPlus } from '@tabler/icons-react'
 import clsx from 'clsx'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 
@@ -47,6 +47,23 @@ function pickHeroButtons(app: TSubscriptionPageAppConfig) {
     }
 }
 
+/** Arrow-key navigation for a radiogroup of buttons (roving tabindex). */
+function rovingKeys<T extends string | number>(
+    items: T[],
+    current: T,
+    select: (item: T) => void,
+    refs: React.RefObject<Map<T, HTMLButtonElement | null>>
+) {
+    return (event: React.KeyboardEvent) => {
+        const delta = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key]
+        if (!delta) return
+        event.preventDefault()
+        const next = items[(items.indexOf(current) + delta + items.length) % items.length]!
+        select(next)
+        refs.current?.get(next)?.focus()
+    }
+}
+
 export function ConnectSection({
     detected
 }: {
@@ -56,7 +73,6 @@ export function ConnectSection({
     const subscription = useSubscription()
     const { t, lang } = useSpofyT()
     const headingId = useId()
-    const othersId = useId()
 
     const available = PLATFORM_ORDER.filter((key) => (config.platforms[key]?.apps.length ?? 0) > 0)
 
@@ -64,13 +80,12 @@ export function ConnectSection({
         detected && available.includes(detected) ? detected : available[0]
     )
     const [picked, setPicked] = useState<{ index: number; platform: string } | null>(null)
-    const [othersOpen, setOthersOpen] = useState(false)
-    const platformRefs = useRef<Record<string, HTMLButtonElement | null>>({})
-    const appTitleRef = useRef<HTMLHeadingElement>(null)
+    const platformRefs = useRef(new Map<TSubscriptionPagePlatformKey, HTMLButtonElement | null>())
+    const appRefs = useRef(new Map<number, HTMLButtonElement | null>())
 
-    // keep the preselected platform visible in the horizontally scrolling row (phones)
+    // keep the preselected platform visible in the horizontally scrolling track (phones)
     useEffect(() => {
-        const chip = platform ? platformRefs.current[platform] : null
+        const chip = platform ? platformRefs.current.get(platform) : null
         const row = chip?.parentElement
         if (!chip || !row || row.scrollWidth <= row.clientWidth) return
         row.scrollLeft = chip.offsetLeft - row.clientWidth / 2 + chip.offsetWidth / 2
@@ -81,151 +96,139 @@ export function ConnectSection({
         [subscription.user.shortUuid]
     )
 
-    if (!platform || available.length === 0) return null
-
-    const apps = config.platforms[platform]!.apps
+    const apps = platform ? (config.platforms[platform]?.apps ?? []) : []
     const featuredIndex = Math.max(
         0,
         apps.findIndex((app) => app.featured)
     )
     const appIndex =
-        picked?.platform === platform && apps[picked.index] ? picked.index : featuredIndex
-    const app = apps[appIndex]!
-    const others = apps.map((item, index) => ({ item, index })).filter((x) => x.index !== appIndex)
+        picked && picked.platform === platform && apps[picked.index] ? picked.index : featuredIndex
+    const appIndexes = apps.map((_, index) => index)
 
-    const selectPlatform = (key: TSubscriptionPagePlatformKey, focus = false) => {
+    const selectPlatform = (key: TSubscriptionPagePlatformKey) => {
         vibrate('selection')
         setPlatform(key)
-        setOthersOpen(false)
-        if (focus) platformRefs.current[key]?.focus()
     }
+    const selectApp = (index: number) => {
+        vibrate('selection')
+        setPicked({ platform: platform!, index })
+    }
+    const onPlatformKeys = rovingKeys(available, platform!, selectPlatform, platformRefs)
+    const onAppKeys = rovingKeys(appIndexes, appIndex, selectApp, appRefs)
 
-    const onPlatformKeyDown = (event: React.KeyboardEvent) => {
-        const delta = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key]
-        if (!delta) return
-        event.preventDefault()
-        const current = available.indexOf(platform)
-        const next = available[(current + delta + available.length) % available.length]!
-        selectPlatform(next, true)
-    }
+    if (!platform || available.length === 0 || apps.length === 0) return null
+    const app = apps[appIndex]!
 
     return (
-        <section aria-labelledby={headingId} className={classes.card}>
-            <div className={classes.connectHead}>
+        <section aria-labelledby={headingId} className={classes.section}>
+            <div className={classes.sectionHead}>
                 <h2 className={classes.sectionTitle} id={headingId}>
                     {t('connectTitle')}
                 </h2>
+                {available.length > 1 && <p className={classes.sectionHint}>{t('connectHint')}</p>}
+            </div>
 
-                {available.length > 1 && (
-                    <div
-                        aria-label={t('platform')}
-                        className={classes.platforms}
-                        onKeyDown={onPlatformKeyDown}
-                        role="radiogroup"
-                    >
-                        {available.map((key) => {
-                            const platformConfig = config.platforms[key]!
-                            const checked = key === platform
-                            return (
-                                <button
-                                    aria-checked={checked}
-                                    className={classes.platform}
-                                    key={key}
-                                    onClick={() => selectPlatform(key)}
-                                    ref={(el) => {
-                                        platformRefs.current[key] = el
-                                    }}
-                                    role="radio"
-                                    tabIndex={checked ? 0 : -1}
-                                    type="button"
+            {available.length > 1 && (
+                <div
+                    aria-label={t('platform')}
+                    className={classes.track}
+                    onKeyDown={onPlatformKeys}
+                    role="radiogroup"
+                >
+                    {available.map((key) => {
+                        const platformConfig = config.platforms[key]!
+                        const checked = key === platform
+                        return (
+                            <button
+                                aria-checked={checked}
+                                className={classes.segment}
+                                key={key}
+                                onClick={() => selectPlatform(key)}
+                                ref={(el) => {
+                                    platformRefs.current.set(key, el)
+                                }}
+                                role="radio"
+                                tabIndex={checked ? 0 : -1}
+                                type="button"
+                            >
+                                <SvgIcon
+                                    className={classes.segmentIcon}
+                                    svg={config.svgLibrary[platformConfig.svgIconKey]}
+                                />
+                                {localized(platformConfig.displayName, lang)}
+                            </button>
+                        )
+                    })}
+                </div>
+            )}
+
+            <div
+                aria-label={t('app')}
+                className={clsx(classes.appGrid, apps.length === 1 && classes.appGridSingle)}
+                onKeyDown={onAppKeys}
+                role="radiogroup"
+            >
+                {apps.map((item, index) => {
+                    const checked = index === appIndex
+                    return (
+                        <button
+                            aria-checked={checked}
+                            className={classes.appTile}
+                            key={`${platform}-${item.name}`}
+                            onClick={() => selectApp(index)}
+                            ref={(el) => {
+                                appRefs.current.set(index, el)
+                            }}
+                            role="radio"
+                            tabIndex={checked ? 0 : -1}
+                            type="button"
+                        >
+                            <SvgIcon
+                                className={classes.appIcon}
+                                svg={
+                                    item.svgIconKey ? config.svgLibrary[item.svgIconKey] : undefined
+                                }
+                            />
+                            <span className={classes.appTileText}>
+                                <span className={classes.appTileName}>{item.name}</span>
+                                <span
+                                    className={clsx(
+                                        classes.appTileCaption,
+                                        item.featured && classes.appTileFeatured
+                                    )}
                                 >
-                                    <SvgIcon
-                                        className={classes.platformIcon}
-                                        svg={config.svgLibrary[platformConfig.svgIconKey]}
-                                    />
-                                    {localized(platformConfig.displayName, lang)}
-                                </button>
-                            )
-                        })}
-                    </div>
-                )}
+                                    {item.featured ? t('recommended') : t('alsoWorks')}
+                                </span>
+                            </span>
+                            <span aria-hidden className={classes.appTileCheck}>
+                                {checked && <IconCheck size={14} stroke={3} />}
+                            </span>
+                        </button>
+                    )
+                })}
             </div>
 
             <AppCard
                 app={app}
-                isFeatured={appIndex === featuredIndex && !!apps[featuredIndex]?.featured}
                 key={`${platform}-${appIndex}`}
                 subscriptionUrl={subscriptionUrl}
-                titleRef={appTitleRef}
                 username={subscription.user.username}
             />
-
-            {others.length > 0 && (
-                <>
-                    <button
-                        aria-controls={othersId}
-                        aria-expanded={othersOpen}
-                        className={classes.disclosure}
-                        onClick={() => setOthersOpen((open) => !open)}
-                        type="button"
-                    >
-                        <span>
-                            {t('otherApps')}{' '}
-                            <span className={clsx(classes.muted, classes.num)}>
-                                {others.length}
-                            </span>
-                        </span>
-                        <IconChevronDown
-                            aria-hidden
-                            className={clsx(classes.chevron, othersOpen && classes.chevronOpen)}
-                            size={20}
-                        />
-                    </button>
-                    <ul className={classes.otherList} hidden={!othersOpen} id={othersId}>
-                        {others.map(({ item, index }) => (
-                            <li key={item.name}>
-                                <button
-                                    aria-label={t('useThisApp', { name: item.name })}
-                                    className={classes.otherApp}
-                                    onClick={() => {
-                                        vibrate('selection')
-                                        setPicked({ platform, index })
-                                        setOthersOpen(false)
-                                        requestAnimationFrame(() => appTitleRef.current?.focus())
-                                    }}
-                                    type="button"
-                                >
-                                    <SvgIcon
-                                        className={classes.appIcon}
-                                        svg={
-                                            item.svgIconKey
-                                                ? config.svgLibrary[item.svgIconKey]
-                                                : undefined
-                                        }
-                                    />
-                                    <span className={classes.otherAppName}>{item.name}</span>
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
-                </>
-            )}
         </section>
     )
 }
 
 function AppCard(props: {
     app: TSubscriptionPageAppConfig
-    isFeatured: boolean
     subscriptionUrl: string
-    titleRef: React.RefObject<HTMLHeadingElement | null>
     username: string
 }) {
-    const { app, isFeatured, subscriptionUrl, titleRef, username } = props
+    const { app, subscriptionUrl, username } = props
     const { svgLibrary } = useAppConfig()
     const { t, lang } = useSpofyT()
     const clipboard = useClipboard({ timeout: 2_000 })
     const [copiedButton, setCopiedButton] = useState<TButton | null>(null)
+    const titleId = useId()
 
     const { install, add } = pickHeroButtons(app)
 
@@ -233,12 +236,6 @@ function AppCard(props: {
         button.type === 'external'
             ? button.link
             : TemplateEngine.formatWithMetaInfo(button.link, { username, subscriptionUrl })
-
-    const copy = (button: TButton) => {
-        clipboard.copy(format(button))
-        setCopiedButton(button)
-        vibrate('tap')
-    }
 
     const renderButton = (
         button: TButton,
@@ -264,7 +261,15 @@ function AppCard(props: {
         if (button.type === 'copyButton') {
             const isCopied = clipboard.copied && copiedButton === button
             return (
-                <button className={className} onClick={() => copy(button)} type="button">
+                <button
+                    className={className}
+                    onClick={() => {
+                        clipboard.copy(format(button))
+                        setCopiedButton(button)
+                        vibrate('tap')
+                    }}
+                    type="button"
+                >
                     {isCopied ? <IconCheck aria-hidden size={20} stroke={2} /> : icon}
                     <span aria-live="polite">{isCopied ? t('copied') : text}</span>
                 </button>
@@ -288,19 +293,10 @@ function AppCard(props: {
     }
 
     return (
-        <article className={classes.app}>
-            <div className={classes.appHead}>
-                <SvgIcon
-                    className={classes.appIcon}
-                    svg={app.svgIconKey ? svgLibrary[app.svgIconKey] : undefined}
-                />
-                <div>
-                    <h3 className={classes.appName} ref={titleRef} tabIndex={-1}>
-                        {app.name}
-                    </h3>
-                    {isFeatured && <span className={classes.badge}>{t('recommended')}</span>}
-                </div>
-            </div>
+        <article aria-labelledby={titleId} className={clsx(classes.card, classes.appCard)}>
+            <h3 className={classes.appCardTitle} id={titleId} tabIndex={-1}>
+                {t('setupApp', { name: app.name })}
+            </h3>
 
             {(install || add) && (
                 <div className={classes.btnRow}>
@@ -324,7 +320,7 @@ function AppCard(props: {
                             <span aria-hidden className={clsx(classes.stepNum, classes.num)}>
                                 {index + 1}
                             </span>
-                            <div>
+                            <div className={classes.stepBody}>
                                 <p
                                     className={classes.stepTitle}
                                     dangerouslySetInnerHTML={{
