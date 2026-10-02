@@ -4,25 +4,17 @@ import '@mantine/nprogress/styles.layer.css'
 import '@gfazioli/mantine-spinner/styles.css'
 
 import './global.css'
+import { spofyTheme } from './spofy'
 
 import { DirectionProvider, MantineProvider, v8CssVariablesResolver } from '@mantine/core'
-import { polyfillCountryFlagEmojis } from 'country-flag-emoji-polyfill'
 import { enableMainThreadBlocking } from 'ios-vibrator-pro-max'
-import { NavigationProgress } from '@mantine/nprogress'
 import { Notifications } from '@mantine/notifications'
 import { ModalsProvider } from '@mantine/modals'
 import { useMediaQuery } from '@mantine/hooks'
 
-import { initDayjs } from '@shared/utils/time-utils'
-import { theme } from '@shared/constants'
-
 import { Router } from './app/router/router'
 
-polyfillCountryFlagEmojis()
-
 enableMainThreadBlocking(false)
-
-initDayjs()
 
 export function App() {
     const mq = useMediaQuery('(min-width: 40em)')
@@ -31,12 +23,11 @@ export function App() {
         <DirectionProvider>
             <MantineProvider
                 cssVariablesResolver={v8CssVariablesResolver}
-                defaultColorScheme="dark"
-                theme={theme}
+                defaultColorScheme="auto"
+                theme={spofyTheme}
             >
                 <ModalsProvider>
                     <Notifications position={mq ? 'top-right' : 'bottom-right'} />
-                    <NavigationProgress />
 
                     <Router />
                 </ModalsProvider>

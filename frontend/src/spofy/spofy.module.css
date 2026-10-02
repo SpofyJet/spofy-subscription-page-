@@ -1,0 +1,775 @@
+/* ---------- layout ---------- */
+.page {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 0 16px calc(32px + env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    color: var(--sp-text);
+    font-family: var(--sp-font);
+    font-size: 15px;
+    line-height: 1.45;
+}
+
+.page *,
+.page *::before,
+.page *::after {
+    box-sizing: border-box;
+}
+
+@media (min-width: 48em) {
+    .page {
+        padding-top: 24px;
+        gap: 16px;
+    }
+}
+
+.card {
+    background: var(--sp-surface);
+    border: 1px solid var(--sp-border);
+    border-radius: var(--sp-radius-lg);
+    padding: 20px;
+}
+
+@media (max-width: 380px) {
+    .card {
+        padding: 16px;
+    }
+}
+
+.sectionTitle {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+}
+
+.muted {
+    color: var(--sp-text-2);
+}
+
+.num {
+    font-variant-numeric: tabular-nums;
+}
+
+.visuallyHidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ---------- focus ---------- */
+.page :is(a, button, [tabindex]):focus-visible,
+.focusable:focus-visible {
+    outline: 2px solid var(--sp-accent);
+    outline-offset: 2px;
+}
+
+/* ---------- buttons ---------- */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 48px;
+    padding: 0 18px;
+    border-radius: var(--sp-radius-md);
+    border: 1px solid transparent;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 650;
+    line-height: 1.2;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease;
+}
+
+.btn svg {
+    flex-shrink: 0;
+}
+
+.btnPrimary {
+    background: var(--sp-accent);
+    color: var(--sp-on-accent);
+}
+
+.btnPrimary:hover {
+    background: var(--sp-accent-hover);
+}
+
+.btnSecondary {
+    background: var(--sp-subtle);
+    border-color: var(--sp-border-strong);
+    color: var(--sp-text);
+}
+
+.btnSecondary:hover {
+    background: var(--sp-subtle-hover);
+}
+
+.btnGhost {
+    background: transparent;
+    color: var(--sp-accent-text);
+    min-height: 44px;
+    padding: 0 12px;
+}
+
+.btnGhost:hover {
+    background: var(--sp-subtle);
+}
+
+.btnSmall {
+    min-height: 44px;
+    padding: 0 14px;
+    font-size: 14px;
+    border-radius: var(--sp-radius-sm);
+}
+
+.iconBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 44px;
+    height: 44px;
+    padding: 0 10px;
+    border-radius: var(--sp-radius-sm);
+    border: 1px solid var(--sp-border);
+    background: var(--sp-surface);
+    color: var(--sp-text);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 650;
+    cursor: pointer;
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.iconBtn:hover {
+    background: var(--sp-subtle-hover);
+}
+
+.btnRow {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+    gap: 8px;
+}
+
+/* ---------- header ---------- */
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 64px;
+    padding-top: env(safe-area-inset-top);
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.brandLogo {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    color: #ff4040;
+}
+
+.brandName {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 750;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+}
+
+.headerActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.menuDropdown {
+    background: var(--sp-surface) !important;
+    border: 1px solid var(--sp-border-strong) !important;
+    border-radius: var(--sp-radius-md) !important;
+    padding: 4px !important;
+}
+
+.menuItem {
+    min-height: 44px;
+    border-radius: var(--sp-radius-sm) !important;
+    color: var(--sp-text) !important;
+    font-family: var(--sp-font) !important;
+    font-size: 15px !important;
+}
+
+.menuItem[data-hovered] {
+    background: var(--sp-subtle-hover) !important;
+}
+
+.menuItemActive {
+    font-weight: 700;
+}
+
+/* ---------- status ---------- */
+.statusTop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.statusLabel {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-weight: 700;
+    font-size: 16px;
+}
+
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--sp-success);
+}
+
+.dotWarning {
+    background: var(--sp-warning);
+}
+
+.dotError {
+    background: var(--sp-error);
+}
+
+.username {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--sp-text-2);
+    font-size: 14px;
+}
+
+.counter {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    column-gap: 10px;
+    margin-top: 16px;
+}
+
+.counterValue {
+    font-size: 40px;
+    font-weight: 750;
+    line-height: 1;
+    letter-spacing: -0.02em;
+}
+
+.counterWarning {
+    color: var(--sp-warning-text);
+}
+
+.counterCaption {
+    color: var(--sp-text-2);
+    font-size: 14px;
+}
+
+.validity {
+    margin: 10px 0 0;
+    color: var(--sp-text-2);
+    font-size: 14px;
+}
+
+.validityStrong {
+    color: var(--sp-text);
+    font-weight: 600;
+}
+
+.divider {
+    height: 1px;
+    margin: 16px 0;
+    background: var(--sp-border);
+    border: 0;
+}
+
+.trafficRow {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.trafficLabel {
+    color: var(--sp-text-2);
+    font-size: 14px;
+}
+
+.trafficValue {
+    font-weight: 650;
+}
+
+.bar {
+    height: 6px;
+    margin-top: 10px;
+    border-radius: 3px;
+    background: var(--sp-subtle-hover);
+    overflow: hidden;
+}
+
+.barFill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--sp-accent);
+}
+
+.barWarning {
+    background: var(--sp-warning);
+}
+
+.barError {
+    background: var(--sp-error);
+}
+
+.trafficMeta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 8px;
+    color: var(--sp-text-2);
+    font-size: 13px;
+}
+
+.trafficLeftWarning {
+    color: var(--sp-warning-text);
+    font-weight: 600;
+}
+
+.trafficLeftError {
+    color: var(--sp-error-text);
+    font-weight: 600;
+}
+
+/* ---------- hero (inactive) ---------- */
+.hero {
+    border-color: var(--sp-error-line);
+}
+
+.heroTitle {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 750;
+    line-height: 1.25;
+    letter-spacing: -0.015em;
+}
+
+.heroText {
+    margin: 8px 0 16px;
+    color: var(--sp-text-2);
+}
+
+/* ---------- bypass notice ---------- */
+.notice {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    background: var(--sp-warning-soft);
+    border: 1px solid var(--sp-warning-line);
+    border-radius: var(--sp-radius-lg);
+    padding: 16px;
+}
+
+.noticeIcon {
+    flex-shrink: 0;
+    color: var(--sp-warning-text);
+    margin-top: 1px;
+}
+
+.noticeBody {
+    flex: 1;
+    min-width: 0;
+}
+
+.noticeText {
+    margin: 0 0 10px;
+}
+
+/* ---------- connect ---------- */
+.connectHead {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.platforms {
+    display: flex;
+    gap: 6px;
+    /* bleed to the card edge so a cut-off chip hints that the row scrolls */
+    padding: 4px 20px;
+    margin: 0 -20px;
+    overflow-x: auto;
+    scroll-padding-inline: 20px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+.platforms::-webkit-scrollbar {
+    display: none;
+}
+
+@media (max-width: 380px) {
+    .platforms {
+        padding-inline: 16px;
+        margin-inline: -16px;
+    }
+}
+
+@media (min-width: 48em) {
+    .platforms {
+        flex-wrap: wrap;
+        overflow: visible;
+        padding: 4px;
+        margin: 0 -4px;
+    }
+}
+
+.platform {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    min-height: 44px;
+    padding: 0 14px;
+    border-radius: var(--sp-radius-sm);
+    border: 1px solid var(--sp-border);
+    background: transparent;
+    color: var(--sp-text-2);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.platform:hover {
+    color: var(--sp-text);
+    background: var(--sp-subtle);
+}
+
+.platform[aria-checked='true'] {
+    color: var(--sp-text);
+    border-color: var(--sp-accent);
+    background: var(--sp-subtle);
+}
+
+.platformIcon {
+    display: inline-flex;
+    width: 18px;
+    height: 18px;
+}
+
+.platformIcon svg {
+    width: 18px;
+    height: 18px;
+}
+
+.app {
+    border: 1px solid var(--sp-border);
+    border-radius: var(--sp-radius-md);
+    padding: 16px;
+}
+
+.appHead {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.appIcon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    border-radius: var(--sp-radius-md);
+    /* config app icons are drawn white-on-dark, so the tile stays dark in both themes */
+    background: #151c2b;
+    border: 1px solid var(--sp-border);
+    color: #ffffff;
+    overflow: hidden;
+}
+
+.appIcon svg {
+    width: 30px;
+    height: 30px;
+}
+
+.appName {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 750;
+    line-height: 1.2;
+}
+
+.badge {
+    display: inline-block;
+    margin-top: 2px;
+    color: var(--sp-success-text);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.steps {
+    list-style: none;
+    margin: 16px 0 0;
+    padding: 16px 0 0;
+    border-top: 1px solid var(--sp-border);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.step {
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    gap: 12px;
+}
+
+.stepNum {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--sp-subtle-hover);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.stepTitle {
+    margin: 1px 0 2px;
+    font-size: 15px;
+    font-weight: 650;
+}
+
+.stepText {
+    margin: 0;
+    color: var(--sp-text-2);
+    font-size: 14px;
+}
+
+.stepButtons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 6px 0 0 -12px;
+}
+
+.btnIcon {
+    display: inline-flex;
+    width: 18px;
+    height: 18px;
+}
+
+.btnIcon svg {
+    width: 18px;
+    height: 18px;
+}
+
+.disclosure {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 48px;
+    margin-top: 8px;
+    padding: 0 4px;
+    border: 0;
+    background: transparent;
+    color: var(--sp-text);
+    font: inherit;
+    font-weight: 650;
+    cursor: pointer;
+}
+
+.chevron {
+    transition: transform 0.15s ease;
+    color: var(--sp-text-2);
+}
+
+.chevronOpen {
+    transform: rotate(180deg);
+}
+
+.otherList[hidden] {
+    display: none;
+}
+
+.otherList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.otherApp {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 56px;
+    padding: 8px 12px;
+    border: 1px solid var(--sp-border);
+    border-radius: var(--sp-radius-md);
+    background: transparent;
+    color: var(--sp-text);
+    font: inherit;
+    font-weight: 650;
+    text-align: left;
+    cursor: pointer;
+}
+
+.otherApp:hover {
+    background: var(--sp-subtle);
+}
+
+.otherApp .appIcon {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--sp-radius-sm);
+}
+
+.otherApp .appIcon svg {
+    width: 22px;
+    height: 22px;
+}
+
+.otherAppName {
+    flex: 1;
+}
+
+/* ---------- link / footer ---------- */
+.linkRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 4px 4px 4px 14px;
+    border: 1px solid var(--sp-border);
+    border-radius: var(--sp-radius-md);
+    background: var(--sp-bg);
+}
+
+.linkText {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+    color: var(--sp-text-2);
+}
+
+.copyBtn {
+    min-width: 132px;
+}
+
+.copied {
+    color: var(--sp-success-text);
+}
+
+.footerLinks {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+/* ---------- QR modal ---------- */
+.modalContent {
+    background: var(--sp-surface) !important;
+    border: 1px solid var(--sp-border) !important;
+    border-radius: var(--sp-radius-lg) !important;
+    color: var(--sp-text);
+    font-family: var(--sp-font);
+}
+
+.modalHeader {
+    background: var(--sp-surface) !important;
+}
+
+.modalTitle {
+    font-family: var(--sp-font) !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+}
+
+.modalClose {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    color: var(--sp-text) !important;
+}
+
+.qr {
+    display: block;
+    width: 100%;
+    max-width: 280px;
+    margin: 0 auto;
+    padding: 12px;
+    border-radius: var(--sp-radius-md);
+    background: #ffffff;
+}
+
+.qrText {
+    margin: 12px 0 16px;
+    color: var(--sp-text-2);
+    text-align: center;
+    font-size: 14px;
+}
+
+/* ---------- loading shell ---------- */
+.shell {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.shellLogo {
+    width: 40px;
+    height: 40px;
+    color: #ff4040;
+    opacity: 0.9;
+}

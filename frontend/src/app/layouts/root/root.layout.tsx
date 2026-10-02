@@ -1,7 +1,6 @@
-import {
-    APP_CONFIG_ROUTE_LEADING_PATH,
-    SubscriptionPageRawConfigSchema
-} from '@remnawave/subscription-page-types'
+// Spofy: deep import — the package entry is CommonJS and drags in every zod schema
+import { APP_CONFIG_ROUTE_LEADING_PATH } from '@remnawave/subscription-page-types/build/backend/constants'
+import { TSubscriptionPageRawConfig } from '@remnawave/subscription-page-types'
 import { GetSubscriptionInfoByShortUuidCommand } from '@remnawave/backend-contract'
 import { Outlet } from 'react-router'
 import { useLayoutEffect } from 'react'
@@ -13,7 +12,7 @@ import {
     useSubscriptionInfoStoreInfo
 } from '@entities/subscription-info-store'
 import { useAppConfigStoreActions, useIsConfigLoaded } from '@entities/app-config-store'
-import { LoadingScreen } from '@shared/ui'
+import { isUsableConfig, SpofyShell, useSpofyStore } from '../../../spofy'
 
 import classes from './root.module.css'
 
@@ -39,6 +38,7 @@ export function RootLayout() {
                     subscriptionActions.setSubscriptionInfo({
                         subscription: subscription.response
                     })
+                    useSpofyStore.getState().setFromPanelPayload(subscription)
                 } catch (error) {
                     consola.log(error)
                 } finally {
@@ -56,15 +56,14 @@ export function RootLayout() {
                     }
                 )
 
-                const parsedConfig =
-                    await SubscriptionPageRawConfigSchema.safeParseAsync(tempConfig)
-
-                if (!parsedConfig.success) {
-                    consola.error('Failed to parse app config:', parsedConfig.error)
+                // Spofy: the backend already validates this config with the same zod schema at
+                // startup; skipping the client-side parse keeps zod (~70 KB gz) out of the bundle.
+                if (!isUsableConfig(tempConfig)) {
+                    consola.error('Failed to parse app config')
                     return
                 }
 
-                configActions.setConfig(parsedConfig.data)
+                configActions.setConfig(tempConfig as TSubscriptionPageRawConfig)
             } catch (error) {
                 consola.error('Failed to fetch app config:', error)
             }
@@ -79,7 +78,7 @@ export function RootLayout() {
                 <div className="animated-background"></div>
                 <div className={classes.content}>
                     <main className={classes.main}>
-                        <LoadingScreen height="100vh" />
+                        <SpofyShell />
                     </main>
                 </div>
             </div>
