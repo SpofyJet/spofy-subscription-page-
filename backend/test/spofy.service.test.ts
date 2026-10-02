@@ -12,6 +12,7 @@ const env = (over: Record<string, string | undefined> = {}) => ({
             SPOFY_RENEW_URL: 'https://t.me/spofyvpnbot',
             SPOFY_TRAFFIC_URL: ' ',
             SPOFY_SUPPORT_URL: undefined,
+            SPOFY_CABINET_URL: 'https://web.spofyltd.ru',
             SPOFY_BYPASS_OFF_SQUAD_UUID: SQUAD,
             ...over,
         })[k],
@@ -37,6 +38,7 @@ test('urls: trimmed, empty -> null', async () => {
     assert.equal(d.renewUrl, 'https://t.me/spofyvpnbot');
     assert.equal(d.trafficUrl, null);
     assert.equal(d.supportUrl, null);
+    assert.equal(d.cabinetUrl, 'https://web.spofyltd.ru');
 });
 test('bypassDisabled true when user is in the squad', async () => {
     const { s, calls } = make(user(['x', SQUAD]));

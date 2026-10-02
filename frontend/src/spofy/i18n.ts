@@ -108,7 +108,13 @@ const ru = {
     linkA: 'Ссылка на',
     linkB: 'подписку',
     stepOf: 'Шаг {n} из {total}',
-    noTraffic: 'без трафика'
+    noTraffic: 'без трафика',
+    cabinet: 'Личный кабинет',
+    instructions: 'Пошаговая инструкция',
+    stepsCount: '{n} шага',
+    linkCaption: 'Ваша ссылка',
+    otherDevice: 'для другого устройства',
+    tvHint: 'На телевизоре проще отсканировать QR-код'
 }
 
 type TKey = keyof typeof ru
@@ -203,7 +209,13 @@ const en: TDict = {
     linkA: 'Subscription',
     linkB: 'link',
     stepOf: 'Step {n} of {total}',
-    noTraffic: 'out of traffic'
+    noTraffic: 'out of traffic',
+    cabinet: 'Web cabinet',
+    instructions: 'Step-by-step guide',
+    stepsCount: '{n} steps',
+    linkCaption: 'Your link',
+    otherDevice: 'for another device',
+    tvHint: 'On a TV it is easier to scan the QR code'
 }
 
 const fr: TDict = {
@@ -296,7 +308,13 @@ const fr: TDict = {
     linkA: "Lien d'",
     linkB: 'abonnement',
     stepOf: 'Étape {n} sur {total}',
-    noTraffic: 'sans trafic'
+    noTraffic: 'sans trafic',
+    cabinet: 'Espace client',
+    instructions: 'Guide pas à pas',
+    stepsCount: '{n} étapes',
+    linkCaption: 'Votre lien',
+    otherDevice: 'pour un autre appareil',
+    tvHint: 'Sur une TV, scannez plutôt le QR code'
 }
 
 const DICTS: Partial<Record<TSubscriptionPageLanguageCode, TDict>> = { ru, en, fr }

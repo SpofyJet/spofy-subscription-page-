@@ -36,6 +36,7 @@ Builder config — nothing app-specific is hardcoded.
 | `SPOFY_RENEW_URL` | `https://t.me/spofyvpnbot` → later `…?start=renew` | «Продлить подписку». Hidden if unset. |
 | `SPOFY_TRAFFIC_URL` | `https://t.me/spofyvpnbot` → later `…?start=traffic` | «Докупить трафик» (only when the tariff has a limit) and the bypass notice button. |
 | `SPOFY_SUPPORT_URL` | `https://t.me/spofysup` | Header icon + footer button. Falls back to the config's `brandingSettings.supportUrl`. |
+| `SPOFY_CABINET_URL` | `https://web.spofyltd.ru` | «Личный кабинет» row in the link card. Hidden if unset. |
 | `SPOFY_BYPASS_OFF_SQUAD_UUID` | *(empty)* | Feature flag. When set, users whose `activeInternalSquads` contain this UUID see «Обходы отключены…». Lookup via the panel API, cached ≤ 60 s per user, 3 s timeout, **fails open** (any error → no notice). |
 
 The stock image ignores unknown variables, so adding them before the swap (and keeping them
@@ -72,6 +73,7 @@ cd /opt/spofy-subscription-page && git pull && deploy/spofy/build.sh      # → 
 SPOFY_RENEW_URL=https://t.me/spofyvpnbot
 SPOFY_TRAFFIC_URL=https://t.me/spofyvpnbot
 SPOFY_SUPPORT_URL=https://t.me/spofysup
+SPOFY_CABINET_URL=https://web.spofyltd.ru
 SPOFY_BYPASS_OFF_SQUAD_UUID=
 ```
 

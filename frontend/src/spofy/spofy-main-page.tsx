@@ -52,7 +52,7 @@ export function SpofyMainPage() {
 
                 <ConnectSection detected={detected} />
 
-                <LinkCard supportUrl={supportUrl} />
+                <LinkCard cabinetUrl={spofy.cabinetUrl} />
             </div>
         </>
     )

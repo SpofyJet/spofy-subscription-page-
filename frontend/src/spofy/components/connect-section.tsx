@@ -1,3 +1,4 @@
+import { Menu } from '@mantine/core'
 import { useClipboard } from '@mantine/hooks'
 import {
     TSubscriptionPageAppConfig,
@@ -6,7 +7,13 @@ import {
     TSubscriptionPageLocalizedText,
     TSubscriptionPagePlatformKey
 } from '@remnawave/subscription-page-types'
-import { IconCheck, IconChevronDown, IconDownload, IconPlus } from '@tabler/icons-react'
+import {
+    IconCheck,
+    IconChevronDown,
+    IconDownload,
+    IconListNumbers,
+    IconQrcode
+} from '@tabler/icons-react'
 import clsx from 'clsx'
 import { useId, useMemo, useRef, useState } from 'react'
 
@@ -20,6 +27,8 @@ import { useSubscription } from '@entities/subscription-info-store'
 import { getAppLogo } from '../app-logos'
 import { PLATFORM_ORDER } from '../format'
 import { useSpofyT } from '../i18n'
+import { prefs } from '../prefs'
+import { useQrStore } from '../qr-store'
 import classes from '../spofy.module.css'
 
 type TButton = TSubscriptionPageButtonConfig
@@ -40,6 +49,8 @@ const ICON_COLORS: Record<string, string> = {
     blue: '34, 139, 230'
 }
 
+const TV_PLATFORMS: TSubscriptionPagePlatformKey[] = ['androidTV', 'appleTV']
+
 function localized(
     text: TSubscriptionPageLocalizedText | undefined,
     lang: TSubscriptionPageLanguageCode
@@ -53,14 +64,13 @@ function SvgIcon({ className, svg }: { className: string; svg: string | undefine
     return <span aria-hidden className={className} dangerouslySetInnerHTML={{ __html: svg }} />
 }
 
-function AppIcon({ app, size }: { app: TSubscriptionPageAppConfig; size: 'lg' | 'sm' }) {
+function AppIcon({ app }: { app: TSubscriptionPageAppConfig }) {
     const { svgLibrary } = useAppConfig()
     const logo = getAppLogo(app.name)
-    const className = clsx(classes.appIcon, size === 'sm' && classes.appIconSm)
 
     if (logo?.src) {
         return (
-            <span aria-hidden className={clsx(className, classes.appIconImage)}>
+            <span aria-hidden className={clsx(classes.appIcon, classes.appIconImage)}>
                 <img alt="" decoding="async" src={logo.src} />
             </span>
         )
@@ -68,7 +78,7 @@ function AppIcon({ app, size }: { app: TSubscriptionPageAppConfig; size: 'lg' | 
     return (
         <span
             aria-hidden
-            className={className}
+            className={classes.appIcon}
             dangerouslySetInnerHTML={{
                 __html: app.svgIconKey ? (svgLibrary[app.svgIconKey] ?? '') : ''
             }}
@@ -77,7 +87,7 @@ function AppIcon({ app, size }: { app: TSubscriptionPageAppConfig; size: 'lg' | 
     )
 }
 
-/** The buttons that become the big one-tap actions of the app card. */
+/** The buttons that become the one-tap actions of the setup card. */
 function pickHeroButtons(app: TSubscriptionPageAppConfig) {
     const all = app.blocks.flatMap((block) => block.buttons)
     return {
@@ -97,14 +107,17 @@ export function ConnectSection({
     const subscription = useSubscription()
     const { t, lang } = useSpofyT()
     const headingId = useId()
-    const selectId = useId()
 
     const available = PLATFORM_ORDER.filter((key) => (config.platforms[key]?.apps.length ?? 0) > 0)
 
-    const [platform, setPlatform] = useState<TSubscriptionPagePlatformKey | undefined>(() =>
-        detected && available.includes(detected) ? detected : available[0]
+    const [platform, setPlatform] = useState<TSubscriptionPagePlatformKey | undefined>(() => {
+        const remembered = prefs.platform() as TSubscriptionPagePlatformKey | undefined
+        if (remembered && available.includes(remembered)) return remembered
+        return detected && available.includes(detected) ? detected : available[0]
+    })
+    const [picked, setPicked] = useState<{ name: string; platform: string } | null>(() =>
+        platform ? { platform, name: prefs.app(platform) ?? '' } : null
     )
-    const [picked, setPicked] = useState<{ index: number; platform: string } | null>(null)
     const appRefs = useRef(new Map<number, HTMLButtonElement | null>())
 
     const subscriptionUrl = useMemo(
@@ -117,15 +130,25 @@ export function ConnectSection({
         0,
         apps.findIndex((app) => app.featured)
     )
-    const appIndex =
-        picked && picked.platform === platform && apps[picked.index] ? picked.index : featuredIndex
+    const pickedIndex =
+        picked && picked.platform === platform
+            ? apps.findIndex((app) => app.name === picked.name)
+            : -1
+    const appIndex = pickedIndex >= 0 ? pickedIndex : featuredIndex
 
     if (!platform || available.length === 0 || apps.length === 0) return null
     const app = apps[appIndex]!
+    const platformConfig = config.platforms[platform]!
 
+    const selectPlatform = (key: TSubscriptionPagePlatformKey) => {
+        vibrate('selection')
+        setPlatform(key)
+        prefs.setPlatform(key)
+    }
     const selectApp = (index: number, focus = false) => {
         vibrate('selection')
-        setPicked({ platform, index })
+        setPicked({ platform, name: apps[index]!.name })
+        prefs.setApp(platform, apps[index]!.name)
         if (focus) appRefs.current.get(index)?.focus()
     }
     const onAppKeys = (event: React.KeyboardEvent) => {
@@ -136,43 +159,64 @@ export function ConnectSection({
     }
 
     return (
-        <section aria-labelledby={headingId} className={classes.section}>
-            <div className={classes.sectionHeadRow}>
+        <section aria-labelledby={headingId} className={clsx(classes.card, classes.connect)}>
+            <div className={classes.connectHead}>
                 <h2 className={classes.sectionTitle} id={headingId}>
                     {t('connectA')}{' '}
                     <span className={clsx(classes.glow, classes.glow_accent)}>{t('connectB')}</span>
                 </h2>
 
                 {available.length > 1 && (
-                    <div className={classes.platformSelect}>
-                        <label className={classes.visuallyHidden} htmlFor={selectId}>
-                            {t('platform')}
-                        </label>
-                        <SvgIcon
-                            className={classes.platformSelectIcon}
-                            svg={config.svgLibrary[config.platforms[platform]!.svgIconKey]}
-                        />
-                        <select
-                            id={selectId}
-                            onChange={(event) => {
-                                vibrate('selection')
-                                setPlatform(event.target.value as TSubscriptionPagePlatformKey)
-                            }}
-                            value={platform}
-                        >
-                            {available.map((key) => (
-                                <option key={key} value={key}>
-                                    {localized(config.platforms[key]!.displayName, lang)}
-                                </option>
-                            ))}
-                        </select>
-                        <IconChevronDown
-                            aria-hidden
-                            className={classes.platformSelectChevron}
-                            size={16}
-                            stroke={2.25}
-                        />
-                    </div>
+                    <Menu
+                        classNames={{ dropdown: classes.menuDropdown, item: classes.menuItem }}
+                        position="bottom-end"
+                        width={210}
+                        withinPortal
+                    >
+                        <Menu.Target>
+                            <button
+                                aria-label={`${t('platform')}: ${localized(platformConfig.displayName, lang)}`}
+                                className={classes.platformButton}
+                                type="button"
+                            >
+                                <SvgIcon
+                                    className={classes.platformIcon}
+                                    svg={config.svgLibrary[platformConfig.svgIconKey]}
+                                />
+                                <span className={classes.platformName}>
+                                    {localized(platformConfig.displayName, lang)}
+                                </span>
+                                <IconChevronDown aria-hidden size={16} stroke={2.25} />
+                            </button>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                            {available.map((key) => {
+                                const item = config.platforms[key]!
+                                const current = key === platform
+                                return (
+                                    <Menu.Item
+                                        aria-current={current ? 'true' : undefined}
+                                        className={clsx(current && classes.menuItemActive)}
+                                        key={key}
+                                        leftSection={
+                                            <SvgIcon
+                                                className={classes.platformIcon}
+                                                svg={config.svgLibrary[item.svgIconKey]}
+                                            />
+                                        }
+                                        onClick={() => selectPlatform(key)}
+                                        rightSection={
+                                            current ? (
+                                                <IconCheck aria-hidden size={16} stroke={2.5} />
+                                            ) : null
+                                        }
+                                    >
+                                        {localized(item.displayName, lang)}
+                                    </Menu.Item>
+                                )
+                            })}
+                        </Menu.Dropdown>
+                    </Menu>
                 )}
             </div>
 
@@ -197,7 +241,7 @@ export function ConnectSection({
                             tabIndex={checked ? 0 : -1}
                             type="button"
                         >
-                            <AppIcon app={item} size="lg" />
+                            <AppIcon app={item} />
                             <span className={classes.appTileText}>
                                 <span className={classes.appTileName}>{item.name}</span>
                                 <span
@@ -206,23 +250,18 @@ export function ConnectSection({
                                         item.featured && classes.appTileFeatured
                                     )}
                                 >
-                                    {item.featured && (
-                                        <span aria-hidden className={classes.featuredDot} />
-                                    )}
                                     {item.featured ? t('recommended') : t('alsoWorks')}
                                 </span>
-                            </span>
-                            <span aria-hidden className={classes.appTileCheck}>
-                                {checked && <IconCheck size={14} stroke={3} />}
                             </span>
                         </button>
                     )
                 })}
             </div>
 
-            <AppCard
+            <AppSetup
                 app={app}
-                key={`${platform}-${appIndex}`}
+                isTv={TV_PLATFORMS.includes(platform)}
+                key={`${platform}-${app.name}`}
                 subscriptionUrl={subscriptionUrl}
                 username={subscription.user.username}
             />
@@ -230,17 +269,20 @@ export function ConnectSection({
     )
 }
 
-function AppCard(props: {
+function AppSetup(props: {
     app: TSubscriptionPageAppConfig
+    isTv: boolean
     subscriptionUrl: string
     username: string
 }) {
-    const { app, subscriptionUrl, username } = props
+    const { app, isTv, subscriptionUrl, username } = props
     const { svgLibrary } = useAppConfig()
     const { t, lang } = useSpofyT()
     const clipboard = useClipboard({ timeout: 2_000 })
+    const openQr = useQrStore((state) => state.setOpen)
     const [copiedButton, setCopiedButton] = useState<TButton | null>(null)
-    const titleId = useId()
+    const [stepsOpen, setStepsOpen] = useState(false)
+    const stepsId = useId()
 
     const { install, add } = pickHeroButtons(app)
 
@@ -255,20 +297,18 @@ function AppCard(props: {
         label?: string
     ) => {
         const text = label ?? localized(button.text, lang)
-        const icon =
-            variant === 'ghost' ? (
-                <SvgIcon className={classes.btnIcon} svg={svgLibrary[button.svgIconKey]} />
-            ) : button.type === 'external' ? (
-                <IconDownload aria-hidden size={20} stroke={2} />
-            ) : (
-                <IconPlus aria-hidden size={20} stroke={2} />
-            )
         const className = clsx(
             classes.btn,
             variant === 'primary' && clsx(classes.btnPrimary, classes.btnGlow),
             variant === 'secondary' && classes.btnSecondary,
             variant === 'ghost' && classes.btnGhost
         )
+        const icon =
+            variant === 'ghost' ? (
+                <SvgIcon className={classes.btnIcon} svg={svgLibrary[button.svgIconKey]} />
+            ) : variant === 'secondary' ? (
+                <IconDownload aria-hidden size={19} stroke={2} />
+            ) : null
 
         if (button.type === 'copyButton') {
             const isCopied = clipboard.copied && copiedButton === button
@@ -282,7 +322,7 @@ function AppCard(props: {
                     }}
                     type="button"
                 >
-                    {isCopied ? <IconCheck aria-hidden size={20} stroke={2} /> : icon}
+                    {isCopied ? <IconCheck aria-hidden size={19} stroke={2.25} /> : icon}
                     <span aria-live="polite">{isCopied ? t('copied') : text}</span>
                 </button>
             )
@@ -305,16 +345,9 @@ function AppCard(props: {
     }
 
     return (
-        <article aria-labelledby={titleId} className={clsx(classes.card, classes.appCard)}>
-            <div className={classes.appCardHead}>
-                <AppIcon app={app} size="sm" />
-                <h3 className={classes.appCardTitle} id={titleId}>
-                    {t('setupApp', { name: app.name })}
-                </h3>
-            </div>
-
+        <div className={classes.setup}>
             {(install || add) && (
-                <div className={classes.btnRow}>
+                <div className={classes.setupButtons}>
                     {install && renderButton(install, 'secondary', t('install'))}
                     {add &&
                         renderButton(
@@ -325,7 +358,40 @@ function AppCard(props: {
                 </div>
             )}
 
-            <ol aria-label={t('howTo')} className={classes.steps}>
+            {isTv && (
+                <button className={classes.tvHint} onClick={() => openQr(true)} type="button">
+                    <span aria-hidden className={classes.iconSquare}>
+                        <IconQrcode size={18} stroke={2} />
+                    </span>
+                    <span>{t('tvHint')}</span>
+                </button>
+            )}
+
+            <button
+                aria-controls={stepsId}
+                aria-expanded={stepsOpen}
+                className={classes.disclosure}
+                onClick={() => setStepsOpen((open) => !open)}
+                type="button"
+            >
+                <span aria-hidden className={classes.iconSquare}>
+                    <IconListNumbers size={18} stroke={2} />
+                </span>
+                <span className={classes.disclosureText}>
+                    {t('instructions')}
+                    <span className={classes.disclosureMeta}>
+                        {t('stepsCount', { n: app.blocks.length })}
+                    </span>
+                </span>
+                <IconChevronDown
+                    aria-hidden
+                    className={clsx(classes.chevron, stepsOpen && classes.chevronOpen)}
+                    size={18}
+                    stroke={2.25}
+                />
+            </button>
+
+            <ol aria-label={t('howTo')} className={classes.steps} hidden={!stepsOpen} id={stepsId}>
                 {app.blocks.map((block, index) => {
                     const extra = block.buttons.filter(
                         (button) => button !== install && button !== add
@@ -377,6 +443,6 @@ function AppCard(props: {
                     )
                 })}
             </ol>
-        </article>
+        </div>
     )
 }

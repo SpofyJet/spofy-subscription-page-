@@ -9,6 +9,7 @@ export interface ISpofyPageData {
     renewUrl: string | null;
     trafficUrl: string | null;
     supportUrl: string | null;
+    cabinetUrl: string | null;
     bypassDisabled: boolean;
 }
 
@@ -27,6 +28,7 @@ export class SpofyService {
     private readonly renewUrl: string | null;
     private readonly trafficUrl: string | null;
     private readonly supportUrl: string | null;
+    private readonly cabinetUrl: string | null;
     private readonly bypassOffSquadUuid: string | null;
     private readonly bypassCache = new Map<string, { value: boolean; expiresAt: number }>();
 
@@ -37,10 +39,11 @@ export class SpofyService {
         this.renewUrl = this.readEnv('SPOFY_RENEW_URL');
         this.trafficUrl = this.readEnv('SPOFY_TRAFFIC_URL');
         this.supportUrl = this.readEnv('SPOFY_SUPPORT_URL');
+        this.cabinetUrl = this.readEnv('SPOFY_CABINET_URL');
         this.bypassOffSquadUuid = this.readEnv('SPOFY_BYPASS_OFF_SQUAD_UUID');
 
         this.logger.log(
-            `Spofy: renew=${!!this.renewUrl} traffic=${!!this.trafficUrl} support=${!!this.supportUrl} bypassOffNotice=${!!this.bypassOffSquadUuid}`,
+            `Spofy: renew=${!!this.renewUrl} traffic=${!!this.trafficUrl} support=${!!this.supportUrl} cabinet=${!!this.cabinetUrl} bypassOffNotice=${!!this.bypassOffSquadUuid}`,
         );
     }
 
@@ -58,6 +61,7 @@ export class SpofyService {
             renewUrl: this.renewUrl,
             trafficUrl: this.trafficUrl,
             supportUrl: this.supportUrl,
+            cabinetUrl: this.cabinetUrl,
             bypassDisabled,
         };
     }
@@ -116,6 +120,7 @@ export class SpofyService {
     private readEnv(
         key:
             | 'SPOFY_BYPASS_OFF_SQUAD_UUID'
+            | 'SPOFY_CABINET_URL'
             | 'SPOFY_RENEW_URL'
             | 'SPOFY_SUPPORT_URL'
             | 'SPOFY_TRAFFIC_URL',
