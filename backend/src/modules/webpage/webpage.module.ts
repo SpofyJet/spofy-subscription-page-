@@ -3,13 +3,15 @@ import { JwtModule } from '@nestjs/jwt';
 
 import { getJWTConfig } from '@common/config/jwt/jwt.config';
 
+import { SpofyService } from '@modules/spofy';
+
 import { WebpageController } from './webpage.controller';
 import { WebpageService } from './webpage.service';
 
 @Module({
     imports: [JwtModule.registerAsync(getJWTConfig())],
     controllers: [WebpageController],
-    providers: [WebpageService],
+    providers: [WebpageService, SpofyService],
     exports: [WebpageService],
 })
 export class WebpageModule {}

@@ -67,6 +67,12 @@ export const configSchema = z
         MARZBAN_LEGACY_DROP_REVOKED_SUBSCRIPTIONS: booleanString(),
         INTERNAL_JWT_SECRET: z.string(),
         EGAMES_COOKIE: z.optional(z.string()),
+
+        // Spofy: page-level CTAs and the bypass-off notice (all optional)
+        SPOFY_RENEW_URL: z.optional(z.string()),
+        SPOFY_TRAFFIC_URL: z.optional(z.string()),
+        SPOFY_SUPPORT_URL: z.optional(z.string()),
+        SPOFY_BYPASS_OFF_SQUAD_UUID: z.optional(z.string()),
     })
     .superRefine((data, ctx) => {
         if (

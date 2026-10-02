@@ -20,6 +20,8 @@ import { TypedConfigService } from '@common/config/app-config';
 import { getAssetsPath, isDevelopment } from '@common/utils';
 import { decryptUuid, encryptUuid } from '@common/utils/crypt-utils';
 
+import { SpofyService } from '@modules/spofy';
+
 @Injectable()
 export class WebpageService implements OnApplicationBootstrap {
     private readonly logger = new Logger(WebpageService.name);
@@ -32,6 +34,7 @@ export class WebpageService implements OnApplicationBootstrap {
         private readonly configService: TypedConfigService,
         private readonly axiosService: AxiosService,
         private readonly jwtService: JwtService,
+        private readonly spofyService: SpofyService,
     ) {
         this.internalJwtSecret = this.configService.getOrThrow('INTERNAL_JWT_SECRET');
         this.subpageConfigUuid = this.configService.getOrThrow('SUBPAGE_CONFIG_UUID');
@@ -185,6 +188,8 @@ export class WebpageService implements OnApplicationBootstrap {
         shortUuid: string,
     ): Promise<void> {
         try {
+            const spofyDataPromise = this.spofyService.getPageData(shortUuid);
+
             const subscriptionDataResponse = await this.axiosService.getSubscriptionInfo(
                 clientIp,
                 shortUuid,
@@ -232,7 +237,9 @@ export class WebpageService implements OnApplicationBootstrap {
                 this.indexTemplate({
                     metaTitle: baseSettings.metaTitle,
                     metaDescription: baseSettings.metaDescription,
-                    panelData: Buffer.from(JSON.stringify(subscriptionData)).toString('base64'),
+                    panelData: Buffer.from(
+                        JSON.stringify({ ...subscriptionData, spofy: await spofyDataPromise }),
+                    ).toString('base64'),
                 }),
             );
         } catch (error) {
