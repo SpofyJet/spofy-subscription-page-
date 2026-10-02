@@ -10,7 +10,7 @@ export function BypassNotice({ trafficUrl }: { trafficUrl: null | string }) {
     return (
         <section className={classes.notice} role="status">
             <span aria-hidden className={classes.noticeIcon}>
-                <IconAlertTriangle size={20} stroke={1.9} />
+                <IconAlertTriangle size={22} stroke={1.9} />
             </span>
             <div className={classes.noticeBody}>
                 <p className={classes.noticeText}>{t('bypassText')}</p>

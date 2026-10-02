@@ -2,7 +2,8 @@ import { createTheme, mergeThemeOverrides } from '@mantine/core'
 
 import { theme as upstreamTheme } from '@shared/constants'
 
-const FONT = "'Manrope Variable', Manrope, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+const FONT =
+    "'Manrope Variable', 'Manrope Fallback', Manrope, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
 
 export const spofyTheme = mergeThemeOverrides(
     upstreamTheme,

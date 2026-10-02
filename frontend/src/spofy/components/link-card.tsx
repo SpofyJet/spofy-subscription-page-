@@ -23,7 +23,7 @@ import classes from '../spofy.module.css'
 export function LinkCard({ supportUrl }: { supportUrl: null | string }) {
     const config = useAppConfig()
     const subscription = useSubscription()
-    const { t } = useSpofyT()
+    const { t, lang } = useSpofyT()
     const clipboard = useClipboard({ timeout: 2_000 })
     const [qrOpen, setQrOpen] = useState(false)
     const headingId = useId()
@@ -52,7 +52,9 @@ export function LinkCard({ supportUrl }: { supportUrl: null | string }) {
         <section aria-labelledby={headingId} className={clsx(classes.card, classes.linkCard)}>
             <div className={classes.sectionHead}>
                 <h2 className={classes.sectionTitle} id={headingId}>
-                    {t('subscriptionLink')}
+                    {t('linkA')}
+                    {lang === 'fr' ? '' : ' '}
+                    <span className={clsx(classes.glow, classes.glow_accent)}>{t('linkB')}</span>
                 </h2>
                 {showLink && <p className={classes.sectionHint}>{t('linkHint')}</p>}
             </div>

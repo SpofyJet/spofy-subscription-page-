@@ -1,4 +1,3 @@
-import '@fontsource-variable/manrope/wght.css'
 import './spofy.css'
 
 export { SpofyMainPage } from './spofy-main-page'

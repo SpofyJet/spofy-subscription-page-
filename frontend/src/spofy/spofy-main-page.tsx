@@ -4,7 +4,7 @@ import { useAppConfig, useCurrentLang } from '@entities/app-config-store'
 import { useSubscription } from '@entities/subscription-info-store'
 
 import { BypassNotice } from './components/actions'
-import { SubscriptionBanner } from './components/banner'
+import { SubscriptionBanner, TopBar } from './components/banner'
 import { ConnectSection } from './components/connect-section'
 import { LinkCard } from './components/link-card'
 import { detectPlatform, getSubscriptionState, toNumber } from './format'
@@ -32,20 +32,28 @@ export function SpofyMainPage() {
     const hasTrafficLimit = toNumber(user.trafficLimitBytes) > 0
 
     return (
-        <div className={classes.page}>
-            <SubscriptionBanner
-                renewUrl={spofy.renewUrl}
-                state={state}
-                supportUrl={supportUrl}
-                trafficUrl={hasTrafficLimit ? spofy.trafficUrl : null}
-                user={user}
-            />
+        <>
+            <div aria-hidden className={classes.backdrop}>
+                <div className={classes.backdropAurora} />
+                <div className={classes.backdropGrid} />
+            </div>
+            <div className={classes.page}>
+                <TopBar state={state} supportUrl={supportUrl} user={user} />
 
-            {spofy.bypassDisabled && <BypassNotice trafficUrl={spofy.trafficUrl} />}
+                <SubscriptionBanner
+                    renewUrl={spofy.renewUrl}
+                    state={state}
+                    supportUrl={supportUrl}
+                    trafficUrl={hasTrafficLimit ? spofy.trafficUrl : null}
+                    user={user}
+                />
 
-            <ConnectSection detected={detected} />
+                {spofy.bypassDisabled && <BypassNotice trafficUrl={spofy.trafficUrl} />}
 
-            <LinkCard supportUrl={supportUrl} />
-        </div>
+                <ConnectSection detected={detected} />
+
+                <LinkCard supportUrl={supportUrl} />
+            </div>
+        </>
     )
 }

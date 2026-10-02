@@ -3,10 +3,12 @@ import { TSubscriptionPageLanguageCode } from '@remnawave/subscription-page-type
 // deep import: the package entry is CommonJS and pulls in every zod schema
 import { getLanguageInfo } from '@remnawave/subscription-page-types/build/backend/constants'
 import {
-    IconAlertCircle,
-    IconBrandTelegram,
+    IconArrowRight,
+    IconArrowsUpDown,
+    IconCalendarEvent,
     IconChevronDown,
-    IconMessageCircle,
+    IconHourglassHigh,
+    IconLifebuoy,
     IconPlus,
     IconRefresh
 } from '@tabler/icons-react'
@@ -17,8 +19,7 @@ import { useAppConfig, useAppConfigStoreActions, useCurrentLang } from '@entitie
 import {
     EXPIRING_DAYS,
     formatBytes,
-    formatDate,
-    formatDateShort,
+    formatDateNumeric,
     formatDays,
     isIndefinite,
     toNumber,
@@ -29,95 +30,66 @@ import { TSpofyKey, useSpofyT } from '../i18n'
 import { SpofyShield } from '../spofy-shield'
 import classes from '../spofy.module.css'
 
-const STATUS_LABEL: Record<TSpofyState, TSpofyKey> = {
-    active: 'statusActive',
-    expiring: 'statusExpiring',
-    expired: 'statusExpired',
-    disabled: 'statusDisabled',
-    limited: 'statusLimited'
+const STATUS_SHORT: Record<TSpofyState, TSpofyKey> = {
+    active: 'wordActive',
+    expiring: 'wordExpiring',
+    expired: 'wordExpired',
+    disabled: 'wordDisabled',
+    limited: 'noTraffic'
 }
 
-interface IBannerProps {
-    renewUrl: null | string
-    state: TSpofyState
-    supportUrl: null | string
-    /** null when the tariff has no traffic limit or no URL is configured */
-    trafficUrl: null | string
-    user: TSpofyUser
-}
+const toneOf = (state: TSpofyState) =>
+    state === 'active' ? 'ok' : state === 'expiring' ? 'warning' : 'error'
 
-/** First card: brand, controls, subscription status and the renewal actions. */
-export function SubscriptionBanner(props: IBannerProps) {
-    const { state, user, renewUrl, trafficUrl, supportUrl } = props
-    const config = useAppConfig()
-    const { t } = useSpofyT()
+/* ───────────────────────── top bar ───────────────────────── */
 
-    const inactive = state === 'expired' || state === 'disabled' || state === 'limited'
-    const title = config.brandingSettings.title || 'Spofy VPN'
-
-    return (
-        <section aria-labelledby="sp-brand" className={clsx(classes.card, classes.banner)}>
-            <div className={classes.bannerTop}>
-                <div className={classes.brandTile}>
-                    <SpofyShield className={classes.brandIcon} />
-                </div>
-                <div className={classes.brandText}>
-                    <h1 className={classes.brandName} id="sp-brand">
-                        {title}
-                    </h1>
-                    <span className={classes.brandSub}>{t('yourSubscription')}</span>
-                </div>
-                <BannerControls supportUrl={supportUrl} />
-            </div>
-
-            {inactive && <InactiveCallout state={state} user={user} />}
-
-            <div className={classes.stats}>
-                <StatusTile state={state} user={user} />
-                <TermTile state={state} user={user} />
-                <TrafficTile user={user} />
-            </div>
-
-            <Actions
-                renewUrl={renewUrl}
-                state={state}
-                supportUrl={supportUrl}
-                trafficUrl={trafficUrl}
-            />
-        </section>
-    )
-}
-
-function BannerControls({ supportUrl }: { supportUrl: null | string }) {
+export function TopBar(props: { state: TSpofyState; supportUrl: null | string; user: TSpofyUser }) {
+    const { state, supportUrl, user } = props
     const config = useAppConfig()
     const currentLang = useCurrentLang()
     const { setLanguage } = useAppConfigStoreActions()
     const { t } = useSpofyT()
-    const SupportIcon = supportUrl?.includes('t.me') ? IconBrandTelegram : IconMessageCircle
+    const tone = toneOf(state)
+    const initial = (user.username.replace(/^[^\p{L}\p{N}]+/u, '')[0] ?? 'S').toUpperCase()
 
     return (
-        <div className={classes.controls}>
-            {config.locales.length > 1 && (
-                <LanguageMenu
-                    currentLang={currentLang}
-                    label={t('language')}
-                    locales={config.locales}
-                    onChange={setLanguage}
-                />
-            )}
-            {supportUrl && (
-                <a
-                    aria-label={t('support')}
-                    className={classes.iconBtn}
-                    href={supportUrl}
-                    rel="noopener noreferrer"
-                    target="_blank"
-                    title={t('support')}
-                >
-                    <SupportIcon aria-hidden size={20} stroke={1.75} />
-                </a>
-            )}
-        </div>
+        <header className={classes.topBar}>
+            <div className={classes.who}>
+                <span aria-hidden className={classes.avatar}>
+                    {initial}
+                </span>
+                <span className={classes.whoText}>
+                    <span className={classes.whoName} title={user.username}>
+                        {user.username}
+                    </span>
+                    <span className={clsx(classes.whoStatus, classes[`tone_${tone}`])}>
+                        <span aria-hidden className={classes.dot} />
+                        {t(STATUS_SHORT[state])}
+                    </span>
+                </span>
+            </div>
+            <div className={classes.topActions}>
+                {config.locales.length > 1 && (
+                    <LanguageMenu
+                        currentLang={currentLang}
+                        label={t('language')}
+                        locales={config.locales}
+                        onChange={setLanguage}
+                    />
+                )}
+                {supportUrl && (
+                    <a
+                        className={classes.pill}
+                        href={supportUrl}
+                        rel="noopener noreferrer"
+                        target="_blank"
+                    >
+                        <IconLifebuoy aria-hidden size={18} stroke={1.8} />
+                        {t('help')}
+                    </a>
+                )}
+            </div>
+        </header>
     )
 }
 
@@ -139,7 +111,7 @@ function LanguageMenu(props: {
             <Menu.Target>
                 <button
                     aria-label={`${label}: ${getLanguageInfo(currentLang)?.nativeName ?? currentLang}`}
-                    className={classes.iconBtn}
+                    className={clsx(classes.pill, classes.pillCompact)}
                     type="button"
                 >
                     {currentLang.toUpperCase()}
@@ -163,183 +135,229 @@ function LanguageMenu(props: {
     )
 }
 
-function InactiveCallout({ state, user }: { state: TSpofyState; user: TSpofyUser }) {
-    const { t } = useSpofyT()
+/* ───────────────────────── hero ───────────────────────── */
+
+interface IBannerProps {
+    renewUrl: null | string
+    state: TSpofyState
+    supportUrl: null | string
+    /** null when the tariff has no traffic limit or no URL is configured */
+    trafficUrl: null | string
+    user: TSpofyUser
+}
+
+/** Dark hero with the big Spofy icon, then the stat tiles and the renewal action. */
+export function SubscriptionBanner(props: IBannerProps) {
+    const { state, user, renewUrl, trafficUrl, supportUrl } = props
+    const config = useAppConfig()
+    const { t, lang } = useSpofyT()
+
+    const tone = toneOf(state)
+    const inactive = state === 'expired' || state === 'disabled' || state === 'limited'
+    const title = config.brandingSettings.title || 'Spofy VPN'
     const hasReset = !!user.trafficLimitStrategy && user.trafficLimitStrategy !== 'NO_RESET'
 
-    const copy =
-        state === 'expired'
-            ? { title: t('heroExpiredTitle'), text: t('heroExpiredText') }
-            : state === 'disabled'
-              ? { title: t('heroDisabledTitle'), text: t('heroDisabledText') }
-              : {
-                    title: t('heroLimitedTitle'),
-                    text: hasReset ? t('heroLimitedResetText') : t('heroLimitedText')
-                }
-
-    return (
-        <div className={classes.callout} role="status">
-            <IconAlertCircle aria-hidden className={classes.calloutIcon} size={22} stroke={1.75} />
-            <div>
-                <h2 className={classes.calloutTitle}>{copy.title}</h2>
-                <p className={classes.calloutText}>{copy.text}</p>
-            </div>
-        </div>
+    const lead = state === 'limited' ? t('heroLeadTraffic') : t('heroLeadSub')
+    const word = t(
+        (
+            {
+                active: 'wordActive',
+                expiring: 'wordExpiring',
+                expired: 'wordExpired',
+                disabled: 'wordDisabled',
+                limited: 'wordLimited'
+            } as const
+        )[state]
     )
-}
 
-function StatusTile({ state, user }: { state: TSpofyState; user: TSpofyUser }) {
-    const { t } = useSpofyT()
-    const tone = state === 'active' ? 'ok' : state === 'expiring' ? 'warning' : ('error' as const)
+    let line: string
+    if (state === 'expired') line = t('heroExpiredText')
+    else if (state === 'disabled') line = t('heroDisabledText')
+    else if (state === 'limited') line = hasReset ? t('heroLimitedResetText') : t('heroLimitedText')
+    else if (isIndefinite(user.expiresAt)) line = t('indefinite')
+    else if (user.daysLeft <= 0) line = t('lastDay')
+    else line = t('daysLeftLine', { n: user.daysLeft, days: formatDays(user.daysLeft, lang) })
+
+    const showHeroCta = inactive || state === 'expiring'
 
     return (
-        <div className={classes.stat}>
-            <span className={classes.statLabel}>{t('status')}</span>
-            <span className={clsx(classes.statValue, classes.statusValue)}>
-                <span
-                    aria-hidden
-                    className={clsx(
-                        classes.dot,
-                        tone === 'warning' && classes.dotWarning,
-                        tone === 'error' && classes.dotError
-                    )}
+        <section aria-labelledby="sp-hero" className={clsx(classes.card, classes.banner)}>
+            <div className={clsx(classes.hero, classes[`hero_${tone}`])}>
+                <div className={classes.heroBody}>
+                    <span className={classes.brandPill}>
+                        <SpofyShield className={classes.brandPillIcon} />
+                        {title}
+                    </span>
+                    <h1 className={classes.heroTitle} id="sp-hero">
+                        {lead}{' '}
+                        <span className={clsx(classes.glow, classes[`glow_${tone}`])}>{word}</span>
+                    </h1>
+                    <p className={clsx(classes.heroLine, classes[`tone_${tone}`])}>
+                        <span aria-hidden className={classes.dot} />
+                        <span>{line}</span>
+                    </p>
+                </div>
+                <div aria-hidden className={classes.heroIcon}>
+                    <SpofyShield className={classes.heroIconShield} />
+                </div>
+            </div>
+
+            <div className={classes.statTiles}>
+                <DateTile renewUrl={renewUrl} state={state} user={user} />
+                <DaysTile state={state} user={user} />
+                <TrafficTile trafficUrl={trafficUrl} user={user} />
+            </div>
+
+            {showHeroCta && (
+                <Actions
+                    prominent
+                    renewUrl={renewUrl}
+                    state={state}
+                    supportUrl={supportUrl}
+                    trafficUrl={trafficUrl}
                 />
-                {t(STATUS_LABEL[state])}
-            </span>
-            <span className={classes.statCaption} title={user.username}>
-                {user.username}
-            </span>
-        </div>
+            )}
+        </section>
     )
 }
 
-function TermTile({ state, user }: { state: TSpofyState; user: TSpofyUser }) {
-    const { t, lang } = useSpofyT()
-
-    if (isIndefinite(user.expiresAt)) {
-        return (
-            <div className={classes.stat}>
-                <span className={classes.statLabel}>{t('term')}</span>
-                <span className={classes.statValue}>{t('indefiniteShort')}</span>
-            </div>
-        )
-    }
-
-    if (state === 'expired') {
-        return (
-            <div className={classes.stat}>
-                <span className={classes.statLabel}>{t('ended')}</span>
-                <span className={clsx(classes.statValue, classes.num)}>
-                    {formatDateShort(user.expiresAt, lang)}
-                </span>
-            </div>
-        )
-    }
-
-    const days = user.daysLeft
+function Tile(props: {
+    children: React.ReactNode
+    cta?: { href: string; label: string } | null
+    icon: React.ReactNode
+    label: string
+    tone?: 'error' | 'ok' | 'warning'
+}) {
     return (
-        <div className={classes.stat}>
-            <span className={classes.statLabel}>{t('remaining')}</span>
-            <span
-                className={clsx(
-                    classes.statValue,
-                    classes.statValueLarge,
-                    classes.num,
-                    days <= EXPIRING_DAYS && classes.textWarning
-                )}
-            >
-                {days > 0 ? `${days} ${formatDays(days, lang)}` : t('lastDay')}
+        <div className={clsx(classes.statTile, props.tone && classes[`statTile_${props.tone}`])}>
+            <span className={classes.statTileLabel}>
+                <span aria-hidden className={classes.statTileIcon}>
+                    {props.icon}
+                </span>
+                {props.label}
             </span>
-            <span className={classes.statCaption} title={formatDate(user.expiresAt, lang)}>
-                {t('untilDate', { date: formatDateShort(user.expiresAt, lang) })}
-            </span>
+            <span className={classes.statTileValue}>{props.children}</span>
+            {props.cta && (
+                <a
+                    className={classes.statTileCta}
+                    href={props.cta.href}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                >
+                    {props.cta.label}
+                    <IconArrowRight aria-hidden size={13} stroke={2.25} />
+                </a>
+            )}
         </div>
     )
 }
 
-function TrafficTile({ user }: { user: TSpofyUser }) {
+function DateTile(props: { renewUrl: null | string; state: TSpofyState; user: TSpofyUser }) {
+    const { renewUrl, state, user } = props
     const { t, lang } = useSpofyT()
+    const indefinite = isIndefinite(user.expiresAt)
 
+    return (
+        <Tile
+            cta={renewUrl && !indefinite ? { href: renewUrl, label: t('renewShort') } : null}
+            icon={<IconCalendarEvent size={15} stroke={2} />}
+            label={state === 'expired' ? t('ended') : t('validUntilLabel')}
+            tone={state === 'expired' ? 'error' : undefined}
+        >
+            <span className={classes.num}>
+                {indefinite ? '∞' : formatDateNumeric(user.expiresAt, lang)}
+            </span>
+        </Tile>
+    )
+}
+
+function DaysTile({ state, user }: { state: TSpofyState; user: TSpofyUser }) {
+    const { t } = useSpofyT()
+    const indefinite = isIndefinite(user.expiresAt)
+    const days = state === 'expired' ? 0 : Math.max(0, user.daysLeft)
+    const tone =
+        state === 'expired' ? 'error' : days <= EXPIRING_DAYS && !indefinite ? 'warning' : 'ok'
+
+    return (
+        <Tile icon={<IconHourglassHigh size={15} stroke={2} />} label={t('remaining')} tone={tone}>
+            {indefinite ? (
+                '∞'
+            ) : (
+                <>
+                    <span className={clsx(classes.num, classes.glowSoft, classes[`glow_${tone}`])}>
+                        {days}
+                    </span>
+                    <span className={classes.statTileUnit}>{t('daysShort')}</span>
+                </>
+            )}
+        </Tile>
+    )
+}
+
+function TrafficTile({ trafficUrl, user }: { trafficUrl: null | string; user: TSpofyUser }) {
+    const { t, lang } = useSpofyT()
     const used = toNumber(user.trafficUsedBytes)
     const limit = toNumber(user.trafficLimitBytes)
-    const usedText = formatBytes(used, lang)
 
     if (limit <= 0) {
         return (
-            <div className={clsx(classes.stat, classes.statWide)}>
-                <div className={classes.statRow}>
-                    <span className={classes.statLabel}>{t('traffic')}</span>
-                    <span className={clsx(classes.statCaption, classes.num)}>
-                        {t('usedAmount', { used: usedText })}
-                    </span>
-                </div>
-                <span className={classes.statValue}>{t('unlimited')}</span>
-            </div>
+            <Tile icon={<IconArrowsUpDown size={15} stroke={2} />} label={t('traffic')}>
+                <span className={clsx(classes.glowSoft, classes.glow_accent)}>∞</span>
+                <span className={clsx(classes.statTileUnit, classes.num)}>
+                    {formatBytes(used, lang)}
+                </span>
+            </Tile>
         )
     }
 
     const share = Math.min(1, used / limit)
-    const usedPercent = Math.round(share * 100)
-    const leftPercent = Math.max(0, 100 - usedPercent)
     const level = share >= 0.9 ? 'error' : share >= 0.5 ? 'warning' : 'ok'
-    const resetKey =
-        user.trafficLimitStrategy && user.trafficLimitStrategy !== 'NO_RESET'
-            ? (`trafficReset${user.trafficLimitStrategy}` as TSpofyKey)
-            : null
+    const usedPercent = Math.round(share * 100)
+    const [num, unit] = formatBytes(used, lang).split(' ')
 
     return (
-        <div className={clsx(classes.stat, classes.statWide)}>
-            <div className={classes.statRow}>
-                <span className={classes.statLabel}>{t('traffic')}</span>
-                <span
-                    className={clsx(
-                        classes.statCaption,
-                        classes.num,
-                        level === 'warning' && classes.textWarning,
-                        level === 'error' && classes.textError
-                    )}
-                >
-                    {t('trafficLeft', { p: leftPercent })}
-                </span>
-            </div>
-            <span className={clsx(classes.statValue, classes.num)}>
-                {t('trafficOf', { used: usedText, limit: formatBytes(limit, lang) })}
+        <Tile
+            cta={trafficUrl ? { href: trafficUrl, label: t('buyGb') } : null}
+            icon={<IconArrowsUpDown size={15} stroke={2} />}
+            label={t('traffic')}
+            tone={level === 'ok' ? undefined : level}
+        >
+            <span className={classes.num}>{num}</span>
+            <span className={clsx(classes.statTileUnit, classes.num)}>
+                {unit} {t('ofLimit', { limit: formatBytes(limit, lang) })}
             </span>
-            <div
+            <span
                 aria-label={t('traffic')}
                 aria-valuemax={100}
                 aria-valuemin={0}
                 aria-valuenow={usedPercent}
-                aria-valuetext={t('trafficLeft', { p: leftPercent })}
-                className={classes.bar}
+                aria-valuetext={t('trafficLeft', { p: 100 - usedPercent })}
+                className={classes.miniBar}
                 role="progressbar"
             >
-                <div
-                    className={clsx(
-                        classes.barFill,
-                        level === 'warning' && classes.barWarning,
-                        level === 'error' && classes.barError
-                    )}
-                    style={{ width: `${Math.max(usedPercent, used > 0 ? 2 : 0)}%` }}
+                <span
+                    className={clsx(classes.miniBarFill, classes[`miniBar_${level}`])}
+                    style={{ width: `${Math.max(usedPercent, used > 0 ? 3 : 0)}%` }}
                 />
-            </div>
-            {resetKey && <span className={classes.statCaption}>{t(resetKey)}</span>}
-        </div>
+            </span>
+        </Tile>
     )
 }
 
 function Actions(props: {
+    prominent: boolean
     renewUrl: null | string
     state: TSpofyState
     supportUrl: null | string
     trafficUrl: null | string
 }) {
-    const { renewUrl, trafficUrl, supportUrl, state } = props
+    const { prominent, renewUrl, trafficUrl, supportUrl, state } = props
     const { t } = useSpofyT()
 
     const trafficFirst = state === 'limited' && !!trafficUrl
     const renew = renewUrl && (
         <ActionLink
+            glow={prominent && !trafficFirst}
             href={renewUrl}
             icon={<IconRefresh aria-hidden size={20} stroke={2} />}
             key="renew"
@@ -347,8 +365,9 @@ function Actions(props: {
             primary={!trafficFirst}
         />
     )
-    const traffic = trafficUrl && (
+    const traffic = prominent && trafficUrl && (
         <ActionLink
+            glow={trafficFirst}
             href={trafficUrl}
             icon={<IconPlus aria-hidden size={20} stroke={2} />}
             key="traffic"
@@ -371,6 +390,7 @@ function Actions(props: {
 }
 
 export function ActionLink(props: {
+    glow?: boolean
     href: string
     icon?: React.ReactNode
     label: string
@@ -382,7 +402,8 @@ export function ActionLink(props: {
             className={clsx(
                 classes.btn,
                 props.primary ? classes.btnPrimary : classes.btnSecondary,
-                props.small && classes.btnSmall
+                props.small && classes.btnSmall,
+                props.glow && classes.btnGlow
             )}
             href={props.href}
             rel="noopener noreferrer"

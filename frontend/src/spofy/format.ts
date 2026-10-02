@@ -128,3 +128,19 @@ export function formatDateShort(date: Date | string, lang: TSubscriptionPageLang
         return new Date(date).toLocaleDateString()
     }
 }
+
+/** "01.11.2026" — numeric date for the compact hero tiles */
+export function formatDateNumeric(
+    date: Date | string,
+    lang: TSubscriptionPageLanguageCode
+): string {
+    try {
+        return new Intl.DateTimeFormat(intlLocale(lang), {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        }).format(new Date(date))
+    } catch {
+        return new Date(date).toLocaleDateString()
+    }
+}

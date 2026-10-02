@@ -6,9 +6,9 @@ import {
     TSubscriptionPageLocalizedText,
     TSubscriptionPagePlatformKey
 } from '@remnawave/subscription-page-types'
-import { IconCheck, IconDownload, IconPlus } from '@tabler/icons-react'
+import { IconCheck, IconChevronDown, IconDownload, IconPlus } from '@tabler/icons-react'
 import clsx from 'clsx'
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useId, useMemo, useRef, useState } from 'react'
 
 import { constructSubscriptionUrl } from '@shared/utils/construct-subscription-url'
 import { TemplateEngine } from '@shared/utils/template-engine'
@@ -17,11 +17,28 @@ import { vibrate } from '@shared/utils/vibrate'
 import { useAppConfig } from '@entities/app-config-store'
 import { useSubscription } from '@entities/subscription-info-store'
 
+import { getAppLogo } from '../app-logos'
 import { PLATFORM_ORDER } from '../format'
 import { useSpofyT } from '../i18n'
 import classes from '../spofy.module.css'
 
 type TButton = TSubscriptionPageButtonConfig
+
+/** Panel config colour names → RGB (same palette as the cabinet's colorParser). */
+const ICON_COLORS: Record<string, string> = {
+    cyan: '34, 211, 238',
+    teal: '32, 201, 151',
+    green: '64, 192, 87',
+    lime: '130, 201, 30',
+    yellow: '250, 176, 5',
+    orange: '253, 126, 20',
+    red: '250, 82, 82',
+    pink: '230, 73, 128',
+    grape: '190, 75, 219',
+    violet: '151, 117, 250',
+    indigo: '92, 124, 250',
+    blue: '34, 139, 230'
+}
 
 function localized(
     text: TSubscriptionPageLocalizedText | undefined,
@@ -36,6 +53,30 @@ function SvgIcon({ className, svg }: { className: string; svg: string | undefine
     return <span aria-hidden className={className} dangerouslySetInnerHTML={{ __html: svg }} />
 }
 
+function AppIcon({ app, size }: { app: TSubscriptionPageAppConfig; size: 'lg' | 'sm' }) {
+    const { svgLibrary } = useAppConfig()
+    const logo = getAppLogo(app.name)
+    const className = clsx(classes.appIcon, size === 'sm' && classes.appIconSm)
+
+    if (logo?.src) {
+        return (
+            <span aria-hidden className={clsx(className, classes.appIconImage)}>
+                <img alt="" decoding="async" src={logo.src} />
+            </span>
+        )
+    }
+    return (
+        <span
+            aria-hidden
+            className={className}
+            dangerouslySetInnerHTML={{
+                __html: app.svgIconKey ? (svgLibrary[app.svgIconKey] ?? '') : ''
+            }}
+            style={logo?.tile ? { background: logo.tile } : undefined}
+        />
+    )
+}
+
 /** The buttons that become the big one-tap actions of the app card. */
 function pickHeroButtons(app: TSubscriptionPageAppConfig) {
     const all = app.blocks.flatMap((block) => block.buttons)
@@ -44,23 +85,6 @@ function pickHeroButtons(app: TSubscriptionPageAppConfig) {
         add:
             all.find((button) => button.type === 'subscriptionLink') ??
             all.find((button) => button.type === 'copyButton')
-    }
-}
-
-/** Arrow-key navigation for a radiogroup of buttons (roving tabindex). */
-function rovingKeys<T extends string | number>(
-    items: T[],
-    current: T,
-    select: (item: T) => void,
-    refs: React.RefObject<Map<T, HTMLButtonElement | null>>
-) {
-    return (event: React.KeyboardEvent) => {
-        const delta = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key]
-        if (!delta) return
-        event.preventDefault()
-        const next = items[(items.indexOf(current) + delta + items.length) % items.length]!
-        select(next)
-        refs.current?.get(next)?.focus()
     }
 }
 
@@ -73,6 +97,7 @@ export function ConnectSection({
     const subscription = useSubscription()
     const { t, lang } = useSpofyT()
     const headingId = useId()
+    const selectId = useId()
 
     const available = PLATFORM_ORDER.filter((key) => (config.platforms[key]?.apps.length ?? 0) > 0)
 
@@ -80,16 +105,7 @@ export function ConnectSection({
         detected && available.includes(detected) ? detected : available[0]
     )
     const [picked, setPicked] = useState<{ index: number; platform: string } | null>(null)
-    const platformRefs = useRef(new Map<TSubscriptionPagePlatformKey, HTMLButtonElement | null>())
     const appRefs = useRef(new Map<number, HTMLButtonElement | null>())
-
-    // keep the preselected platform visible in the horizontally scrolling track (phones)
-    useEffect(() => {
-        const chip = platform ? platformRefs.current.get(platform) : null
-        const row = chip?.parentElement
-        if (!chip || !row || row.scrollWidth <= row.clientWidth) return
-        row.scrollLeft = chip.offsetLeft - row.clientWidth / 2 + chip.offsetWidth / 2
-    }, [platform])
 
     const subscriptionUrl = useMemo(
         () => constructSubscriptionUrl(window.location.href, subscription.user.shortUuid),
@@ -103,64 +119,62 @@ export function ConnectSection({
     )
     const appIndex =
         picked && picked.platform === platform && apps[picked.index] ? picked.index : featuredIndex
-    const appIndexes = apps.map((_, index) => index)
-
-    const selectPlatform = (key: TSubscriptionPagePlatformKey) => {
-        vibrate('selection')
-        setPlatform(key)
-    }
-    const selectApp = (index: number) => {
-        vibrate('selection')
-        setPicked({ platform: platform!, index })
-    }
-    const onPlatformKeys = rovingKeys(available, platform!, selectPlatform, platformRefs)
-    const onAppKeys = rovingKeys(appIndexes, appIndex, selectApp, appRefs)
 
     if (!platform || available.length === 0 || apps.length === 0) return null
     const app = apps[appIndex]!
 
+    const selectApp = (index: number, focus = false) => {
+        vibrate('selection')
+        setPicked({ platform, index })
+        if (focus) appRefs.current.get(index)?.focus()
+    }
+    const onAppKeys = (event: React.KeyboardEvent) => {
+        const delta = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key]
+        if (!delta) return
+        event.preventDefault()
+        selectApp((appIndex + delta + apps.length) % apps.length, true)
+    }
+
     return (
         <section aria-labelledby={headingId} className={classes.section}>
-            <div className={classes.sectionHead}>
+            <div className={classes.sectionHeadRow}>
                 <h2 className={classes.sectionTitle} id={headingId}>
-                    {t('connectTitle')}
+                    {t('connectA')}{' '}
+                    <span className={clsx(classes.glow, classes.glow_accent)}>{t('connectB')}</span>
                 </h2>
-                {available.length > 1 && <p className={classes.sectionHint}>{t('connectHint')}</p>}
-            </div>
 
-            {available.length > 1 && (
-                <div
-                    aria-label={t('platform')}
-                    className={classes.track}
-                    onKeyDown={onPlatformKeys}
-                    role="radiogroup"
-                >
-                    {available.map((key) => {
-                        const platformConfig = config.platforms[key]!
-                        const checked = key === platform
-                        return (
-                            <button
-                                aria-checked={checked}
-                                className={classes.segment}
-                                key={key}
-                                onClick={() => selectPlatform(key)}
-                                ref={(el) => {
-                                    platformRefs.current.set(key, el)
-                                }}
-                                role="radio"
-                                tabIndex={checked ? 0 : -1}
-                                type="button"
-                            >
-                                <SvgIcon
-                                    className={classes.segmentIcon}
-                                    svg={config.svgLibrary[platformConfig.svgIconKey]}
-                                />
-                                {localized(platformConfig.displayName, lang)}
-                            </button>
-                        )
-                    })}
-                </div>
-            )}
+                {available.length > 1 && (
+                    <div className={classes.platformSelect}>
+                        <label className={classes.visuallyHidden} htmlFor={selectId}>
+                            {t('platform')}
+                        </label>
+                        <SvgIcon
+                            className={classes.platformSelectIcon}
+                            svg={config.svgLibrary[config.platforms[platform]!.svgIconKey]}
+                        />
+                        <select
+                            id={selectId}
+                            onChange={(event) => {
+                                vibrate('selection')
+                                setPlatform(event.target.value as TSubscriptionPagePlatformKey)
+                            }}
+                            value={platform}
+                        >
+                            {available.map((key) => (
+                                <option key={key} value={key}>
+                                    {localized(config.platforms[key]!.displayName, lang)}
+                                </option>
+                            ))}
+                        </select>
+                        <IconChevronDown
+                            aria-hidden
+                            className={classes.platformSelectChevron}
+                            size={16}
+                            stroke={2.25}
+                        />
+                    </div>
+                )}
+            </div>
 
             <div
                 aria-label={t('app')}
@@ -183,12 +197,7 @@ export function ConnectSection({
                             tabIndex={checked ? 0 : -1}
                             type="button"
                         >
-                            <SvgIcon
-                                className={classes.appIcon}
-                                svg={
-                                    item.svgIconKey ? config.svgLibrary[item.svgIconKey] : undefined
-                                }
-                            />
+                            <AppIcon app={item} size="lg" />
                             <span className={classes.appTileText}>
                                 <span className={classes.appTileName}>{item.name}</span>
                                 <span
@@ -197,6 +206,9 @@ export function ConnectSection({
                                         item.featured && classes.appTileFeatured
                                     )}
                                 >
+                                    {item.featured && (
+                                        <span aria-hidden className={classes.featuredDot} />
+                                    )}
                                     {item.featured ? t('recommended') : t('alsoWorks')}
                                 </span>
                             </span>
@@ -253,7 +265,7 @@ function AppCard(props: {
             )
         const className = clsx(
             classes.btn,
-            variant === 'primary' && classes.btnPrimary,
+            variant === 'primary' && clsx(classes.btnPrimary, classes.btnGlow),
             variant === 'secondary' && classes.btnSecondary,
             variant === 'ghost' && classes.btnGhost
         )
@@ -294,9 +306,12 @@ function AppCard(props: {
 
     return (
         <article aria-labelledby={titleId} className={clsx(classes.card, classes.appCard)}>
-            <h3 className={classes.appCardTitle} id={titleId} tabIndex={-1}>
-                {t('setupApp', { name: app.name })}
-            </h3>
+            <div className={classes.appCardHead}>
+                <AppIcon app={app} size="sm" />
+                <h3 className={classes.appCardTitle} id={titleId}>
+                    {t('setupApp', { name: app.name })}
+                </h3>
+            </div>
 
             {(install || add) && (
                 <div className={classes.btnRow}>
@@ -315,12 +330,29 @@ function AppCard(props: {
                     const extra = block.buttons.filter(
                         (button) => button !== install && button !== add
                     )
+                    const rgb = ICON_COLORS[block.svgIconColor ?? ''] ?? ICON_COLORS.cyan
                     return (
-                        <li className={classes.step} key={index}>
-                            <span aria-hidden className={clsx(classes.stepNum, classes.num)}>
-                                {index + 1}
+                        <li
+                            className={classes.step}
+                            key={index}
+                            style={{ '--step-rgb': rgb } as React.CSSProperties}
+                        >
+                            <span aria-hidden className={classes.stepIcon}>
+                                {block.svgIconKey && svgLibrary[block.svgIconKey] ? (
+                                    <span
+                                        className={classes.stepIconGlyph}
+                                        dangerouslySetInnerHTML={{
+                                            __html: svgLibrary[block.svgIconKey]!
+                                        }}
+                                    />
+                                ) : (
+                                    <span className={classes.num}>{index + 1}</span>
+                                )}
                             </span>
                             <div className={classes.stepBody}>
+                                <span className={classes.stepKicker}>
+                                    {t('stepOf', { n: index + 1, total: app.blocks.length })}
+                                </span>
                                 <p
                                     className={classes.stepTitle}
                                     dangerouslySetInnerHTML={{

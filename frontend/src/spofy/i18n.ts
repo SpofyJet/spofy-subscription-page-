@@ -87,7 +87,28 @@ const ru = {
     qrCaption: 'для другого устройства',
     supportShort: 'Поддержка',
     supportCaption: 'ответим в Telegram',
-    supportCaptionOther: 'напишите нам'
+    supportCaptionOther: 'напишите нам',
+
+    help: 'Помощь',
+    renewShort: 'Продлить',
+    buyGb: 'Купить ГБ',
+    validUntilLabel: 'Действует до',
+    daysShort: 'дн.',
+    heroLeadSub: 'Подписка',
+    heroLeadTraffic: 'Трафик',
+    wordActive: 'активна',
+    wordExpiring: 'заканчивается',
+    wordExpired: 'истекла',
+    wordDisabled: 'отключена',
+    wordLimited: 'закончился',
+    daysLeftLine: 'ещё {n} {days}',
+    ofLimit: 'из {limit}',
+    connectA: 'Подключите',
+    connectB: 'устройство',
+    linkA: 'Ссылка на',
+    linkB: 'подписку',
+    stepOf: 'Шаг {n} из {total}',
+    noTraffic: 'без трафика'
 }
 
 type TKey = keyof typeof ru
@@ -162,7 +183,27 @@ const en: TDict = {
     qrCaption: 'for another device',
     supportShort: 'Support',
     supportCaption: 'we reply in Telegram',
-    supportCaptionOther: 'write to us'
+    supportCaptionOther: 'write to us',
+    help: 'Help',
+    renewShort: 'Renew',
+    buyGb: 'Buy GB',
+    validUntilLabel: 'Valid until',
+    daysShort: 'd',
+    heroLeadSub: 'Subscription',
+    heroLeadTraffic: 'Traffic',
+    wordActive: 'active',
+    wordExpiring: 'ending soon',
+    wordExpired: 'expired',
+    wordDisabled: 'disabled',
+    wordLimited: 'used up',
+    daysLeftLine: '{n} {days} left',
+    ofLimit: 'of {limit}',
+    connectA: 'Connect your',
+    connectB: 'device',
+    linkA: 'Subscription',
+    linkB: 'link',
+    stepOf: 'Step {n} of {total}',
+    noTraffic: 'out of traffic'
 }
 
 const fr: TDict = {
@@ -235,7 +276,27 @@ const fr: TDict = {
     qrCaption: 'pour un autre appareil',
     supportShort: 'Assistance',
     supportCaption: 'réponse sur Telegram',
-    supportCaptionOther: 'écrivez-nous'
+    supportCaptionOther: 'écrivez-nous',
+    help: 'Aide',
+    renewShort: 'Prolonger',
+    buyGb: 'Acheter des Go',
+    validUntilLabel: "Valable jusqu'au",
+    daysShort: 'j',
+    heroLeadSub: 'Abonnement',
+    heroLeadTraffic: 'Trafic',
+    wordActive: 'actif',
+    wordExpiring: 'bientôt expiré',
+    wordExpired: 'expiré',
+    wordDisabled: 'désactivé',
+    wordLimited: 'épuisé',
+    daysLeftLine: 'encore {n} {days}',
+    ofLimit: 'sur {limit}',
+    connectA: 'Connectez votre',
+    connectB: 'appareil',
+    linkA: "Lien d'",
+    linkB: 'abonnement',
+    stepOf: 'Étape {n} sur {total}',
+    noTraffic: 'sans trafic'
 }
 
 const DICTS: Partial<Record<TSubscriptionPageLanguageCode, TDict>> = { ru, en, fr }
