@@ -7,6 +7,7 @@ import {
     IconArrowsUpDown,
     IconBolt,
     IconBulb,
+    IconChevronDown,
     IconCheck,
     IconCreditCard,
     IconCurrencyBitcoin,
@@ -100,23 +101,32 @@ export default function CheckoutSheet({
         tab === 'renew' &&
         !trial &&
         !isIndefinite(subscription.user.expiresAt) &&
+        new Date(subscription.user.expiresAt).getTime() > Date.now() &&
         daysLeft >= 0 &&
         daysLeft <= 3
+    const expired =
+        tab === 'renew' &&
+        !trial &&
+        (subscription.user.userStatus === 'EXPIRED' ||
+            (!isIndefinite(subscription.user.expiresAt) &&
+                new Date(subscription.user.expiresAt).getTime() <= Date.now()))
     const subtitle = showPayment
         ? t('coSub')
-        : ending
-          ? daysLeft === 0
-              ? t('coSubEndsToday')
-              : t('coSubEnding', { n: daysLeft, days: formatDays(daysLeft, lang) })
-          : t(
-                tab === 'devices'
-                    ? 'coSubDevices'
-                    : tab === 'traffic'
-                      ? 'coSubTraffic'
-                      : trial
-                        ? 'coSubTariff'
-                        : 'coSubRenew'
-            )
+        : expired
+          ? t('coSubExpired')
+          : ending
+            ? daysLeft === 0
+                ? t('coSubEndsToday')
+                : t('coSubEnding', { n: daysLeft, days: formatDays(daysLeft, lang) })
+            : t(
+                  tab === 'devices'
+                      ? 'coSubDevices'
+                      : tab === 'traffic'
+                        ? 'coSubTraffic'
+                        : trial
+                          ? 'coSubTariff'
+                          : 'coSubRenew'
+              )
 
     const title = (
         <span className={classes.coTitle}>
@@ -327,6 +337,7 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
     })
     const method = offer.payment_methods.find((m) => m.id === methodId)
     const [optionId, setOptionId] = useState<null | string>(method?.options?.[0]?.id ?? null)
+    const [allMethods, setAllMethods] = useState(false)
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState<TSpofyKey | null>(null)
     const [errorDetail, setErrorDetail] = useState<null | string>(null)
@@ -717,7 +728,10 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                 <div className={classes.coSection}>
                     <div className={classes.coLabel}>{t('coMethod')}</div>
                     <div aria-label={t('coMethod')} className={classes.coList} role="radiogroup">
-                        {offer.payment_methods.map((m) => {
+                        {(allMethods
+                            ? offer.payment_methods
+                            : offer.payment_methods.filter((m) => m.id === methodId)
+                        ).map((m) => {
                             const MethodIcon = methodIcon(m.id)
                             return [
                                 <button
@@ -764,6 +778,22 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                             ]
                         })}
                     </div>
+                    {offer.payment_methods.length > 1 && (
+                        <button
+                            aria-expanded={allMethods}
+                            className={classes.coMore}
+                            onClick={() => setAllMethods((v) => !v)}
+                            type="button"
+                        >
+                            {allMethods ? t('coMethodLess') : t('coMethodMore')}
+                            <IconChevronDown
+                                aria-hidden
+                                className={clsx(allMethods && classes.chevronOpen)}
+                                size={16}
+                                stroke={2.25}
+                            />
+                        </button>
+                    )}
                 </div>
             )}
 

@@ -18,7 +18,7 @@ import { useAppConfig, useAppConfigStoreActions, useCurrentLang } from '@entitie
 
 import { TCheckoutTab, useCheckoutStore } from '../checkout/checkout-store'
 import { useMoney } from '../checkout/money'
-import { cheapestTraffic } from '../checkout/offer-utils'
+import { cheapestTraffic, minPerMonth } from '../checkout/offer-utils'
 import {
     EXPIRING_DAYS,
     formatBytes,
@@ -207,6 +207,8 @@ export function SubscriptionBanner(props: IBannerProps) {
     const offer = useCheckoutStore((s) => s.offer)
     const money = useMoney()
     const showHeroCta = inactive || state === 'expiring'
+    // Nothing to top up on a subscription that has ended: one clear action, «Продлить».
+    const dormant = state === 'expired' || state === 'disabled'
     const pack = inPage ? cheapestTraffic(offer) : null
     const trafficCta = pack
         ? {
@@ -242,8 +244,8 @@ export function SubscriptionBanner(props: IBannerProps) {
 
             <div className={classes.statTiles}>
                 <DateTile onBuy={onBuy} renewUrl={renewUrl} state={state} user={user} />
-                <DevicesTile onBuy={onBuy} renewUrl={renewUrl} />
-                <TrafficTile onBuy={onBuy} trafficUrl={trafficUrl} user={user} />
+                <DevicesTile dormant={dormant} onBuy={onBuy} renewUrl={renewUrl} />
+                <TrafficTile dormant={dormant} onBuy={onBuy} trafficUrl={trafficUrl} user={user} />
             </div>
 
             {showHeroCta && (
@@ -345,13 +347,18 @@ function DateTile(props: {
     )
 }
 
-function DevicesTile(props: { onBuy?: (tab: TCheckoutTab) => void; renewUrl: null | string }) {
-    const { onBuy, renewUrl } = props
+function DevicesTile(props: {
+    dormant?: boolean
+    onBuy?: (tab: TCheckoutTab) => void
+    renewUrl: null | string
+}) {
+    const { dormant, onBuy, renewUrl } = props
     const { t } = useSpofyT()
     const { devicesUsed, devicesLimit } = useSpofyData()
     const offer = useCheckoutStore((s) => s.offer)
     // Before the offer arrives we assume devices can be bought; hide once the bot says no.
-    const sellable = !offer || (!!offer.devices.available && (offer.devices.can_add ?? 1) > 0)
+    const sellable =
+        !dormant && (!offer || (!!offer.devices.available && (offer.devices.can_add ?? 1) > 0))
     const limit = devicesLimit ?? offer?.devices.current_device_limit ?? null
     const full = devicesUsed !== null && limit !== null && devicesUsed >= limit
 
@@ -394,10 +401,12 @@ function DevicesTile(props: { onBuy?: (tab: TCheckoutTab) => void; renewUrl: nul
 }
 
 function TrafficTile({
+    dormant,
     onBuy,
     trafficUrl,
     user
 }: {
+    dormant?: boolean
     onBuy?: (tab: TCheckoutTab) => void
     trafficUrl: null | string
     user: TSpofyUser
@@ -408,7 +417,7 @@ function TrafficTile({
     const limit = toNumber(user.trafficLimitBytes)
     const unlimited = limit <= 0
     // Optimistic until the offer arrives; the note and the button have the same size.
-    const sellable = offer ? offer.traffic.length > 0 : true
+    const sellable = !dormant && (offer ? offer.traffic.length > 0 : true)
     const action: ITileAction | null =
         onBuy && sellable
             ? {
@@ -416,7 +425,7 @@ function TrafficTile({
                   label: t('buyGb'),
                   onClick: () => onBuy('traffic')
               }
-            : !onBuy && trafficUrl && !unlimited
+            : !dormant && !onBuy && trafficUrl && !unlimited
               ? {
                     icon: <IconPlus aria-hidden size={15} stroke={2.5} />,
                     label: t('buyGb'),
@@ -430,7 +439,7 @@ function TrafficTile({
                 action={action}
                 icon={<IconArrowsUpDown size={16} stroke={2} />}
                 label={t('traffic')}
-                note={t('devicesNoLimit')}
+                note={dormant ? null : t('devicesNoLimit')}
             >
                 <span className={clsx(classes.glowSoft, classes.glow_accent)}>∞</span>
                 <span className={clsx(classes.statTileUnit, classes.num)}>
@@ -489,6 +498,10 @@ function Actions(props: {
     const { onBuy, prominent, renewUrl, trafficUrl, supportUrl, state } = props
     const { t } = useSpofyT()
 
+    const money = useMoney()
+    const offer = useCheckoutStore((st) => st.offer)
+    // «Продлить от 108 ₽/мес»: the cheapest monthly price, once the bot has told us.
+    const from = onBuy && offer && !offer.subscription.is_trial ? minPerMonth(offer.renewal) : null
     const trafficFirst = state === 'limited' && (!!trafficUrl || !!onBuy)
     const renew = (renewUrl || onBuy) && (
         <ActionLink
@@ -497,7 +510,7 @@ function Actions(props: {
             href={renewUrl ?? '#'}
             icon={<IconRefresh aria-hidden size={20} stroke={2} />}
             key="renew"
-            label={t('renew')}
+            label={from !== null ? t('heroRenewFrom', { price: money(from) }) : t('renew')}
             primary={!trafficFirst}
         />
     )

@@ -24,3 +24,8 @@ export function cheapestTraffic(offer: IOffer | null): IOffer['traffic'][number]
         null
     )
 }
+
+export function minPerMonth(options: IPeriodOption[]): null | number {
+    const values = options.filter((o) => o.price_kopeks > 0).map(perMonthKopeks)
+    return values.length ? Math.min(...values) : null
+}
