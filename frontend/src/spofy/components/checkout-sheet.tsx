@@ -3,12 +3,22 @@ import { useMediaQuery } from '@mantine/hooks'
 import {
     IconAlertCircle,
     IconArrowLeft,
+    IconArrowRight,
+    IconArrowsUpDown,
+    IconBolt,
     IconCheck,
+    IconCreditCard,
+    IconCurrencyBitcoin,
+    IconDevices,
     IconExternalLink,
     IconLoader2,
+    IconLock,
     IconMinus,
     IconPlus,
-    IconQrcode
+    IconQrcode,
+    IconRefresh,
+    IconStar,
+    IconWallet
 } from '@tabler/icons-react'
 import clsx from 'clsx'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -26,13 +36,21 @@ import {
     isApplied,
     TCheckoutKind
 } from '../checkout/api'
-import { IPendingPayment, TCheckoutTab, useCheckoutStore } from '../checkout/checkout-store'
-import { formatDays } from '../format'
+import {
+    errorKey,
+    IPendingPayment,
+    loadMethod,
+    saveMethod,
+    TCheckoutTab,
+    useCheckoutStore
+} from '../checkout/checkout-store'
+import { formatDate, formatPeriod, isIndefinite } from '../format'
 import { TSpofyKey, useSpofyT } from '../i18n'
 import classes from '../spofy.module.css'
 
 const POLL_MS = 4_000
 const GIVE_UP_MS = 15 * 60_000
+const DAY_MS = 86_400_000
 
 export function useMoney() {
     const { lang } = useSpofyT()
@@ -47,22 +65,13 @@ export function useMoney() {
     )
 }
 
-const errorKey = (error: unknown): TSpofyKey => {
-    if (!(error instanceof CheckoutError)) return 'coErrGeneric'
-    if (error.code === 'rate_limited') return 'coErrRate'
-    if (error.code === 'no_session') return 'coErrSession'
-    if (error.code === 'bot_unavailable' || error.code === 'network') return 'coErrBot'
-    if (error.status === 409 || error.code === 'checkout_disabled') return 'coErrDisabled'
-    if (error.code === 'bridge_error' && error.status === 404) return 'coErrNotInBot'
-    return 'coErrGeneric'
-}
-
 /* ───────────── payment status watcher (runs while a payment is pending) ───────────── */
 
 export type TPhase = 'done' | 'paid' | 'timeout' | 'waiting'
 
 export function usePendingPhase(): TPhase | null {
     const pending = useCheckoutStore((s) => s.pending)
+    const setLatest = useCheckoutStore((s) => s.setLatest)
     const subscription = useSubscription()
     const [phase, setPhase] = useState<TPhase | null>(null)
 
@@ -89,6 +98,7 @@ export function usePendingPhase(): TPhase | null {
                 )
                 if (isApplied(pending.kind, pending.result.before, status.subscription)) {
                     vibrate('success')
+                    setLatest(status.subscription)
                     setPhase('done')
                     return
                 }
@@ -103,12 +113,18 @@ export function usePendingPhase(): TPhase | null {
             stopped = true
             window.clearTimeout(timer)
         }
-    }, [pending, subscription.user.shortUuid])
+    }, [pending, subscription.user.shortUuid, setLatest])
 
     return phase
 }
 
 /* ───────────── sheet ───────────── */
+
+const TAB_ICON: Record<TCheckoutTab, typeof IconRefresh> = {
+    renew: IconRefresh,
+    devices: IconDevices,
+    traffic: IconArrowsUpDown
+}
 
 export function CheckoutSheet({
     phase,
@@ -117,37 +133,53 @@ export function CheckoutSheet({
     phase: TPhase | null
     renewUrl: null | string
 }) {
-    const { opened, close, pending } = useCheckoutStore()
+    const { opened, close, pending, tab, offer, offerError, loadOffer } = useCheckoutStore()
     const subscription = useSubscription()
     const shortUuid = subscription.user.shortUuid
     const isDesktop = useMediaQuery('(min-width: 48em)')
     const { t } = useSpofyT()
-    const [offer, setOffer] = useState<IOffer | null>(null)
-    const [loadError, setLoadError] = useState<TSpofyKey | null>(null)
 
     useEffect(() => {
-        if (!opened || offer) return
-        setLoadError(null)
-        checkoutApi
-            .offer(shortUuid)
-            .then(setOffer)
-            .catch((error) => setLoadError(errorKey(error)))
-    }, [opened, offer, shortUuid])
+        if (opened) loadOffer(shortUuid)
+    }, [opened, shortUuid, loadOffer])
 
     const showPayment = !!pending && pending.shortUuid === shortUuid
-    const title = showPayment ? t('coPay', { price: '' }).trim() : t('coRenewTitle')
+    const trial = !!offer && (offer.subscription.is_trial || offer.renewal.length === 0)
+    const titleKey: TSpofyKey = showPayment
+        ? 'coStepPay'
+        : tab === 'devices'
+          ? 'coDevicesTitle'
+          : tab === 'traffic'
+            ? 'coTrafficTitle'
+            : trial
+              ? 'coTariffTitle'
+              : 'coRenewTitle'
+    const Icon = showPayment ? IconWallet : TAB_ICON[tab]
+
+    const title = (
+        <span className={classes.coTitle}>
+            <span aria-hidden className={classes.coTitleIcon}>
+                <Icon size={20} stroke={2} />
+            </span>
+            <span className={classes.coTitleText}>
+                <span>{t(titleKey)}</span>
+                <span className={classes.coTitleSub}>{t('coSub')}</span>
+            </span>
+        </span>
+    )
 
     const body = showPayment ? (
         <PaymentStep pending={pending!} phase={phase} />
-    ) : loadError ? (
-        <ErrorBox errorKey={loadError} renewUrl={renewUrl} />
+    ) : offerError ? (
+        <ErrorBox
+            errorKey={offerError}
+            onRetry={offerError === 'coErrNotInBot' ? undefined : () => loadOffer(shortUuid, true)}
+            renewUrl={renewUrl}
+        />
     ) : offer ? (
         <Chooser offer={offer} renewUrl={renewUrl} />
     ) : (
-        <div className={classes.coLoading}>
-            <IconLoader2 aria-hidden className={classes.spin} size={22} />
-            {t('coLoading')}
-        </div>
+        <SkeletonChooser />
     )
 
     const common = {
@@ -157,12 +189,12 @@ export function CheckoutSheet({
         classNames: {
             content: classes.sheetContent,
             header: classes.sheetHeader,
-            title: classes.modalTitle,
+            title: classes.sheetTitle,
             close: classes.modalClose,
             body: classes.sheetBody
         },
         closeButtonProps: { 'aria-label': t('close') },
-        transitionProps: { duration: 150 }
+        transitionProps: { duration: 180 }
     }
 
     return isDesktop ? (
@@ -176,34 +208,90 @@ export function CheckoutSheet({
     )
 }
 
-function ErrorBox({ errorKey: key, renewUrl }: { errorKey: TSpofyKey; renewUrl: null | string }) {
+function SkeletonChooser() {
     const { t } = useSpofyT()
+    return (
+        <div aria-busy aria-label={t('coLoading')} className={classes.coStack} role="status">
+            <div className={clsx(classes.skel, classes.skelTabs)} />
+            <div className={classes.coGrid}>
+                {[0, 1, 2, 3].map((i) => (
+                    <div className={clsx(classes.skel, classes.skelCard)} key={i} />
+                ))}
+            </div>
+            <div className={clsx(classes.skel, classes.skelRow)} />
+            <div className={clsx(classes.skel, classes.skelRow)} />
+        </div>
+    )
+}
+
+function ErrorBox({
+    errorKey: key,
+    onRetry,
+    renewUrl
+}: {
+    errorKey: TSpofyKey
+    onRetry?: () => void
+    renewUrl: null | string
+}) {
+    const { t } = useSpofyT()
+    const botFallback =
+        !!renewUrl && (key === 'coErrDisabled' || key === 'coErrBot' || key === 'coErrNotInBot')
     return (
         <div className={classes.coError} role="alert">
             <IconAlertCircle aria-hidden size={20} />
-            <span>{t(key)}</span>
-            {renewUrl &&
-                (key === 'coErrDisabled' || key === 'coErrBot' || key === 'coErrNotInBot') && (
-                    <a
-                        className={clsx(classes.btn, classes.btnSecondary, classes.btnSmall)}
-                        href={renewUrl}
-                        rel="noopener noreferrer"
-                        target="_blank"
-                    >
-                        {t('coOpenBot')}
-                    </a>
-                )}
+            <span className={classes.coErrorText}>{t(key)}</span>
+            {(onRetry || botFallback) && (
+                <div className={classes.coErrorActions}>
+                    {onRetry && (
+                        <button
+                            className={clsx(classes.btn, classes.btnSecondary, classes.btnSmall)}
+                            onClick={onRetry}
+                            type="button"
+                        >
+                            <IconRefresh aria-hidden size={16} />
+                            {t('coRetry')}
+                        </button>
+                    )}
+                    {botFallback && (
+                        <a
+                            className={clsx(classes.btn, classes.btnSecondary, classes.btnSmall)}
+                            href={renewUrl!}
+                            rel="noopener noreferrer"
+                            target="_blank"
+                        >
+                            {t('coOpenBot')}
+                        </a>
+                    )}
+                </div>
+            )}
         </div>
     )
 }
 
 /* ───────────── step 1: choose ───────────── */
 
+function methodIcon(id: string) {
+    const key = id.toLowerCase()
+    if (key.includes('star')) return IconStar
+    if (key.includes('sbp')) return IconBolt
+    if (/crypt|heleket|ton|usdt|bitcoin/.test(key)) return IconCurrencyBitcoin
+    if (/card|yookassa|tribute|pal24|platega|wata|mulen|freekassa|cloudpayments/.test(key))
+        return IconCreditCard
+    return IconWallet
+}
+
+const discountOf = (o: IPeriodOption) =>
+    o.discount_percent && o.discount_percent > 0
+        ? o.discount_percent
+        : o.original_price_kopeks && o.original_price_kopeks > o.price_kopeks
+          ? Math.round((1 - o.price_kopeks / o.original_price_kopeks) * 100)
+          : 0
+
 function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }) {
     const { t, lang } = useSpofyT()
     const money = useMoney()
     const subscription = useSubscription()
-    const { tab: initialTab, setPending } = useCheckoutStore()
+    const { tab: wantedTab, setTab, setPending } = useCheckoutStore()
 
     const isTrial = offer.subscription.is_trial
     const canRenew = offer.renewal.length > 0
@@ -219,9 +307,10 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
         ] as [TCheckoutTab, TSpofyKey, boolean][]
     ).filter(([, , ok]) => ok)
 
-    const [tab, setTab] = useState<TCheckoutTab>(
-        tabs.some(([key]) => key === initialTab) ? initialTab : (tabs[0]?.[0] ?? 'renew')
-    )
+    const tab = tabs.some(([key]) => key === wantedTab) ? wantedTab : (tabs[0]?.[0] ?? 'renew')
+    useEffect(() => {
+        if (tab !== wantedTab) setTab(tab)
+    }, [tab, wantedTab, setTab])
     const tariffMode = tab === 'renew' && (isTrial || !canRenew)
 
     const [period, setPeriod] = useState<number | null>(
@@ -237,7 +326,12 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
     const maxAdd = Math.max(1, Math.min(offer.devices.can_add ?? 5, 10))
     const [devices, setDevices] = useState(1)
     const [trafficGb, setTrafficGb] = useState<number | null>(offer.traffic[0]?.gb ?? null)
-    const [methodId, setMethodId] = useState<string | null>(offer.payment_methods[0]?.id ?? null)
+    const [methodId, setMethodId] = useState<string | null>(() => {
+        const saved = loadMethod()
+        return offer.payment_methods.some((m) => m.id === saved)
+            ? saved
+            : (offer.payment_methods[0]?.id ?? null)
+    })
     const method = offer.payment_methods.find((m) => m.id === methodId)
     const [optionId, setOptionId] = useState<null | string>(method?.options?.[0]?.id ?? null)
     const [busy, setBusy] = useState(false)
@@ -248,14 +342,15 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
         setOptionId(method?.options?.[0]?.id ?? null)
     }, [methodId])
 
+    const selectedPeriod = tariffMode
+        ? tariff?.periods.find((p) => p.period_days === tariffPeriod)
+        : offer.renewal.find((o) => o.period_days === period)
+
     const price = useMemo(() => {
-        if (tab === 'renew' && !tariffMode)
-            return offer.renewal.find((o) => o.period_days === period)?.price_kopeks ?? 0
-        if (tab === 'renew')
-            return tariff?.periods.find((p) => p.period_days === tariffPeriod)?.price_kopeks ?? 0
+        if (tab === 'renew') return selectedPeriod?.price_kopeks ?? 0
         if (tab === 'devices') return (offer.devices.price_per_device_kopeks ?? 0) * devices
         return offer.traffic.find((p) => p.gb === trafficGb)?.price_kopeks ?? 0
-    }, [tab, tariffMode, period, tariff, tariffPeriod, devices, trafficGb, offer])
+    }, [tab, selectedPeriod, devices, trafficGb, offer])
 
     if (tabs.length === 0 || offer.payment_methods.length === 0 || !offer.checkout_enabled) {
         return (
@@ -264,6 +359,35 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                 renewUrl={renewUrl}
             />
         )
+    }
+
+    const original =
+        tab === 'renew' &&
+        selectedPeriod?.original_price_kopeks &&
+        selectedPeriod.original_price_kopeks > price
+            ? selectedPeriod.original_price_kopeks
+            : null
+
+    /* the date a renewal runs to, counted from today when the subscription has ended */
+    const currentEnd = offer.subscription.end_date
+        ? Date.parse(offer.subscription.end_date)
+        : new Date(subscription.user.expiresAt).getTime()
+    const newEnd =
+        tab === 'renew' && !tariffMode && period && !isIndefinite(new Date(currentEnd))
+            ? Math.max(currentEnd, Date.now()) + period * DAY_MS
+            : null
+
+    const currentDevices = offer.devices.current_device_limit ?? offer.subscription.device_limit
+    const currentGb = offer.subscription.traffic_limit_gb
+    const trafficLabel = (gb: number) => (gb === 0 ? t('coUnlimited') : t('coGb', { n: gb }))
+
+    const summary = (): string => {
+        if (tab === 'devices') return t('coSummaryDevices', { n: devices })
+        if (tab === 'traffic') return t('coSummaryTraffic', { gb: trafficLabel(trafficGb ?? 0) })
+        const p = formatPeriod(selectedPeriod?.period_days ?? 0, lang)
+        return tariffMode && tariff
+            ? t('coSummaryTariff', { name: tariff.name, period: p })
+            : t('coSummaryRenew', { period: p })
     }
 
     const submit = async () => {
@@ -285,11 +409,13 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                 ...(kind === 'traffic' ? { traffic_gb: trafficGb ?? undefined } : {})
             })
             vibrate('tap')
+            saveMethod(method.id)
             setPending({
                 createdAt: Date.now(),
                 kind,
                 result,
-                shortUuid: subscription.user.shortUuid
+                shortUuid: subscription.user.shortUuid,
+                summary: summary()
             })
         } catch (err) {
             setError(errorKey(err))
@@ -299,41 +425,70 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
         }
     }
 
-    const periodList = (
+    const checkMark = (
+        <span aria-hidden className={classes.coCardCheck}>
+            <IconCheck size={12} stroke={3} />
+        </span>
+    )
+
+    const periodGrid = (
         options: IPeriodOption[],
         value: number | null,
         onChange: (v: number) => void
     ) => (
-        <div aria-label={t('coPeriod')} className={classes.coOptions} role="radiogroup">
-            {options.map((option) => (
-                <button
-                    aria-checked={option.period_days === value}
-                    className={classes.coOption}
-                    key={option.period_days}
-                    onClick={() => onChange(option.period_days)}
-                    role="radio"
-                    type="button"
-                >
-                    <span className={classes.coOptionMain}>
-                        {t('coDays', {
-                            n: option.period_days,
-                            days: formatDays(option.period_days, lang)
-                        })}
-                        {option.is_highlighted && (
-                            <span className={classes.coBadge}>{t('coBest')}</span>
+        <div aria-label={t('coPeriod')} className={classes.coGrid} role="radiogroup">
+            {options.map((option) => {
+                const discount = discountOf(option)
+                const months = option.period_days / 30
+                return (
+                    <button
+                        aria-checked={option.period_days === value}
+                        className={clsx(
+                            classes.coCard,
+                            option.is_highlighted && classes.coCardBest
                         )}
-                    </span>
-                    <span className={classes.coOptionPrice}>
-                        {option.original_price_kopeks &&
-                            option.original_price_kopeks > option.price_kopeks && (
+                        key={option.period_days}
+                        onClick={() => {
+                            vibrate('tap')
+                            onChange(option.period_days)
+                        }}
+                        role="radio"
+                        type="button"
+                    >
+                        {(option.is_highlighted || discount > 0) && (
+                            <span className={classes.coCardBadges}>
+                                {option.is_highlighted && (
+                                    <span className={classes.coBadge}>{t('coBest')}</span>
+                                )}
+                                {discount > 0 && (
+                                    <span className={clsx(classes.coBadge, classes.coBadgeSale)}>
+                                        −{discount}%
+                                    </span>
+                                )}
+                            </span>
+                        )}
+                        <span className={classes.coCardTitle}>
+                            {formatPeriod(option.period_days, lang)}
+                        </span>
+                        <span className={clsx(classes.coCardPrice, classes.num)}>
+                            {money(option.price_kopeks)}
+                            {discount > 0 && option.original_price_kopeks ? (
                                 <s className={classes.coStrike}>
                                     {money(option.original_price_kopeks)}
                                 </s>
-                            )}
-                        {money(option.price_kopeks)}
-                    </span>
-                </button>
-            ))}
+                            ) : null}
+                        </span>
+                        <span className={clsx(classes.coCardMeta, classes.num)}>
+                            {months >= 2
+                                ? t('coPerMonth', {
+                                      price: money(Math.round(option.price_kopeks / months))
+                                  })
+                                : ' '}
+                        </span>
+                        {checkMark}
+                    </button>
+                )
+            })}
         </div>
     )
 
@@ -341,59 +496,72 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
         <div className={classes.coStack}>
             {tabs.length > 1 && (
                 <div aria-label={t('coRenewTitle')} className={classes.coTabs} role="tablist">
-                    {tabs.map(([key, label]) => (
-                        <button
-                            aria-selected={key === tab}
-                            className={classes.coTab}
-                            key={key}
-                            onClick={() => setTab(key)}
-                            role="tab"
-                            type="button"
-                        >
-                            {t(label)}
-                        </button>
-                    ))}
+                    {tabs.map(([key, label]) => {
+                        const TabIcon = TAB_ICON[key]
+                        return (
+                            <button
+                                aria-selected={key === tab}
+                                className={classes.coTab}
+                                key={key}
+                                onClick={() => {
+                                    setTab(key)
+                                    setError(null)
+                                }}
+                                role="tab"
+                                type="button"
+                            >
+                                <TabIcon aria-hidden size={16} stroke={2.25} />
+                                {t(label)}
+                            </button>
+                        )
+                    })}
                 </div>
             )}
 
-            {tab === 'renew' && !tariffMode && periodList(offer.renewal, period, setPeriod)}
+            {tab === 'renew' && !tariffMode && periodGrid(offer.renewal, period, setPeriod)}
 
             {tab === 'renew' && tariffMode && tariff && (
                 <>
                     {offer.tariffs.length > 1 && (
-                        <div className={classes.coOptions} role="radiogroup">
+                        <div className={classes.coList} role="radiogroup">
                             {offer.tariffs.map((x) => (
                                 <button
                                     aria-checked={x.id === tariff.id}
-                                    className={classes.coOption}
+                                    className={classes.coRow}
                                     key={x.id}
                                     onClick={() => {
                                         setTariffId(x.id)
-                                        setTariffPeriod(x.periods[0]?.period_days ?? null)
+                                        setTariffPeriod(
+                                            (
+                                                x.periods.find((p) => p.is_highlighted) ??
+                                                x.periods[0]
+                                            )?.period_days ?? null
+                                        )
                                     }}
                                     role="radio"
                                     type="button"
                                 >
-                                    <span className={classes.coOptionMain}>{x.name}</span>
-                                    <span className={classes.coOptionMeta}>{x.description}</span>
+                                    <span className={classes.coRowText}>
+                                        <span className={classes.coRowTitle}>{x.name}</span>
+                                        {x.description && (
+                                            <span className={classes.coRowMeta}>
+                                                {x.description}
+                                            </span>
+                                        )}
+                                    </span>
+                                    <span aria-hidden className={classes.coRadio} />
                                 </button>
                             ))}
                         </div>
                     )}
-                    {periodList(tariff.periods, tariffPeriod, setTariffPeriod)}
+                    {periodGrid(tariff.periods, tariffPeriod, setTariffPeriod)}
                 </>
             )}
 
             {tab === 'devices' && (
                 <div className={classes.coDevices}>
-                    <div>
-                        <div className={classes.coLabel}>{t('coDevicesAdd')}</div>
-                        <div className={classes.coHint}>
-                            {t('coDevicesNow', {
-                                n: offer.devices.current_device_limit ?? 1,
-                                max: offer.devices.max_device_limit ?? '∞'
-                            })}
-                        </div>
+                    <div className={classes.coDevicesHead}>
+                        <span className={classes.coLabel}>{t('coDevicesChange')}</span>
                     </div>
                     <div className={classes.coStepper}>
                         <button
@@ -403,10 +571,17 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                             onClick={() => setDevices((n) => Math.max(1, n - 1))}
                             type="button"
                         >
-                            <IconMinus aria-hidden size={18} />
+                            <IconMinus aria-hidden size={20} />
                         </button>
-                        <output aria-live="polite" className={classes.coStepValue}>
-                            {devices}
+                        <output
+                            aria-live="polite"
+                            className={clsx(classes.coStepValue, classes.num)}
+                        >
+                            <span className={classes.coStepFrom}>{currentDevices}</span>
+                            <IconArrowRight aria-hidden className={classes.coStepArrow} size={18} />
+                            <span className={clsx(classes.glowSoft, classes.glow_accent)}>
+                                {currentDevices + devices}
+                            </span>
                         </output>
                         <button
                             aria-label="+1"
@@ -415,78 +590,122 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                             onClick={() => setDevices((n) => Math.min(maxAdd, n + 1))}
                             type="button"
                         >
-                            <IconPlus aria-hidden size={18} />
+                            <IconPlus aria-hidden size={20} />
                         </button>
                     </div>
-                    <div className={clsx(classes.coHint, classes.coFull)}>
+                    <span className={classes.coHint}>
                         {t('coPerDevice', {
                             price: money(offer.devices.price_per_device_kopeks ?? 0)
                         })}
-                    </div>
+                    </span>
                 </div>
             )}
 
             {tab === 'traffic' && (
-                <div className={classes.coOptions} role="radiogroup">
+                <div aria-label={t('coTabTraffic')} className={classes.coGrid} role="radiogroup">
                     {offer.traffic.map((p) => (
                         <button
                             aria-checked={p.gb === trafficGb}
-                            className={classes.coOption}
+                            className={classes.coCard}
                             key={p.gb}
-                            onClick={() => setTrafficGb(p.gb)}
+                            onClick={() => {
+                                vibrate('tap')
+                                setTrafficGb(p.gb)
+                            }}
                             role="radio"
                             type="button"
                         >
-                            <span className={classes.coOptionMain}>
-                                {p.gb === 0 ? t('coUnlimited') : t('coGb', { n: p.gb })}
+                            {p.discount_percent ? (
+                                <span className={classes.coCardBadges}>
+                                    <span className={clsx(classes.coBadge, classes.coBadgeSale)}>
+                                        −{p.discount_percent}%
+                                    </span>
+                                </span>
+                            ) : null}
+                            <span className={classes.coCardTitle}>{trafficLabel(p.gb)}</span>
+                            <span className={clsx(classes.coCardPrice, classes.num)}>
+                                {money(p.price_kopeks)}
                             </span>
-                            <span className={classes.coOptionPrice}>{money(p.price_kopeks)}</span>
+                            {checkMark}
                         </button>
                     ))}
                 </div>
             )}
 
-            <div>
-                <div className={classes.coLabel}>{t('coMethod')}</div>
-                <div className={classes.coMethods} role="radiogroup">
-                    {offer.payment_methods.map((m) => (
-                        <button
-                            aria-checked={m.id === methodId}
-                            className={classes.coMethod}
-                            key={m.id}
-                            onClick={() => setMethodId(m.id)}
-                            role="radio"
-                            type="button"
-                        >
-                            <span className={classes.coOptionMain}>{m.name}</span>
-                            {m.description && (
-                                <span className={classes.coOptionMeta}>{m.description}</span>
-                            )}
-                        </button>
-                    ))}
+            {tab === 'traffic' && currentGb > 0 && trafficGb !== null && (
+                <div className={classes.coResult}>
+                    <span>{t('coTrafficChange')}</span>
+                    <strong className={classes.num}>
+                        {t('coGb', { n: currentGb })}
+                        <IconArrowRight aria-hidden size={14} />
+                        {trafficGb === 0
+                            ? t('coUnlimited')
+                            : t('coGb', { n: currentGb + trafficGb })}
+                    </strong>
                 </div>
-                {method?.options && method.options.length > 1 && (
-                    <div className={classes.coChips} role="radiogroup">
-                        {method.options.map((o) => (
+            )}
+
+            {newEnd && (
+                <div className={classes.coResult}>
+                    <span>{t('coUntilLabel')}</span>
+                    <strong className={classes.num}>{formatDate(new Date(newEnd), lang)}</strong>
+                </div>
+            )}
+
+            <div className={classes.coSection}>
+                <div className={classes.coLabel}>{t('coMethod')}</div>
+                <div aria-label={t('coMethod')} className={classes.coList} role="radiogroup">
+                    {offer.payment_methods.map((m) => {
+                        const MethodIcon = methodIcon(m.id)
+                        return [
                             <button
-                                aria-checked={o.id === optionId}
-                                className={classes.coChip}
-                                key={o.id}
-                                onClick={() => setOptionId(o.id)}
+                                aria-checked={m.id === methodId}
+                                className={classes.coRow}
+                                key={m.id}
+                                onClick={() => setMethodId(m.id)}
                                 role="radio"
                                 type="button"
                             >
-                                {o.name}
-                            </button>
-                        ))}
-                    </div>
-                )}
+                                <span aria-hidden className={classes.coRowIcon}>
+                                    <MethodIcon size={20} stroke={1.9} />
+                                </span>
+                                <span className={classes.coRowText}>
+                                    <span className={classes.coRowTitle}>{m.name}</span>
+                                    {m.description && (
+                                        <span className={classes.coRowMeta}>{m.description}</span>
+                                    )}
+                                </span>
+                                <span aria-hidden className={classes.coRadio} />
+                            </button>,
+                            m.id === methodId && m.options && m.options.length > 1 ? (
+                                <div
+                                    className={classes.coChips}
+                                    key={`${m.id}-options`}
+                                    role="radiogroup"
+                                >
+                                    {m.options.map((o) => (
+                                        <button
+                                            aria-checked={o.id === optionId}
+                                            className={classes.coChip}
+                                            key={o.id}
+                                            onClick={() => setOptionId(o.id)}
+                                            role="radio"
+                                            type="button"
+                                        >
+                                            {o.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : null
+                        ]
+                    })}
+                </div>
             </div>
 
             {error && (
                 <div className={classes.coError} role="alert">
                     <IconAlertCircle aria-hidden size={20} />
-                    <span>
+                    <span className={classes.coErrorText}>
                         {t(error)}
                         {errorDetail ? ` (${errorDetail})` : ''}
                     </span>
@@ -494,19 +713,26 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
             )}
 
             <div className={classes.coFooter}>
-                <div className={classes.coTotal}>
-                    <span>{t('coTotal')}</span>
-                    <strong className={classes.num}>{money(price)}</strong>
-                </div>
                 <button
-                    className={clsx(classes.btn, classes.btnPrimary, classes.btnGlow)}
+                    className={clsx(
+                        classes.btn,
+                        classes.btnPrimary,
+                        classes.btnGlow,
+                        classes.coPayBtn
+                    )}
                     disabled={busy || price <= 0 || !method}
                     onClick={submit}
                     type="button"
                 >
-                    {busy ? <IconLoader2 aria-hidden className={classes.spin} size={20} /> : null}
-                    {t('coGetLink')}
+                    {busy ? (
+                        <IconLoader2 aria-hidden className={classes.spin} size={20} />
+                    ) : (
+                        <IconLock aria-hidden size={18} stroke={2.25} />
+                    )}
+                    <span>{t('coPay', { price: money(price) })}</span>
+                    {original && <s className={classes.coPayStrike}>{money(original)}</s>}
                 </button>
+                <span className={classes.coSecure}>{t('coSecure')}</span>
             </div>
         </div>
     )
@@ -515,9 +741,9 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
 /* ───────────── step 2: pay ───────────── */
 
 function PaymentStep({ pending, phase }: { pending: IPendingPayment; phase: TPhase | null }) {
-    const { t } = useSpofyT()
+    const { t, lang } = useSpofyT()
     const money = useMoney()
-    const setPending = useCheckoutStore((s) => s.setPending)
+    const { setPending, close, latest } = useCheckoutStore()
     const [showQr, setShowQr] = useState(false)
     const { result } = pending
     const qrRef = useRef<string>('')
@@ -532,36 +758,111 @@ function PaymentStep({ pending, phase }: { pending: IPendingPayment; phase: TPha
     }
 
     const done = phase === 'done'
+    const paid = done || phase === 'paid'
     const rest = result.amount_kopeks - result.price_kopeks
+    const end = latest?.end_date ?? null
+
+    if (done) {
+        return (
+            <div className={clsx(classes.coStack, classes.coSuccess)} role="status">
+                <span aria-hidden className={classes.coSuccessIcon}>
+                    <IconCheck size={34} stroke={2.5} />
+                </span>
+                <strong className={classes.coSuccessTitle}>{t('coDone')}</strong>
+                {pending.summary && <span className={classes.coHint}>{pending.summary}</span>}
+                {end && !isIndefinite(end) && (
+                    <span className={clsx(classes.coSuccessDate, classes.num)}>
+                        {t('coDoneUntil', { date: formatDate(end, lang) })}
+                    </span>
+                )}
+                <button
+                    className={clsx(classes.btn, classes.btnPrimary, classes.coPayBtn)}
+                    onClick={() => {
+                        setPending(null)
+                        close()
+                        window.location.reload()
+                    }}
+                    type="button"
+                >
+                    {t('coClose')}
+                </button>
+            </div>
+        )
+    }
+
+    const steps: { key: TSpofyKey; state: 'active' | 'done' | 'todo' }[] = [
+        { key: 'coStepCreated', state: 'done' },
+        { key: 'coStepPay', state: paid ? 'done' : 'active' },
+        { key: 'coStepApply', state: paid ? 'active' : 'todo' }
+    ]
 
     return (
         <div className={classes.coStack}>
-            {!done && (
-                <>
-                    <a
-                        className={clsx(
-                            classes.btn,
-                            classes.btnPrimary,
-                            classes.btnGlow,
-                            classes.coPayBtn
-                        )}
-                        href={result.payment_url}
-                        onClick={() => vibrate('tap')}
-                        rel="noopener noreferrer"
-                        target="_blank"
-                    >
-                        {t('coPay', { price: money(result.amount_kopeks) })}
-                        <IconExternalLink aria-hidden size={18} />
-                    </a>
-                    <p className={classes.coHint}>{t('coPayHint')}</p>
+            <div className={classes.coOrder}>
+                <span className={classes.coRowText}>
+                    <span className={classes.coRowTitle}>{pending.summary ?? t('coTotal')}</span>
                     {rest > 0 && (
-                        <p className={classes.coHint}>
+                        <span className={classes.coRowMeta}>
                             {t('coMinNote', {
                                 amount: money(result.amount_kopeks),
                                 rest: money(rest)
                             })}
-                        </p>
+                        </span>
                     )}
+                </span>
+                <strong className={clsx(classes.coOrderPrice, classes.num)}>
+                    {money(result.amount_kopeks)}
+                </strong>
+            </div>
+
+            <ol className={classes.coSteps}>
+                {steps.map((step, i) => (
+                    <li
+                        className={clsx(classes.coStep, classes[`coStep_${step.state}`])}
+                        key={step.key}
+                    >
+                        <span aria-hidden className={classes.coStepDot}>
+                            {step.state === 'done' ? (
+                                <IconCheck size={13} stroke={3} />
+                            ) : step.state === 'active' ? (
+                                <IconLoader2 className={classes.spin} size={13} stroke={2.5} />
+                            ) : (
+                                i + 1
+                            )}
+                        </span>
+                        <span>{t(step.key)}</span>
+                    </li>
+                ))}
+            </ol>
+
+            <p aria-live="polite" className={classes.coHint} role="status">
+                {phase === 'paid'
+                    ? t('coPaid')
+                    : phase === 'timeout'
+                      ? t('coTimeout')
+                      : t('coPayHint')}
+            </p>
+
+            {!paid && (
+                <a
+                    className={clsx(
+                        classes.btn,
+                        classes.btnPrimary,
+                        classes.btnGlow,
+                        classes.coPayBtn
+                    )}
+                    href={result.payment_url}
+                    onClick={() => vibrate('tap')}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                >
+                    {t('coPay', { price: money(result.amount_kopeks) })}
+                    <IconExternalLink aria-hidden size={18} />
+                </a>
+            )}
+
+            <div className={classes.coPayRow}>
+                {!paid && (
                     <button
                         aria-expanded={showQr}
                         className={clsx(classes.btn, classes.btnSecondary, classes.btnSmall)}
@@ -571,53 +872,18 @@ function PaymentStep({ pending, phase }: { pending: IPendingPayment; phase: TPha
                         <IconQrcode aria-hidden size={18} />
                         {t('coOtherDevice')}
                     </button>
-                    {showQr && (
-                        <img alt={t('coOtherDevice')} className={classes.qr} src={qrRef.current} />
-                    )}
-                </>
-            )}
-
-            <div
-                aria-live="polite"
-                className={clsx(classes.coStatus, done && classes.coStatusDone)}
-                role="status"
-            >
-                {done ? (
-                    <IconCheck aria-hidden size={20} />
-                ) : (
-                    <IconLoader2 aria-hidden className={classes.spin} size={20} />
                 )}
-                <span>
-                    {done
-                        ? t('coDone')
-                        : phase === 'paid'
-                          ? t('coPaid')
-                          : phase === 'timeout'
-                            ? t('coTimeout')
-                            : t('coWaiting')}
-                </span>
-            </div>
-
-            {done ? (
                 <button
-                    className={clsx(classes.btn, classes.btnPrimary)}
-                    onClick={() => {
-                        setPending(null)
-                        window.location.reload()
-                    }}
-                    type="button"
-                >
-                    {t('coRefresh')}
-                </button>
-            ) : (
-                <button
-                    className={clsx(classes.btn, classes.btnGhost)}
+                    className={clsx(classes.btn, classes.btnGhost, classes.btnSmall)}
                     onClick={() => setPending(null)}
                     type="button"
                 >
                     <IconArrowLeft aria-hidden size={18} />
                     {t('coBack')}
                 </button>
+            </div>
+            {showQr && !paid && (
+                <img alt={t('coOtherDevice')} className={classes.coQr} src={qrRef.current} />
             )}
         </div>
     )

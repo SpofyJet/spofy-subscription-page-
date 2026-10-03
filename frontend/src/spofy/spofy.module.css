@@ -616,7 +616,7 @@
     flex-direction: column;
     align-items: center;
     gap: 3px;
-    padding: 9px 6px 8px;
+    padding: 9px 6px 6px;
     border-radius: 18px;
     background: var(--sp-inner);
     border: 1px solid var(--sp-inner-border);
@@ -677,24 +677,81 @@
     letter-spacing: 0;
 }
 
-.statTileCta {
+.statTileCaption {
+    color: var(--sp-text-2);
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+/* real button under every tile: Продлить / Докупить / Купить ГБ */
+.tileAction,
+.tileNote {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 3px;
+    gap: 4px;
+    width: 100%;
     min-height: 44px;
-    margin: auto -6px -16px;
-    transform: translateY(-6px);
-    padding: 0 8px;
-    border-radius: 10px;
-    color: var(--sp-accent-text);
+    margin-top: auto;
+    padding: 0 6px;
+    border-radius: 12px;
+    font: inherit;
     font-size: 12.5px;
-    font-weight: 700;
+    font-weight: 750;
+    line-height: 1.1;
+    white-space: nowrap;
     text-decoration: none;
 }
 
-.statTileCta:hover {
-    background: var(--sp-accent-soft);
+.tileAction {
+    position: relative;
+    border: 1px solid rgba(91, 140, 255, 0.45);
+    background: linear-gradient(180deg, rgba(91, 140, 255, 0.22), rgba(43, 99, 245, 0.12));
+    color: var(--sp-accent-text);
+    box-shadow:
+        0 0 0 0 rgba(43, 99, 245, 0),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    cursor: pointer;
+    transition:
+        transform 0.12s ease,
+        box-shadow 0.2s ease,
+        background 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.tileAction:hover {
+    background: linear-gradient(180deg, rgba(91, 140, 255, 0.32), rgba(43, 99, 245, 0.2));
+    box-shadow: 0 6px 18px -8px rgba(43, 99, 245, 0.9);
+}
+
+.tileAction:active {
+    transform: scale(0.97);
+}
+
+.tileAction:focus-visible {
+    outline: 2px solid var(--sp-accent);
+    outline-offset: 2px;
+}
+
+.statTile_warning .tileAction {
+    border-color: transparent;
+    background: var(--sp-accent);
+    color: var(--sp-on-accent);
+    box-shadow: 0 8px 20px -8px rgba(43, 99, 245, 0.95);
+}
+
+.statTile_error .tileAction {
+    border-color: transparent;
+    background: var(--sp-accent);
+    color: var(--sp-on-accent);
+    box-shadow: 0 8px 22px -6px rgba(43, 99, 245, 1);
+}
+
+.tileNote {
+    border: 1px dashed var(--sp-inner-border);
+    color: var(--sp-text-2);
+    font-weight: 650;
 }
 
 .miniBar {
@@ -1297,6 +1354,20 @@
 
 /* ---------- small phones (≤ 380 px): keep everything on one screen ---------- */
 @media (max-width: 380px) {
+    .statTile {
+        gap: 2px;
+        padding: 7px 5px 5px;
+    }
+    .statTileIcon {
+        width: 20px;
+        height: 20px;
+    }
+    .tileAction,
+    .tileNote {
+        font-size: 12px;
+        gap: 3px;
+        padding: 0 4px;
+    }
     .page {
         gap: 10px;
         padding-inline: 12px;
@@ -1310,11 +1381,11 @@
         gap: 5px;
     }
     .hero {
-        padding: 12px 12px 12px 14px;
+        padding: 10px 10px 10px 14px;
     }
     .heroTitle {
         font-size: 20px;
-        margin: 8px 0 4px;
+        margin: 6px 0 2px;
     }
     .heroIcon {
         width: 72px;
@@ -1336,31 +1407,122 @@
 
 /* ---------- checkout sheet ---------- */
 .sheetContent {
-    background: var(--sp-surface) !important;
+    background:
+        radial-gradient(120% 60% at 50% -10%, rgba(43, 99, 245, 0.16), transparent 60%),
+        var(--sp-surface) !important;
     border: 1px solid var(--sp-glass-border) !important;
     color: var(--sp-text);
     font-family: var(--sp-font);
 }
 
 .sheetContent:global(.mantine-Drawer-content) {
-    border-radius: 24px 24px 0 0 !important;
-    max-height: 92dvh;
+    border-radius: 26px 26px 0 0 !important;
+    max-height: 94dvh;
+}
+
+/* grabber on the mobile sheet */
+.sheetContent:global(.mantine-Drawer-content)::before {
+    content: '';
+    position: absolute;
+    top: 7px;
+    left: 50%;
+    z-index: 3;
+    width: 38px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--sp-border-strong);
+    transform: translateX(-50%);
 }
 
 .sheetHeader {
-    background: var(--sp-surface) !important;
-    padding-bottom: 4px !important;
+    background: transparent !important;
+    padding: 18px 16px 6px !important;
+}
+
+.sheetTitle {
+    font-family: var(--sp-font) !important;
+    min-width: 0;
 }
 
 .sheetBody {
-    padding-bottom: calc(16px + env(safe-area-inset-bottom)) !important;
+    padding: 8px 16px 0 !important;
+}
+
+.coTitle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.coTitleIcon {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    background: linear-gradient(145deg, #5b8cff, var(--sp-accent));
+    color: #fff;
+    box-shadow: 0 8px 22px -8px rgba(43, 99, 245, 0.95);
+}
+
+.coTitleText {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.coTitleSub {
+    color: var(--sp-text-2);
+    font-size: 12.5px;
+    font-weight: 600;
 }
 
 .coStack {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 12px;
     font-family: var(--sp-font);
+}
+
+.coSection {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* skeleton while the offer loads */
+.skel {
+    border-radius: 16px;
+    background: linear-gradient(
+        90deg,
+        var(--sp-inner) 0%,
+        var(--sp-subtle-hover) 50%,
+        var(--sp-inner) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.2s ease-in-out infinite;
+}
+
+.skelTabs {
+    height: 46px;
+}
+
+.skelCard {
+    height: 84px;
+}
+
+.skelRow {
+    height: 56px;
+}
+
+@keyframes shimmer {
+    to {
+        background-position: -200% 0;
+    }
 }
 
 .coLoading,
@@ -1397,7 +1559,7 @@
 .coError {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
+    align-items: flex-start;
     gap: 10px;
     padding: 12px 14px;
     border-radius: 16px;
@@ -1406,100 +1568,204 @@
     color: var(--sp-text);
     font-size: 14px;
     font-weight: 600;
+    line-height: 1.4;
 }
 
-.coError svg {
+.coError > svg {
+    flex-shrink: 0;
+    margin-top: 1px;
     color: var(--sp-error-text);
 }
 
+.coErrorText {
+    flex: 1;
+    min-width: 0;
+}
+
+.coErrorActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+    padding-left: 30px;
+}
+
+/* tabs */
 .coTabs {
     display: flex;
     gap: 4px;
     padding: 4px;
-    border-radius: 14px;
+    border-radius: 16px;
     background: var(--sp-inner);
     border: 1px solid var(--sp-inner-border);
 }
 
 .coTab {
     flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
     min-height: 44px;
+    padding: 0 6px;
     border: 0;
-    border-radius: 10px;
+    border-radius: 12px;
     background: transparent;
     color: var(--sp-text-2);
     font: inherit;
-    font-size: 14px;
-    font-weight: 700;
+    font-size: 13.5px;
+    font-weight: 750;
+    white-space: nowrap;
     cursor: pointer;
+    transition:
+        background 0.18s ease,
+        color 0.18s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.coTab svg {
+    flex-shrink: 0;
 }
 
 .coTab[aria-selected='true'] {
     background: var(--sp-accent);
     color: var(--sp-on-accent);
-    box-shadow: 0 6px 18px -8px rgba(43, 99, 245, 0.8);
+    box-shadow: 0 6px 18px -8px rgba(43, 99, 245, 0.9);
 }
 
-.coOptions,
-.coMethods {
-    display: flex;
-    flex-direction: column;
+/* period / traffic cards */
+.coGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
 }
 
-.coMethods {
-    margin-top: 8px;
+.coGrid {
+    row-gap: 14px;
+    padding-top: 6px;
 }
 
-.coOption,
-.coMethod {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 4px 12px;
-    width: 100%;
-    min-height: 56px;
-    padding: 10px 14px;
-    border-radius: 16px;
+.coCard {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+        'title check'
+        'price price'
+        'meta meta';
+    align-content: start;
+    row-gap: 2px;
+    min-width: 0;
+    padding: 14px 12px 10px;
+    border-radius: 18px;
     border: 1px solid var(--sp-inner-border);
     background: var(--sp-inner);
     color: var(--sp-text);
     font: inherit;
     text-align: left;
     cursor: pointer;
+    transition:
+        border-color 0.15s ease,
+        background 0.15s ease,
+        box-shadow 0.2s ease,
+        transform 0.12s ease;
     -webkit-tap-highlight-color: transparent;
 }
 
-.coOption[aria-checked='true'],
-.coMethod[aria-checked='true'] {
-    border-color: var(--sp-accent);
-    background: var(--sp-accent-soft);
-    box-shadow: inset 0 0 0 1px var(--sp-accent);
+/* an odd last card spans the row and lies flat: title left, price right */
+.coCard:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+        'title price check'
+        'meta price check';
+    align-items: center;
+    column-gap: 12px;
 }
 
-.coOptionMain {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
+.coCard:last-child:nth-child(odd) .coCardPrice {
+    padding-top: 0;
+    justify-content: flex-end;
+}
+
+.coCard:active {
+    transform: scale(0.98);
+}
+
+.coCardBest {
+    border-color: rgba(91, 140, 255, 0.45);
+}
+
+.coCard[aria-checked='true'] {
+    border-color: var(--sp-accent);
+    background:
+        linear-gradient(160deg, rgba(91, 140, 255, 0.22), rgba(43, 99, 245, 0.08)),
+        var(--sp-inner);
+    box-shadow:
+        inset 0 0 0 1px var(--sp-accent),
+        0 10px 26px -14px rgba(43, 99, 245, 0.95);
+}
+
+/* badges sit on the top border, so every card keeps the same height */
+.coCardBadges {
+    position: absolute;
+    top: -10px;
+    left: 10px;
+    display: flex;
+    gap: 4px;
+}
+
+.coCardBadges .coBadge {
+    box-shadow: 0 0 0 3px var(--sp-surface);
+}
+
+.coCardTitle {
+    grid-area: title;
     font-size: 15px;
     font-weight: 750;
+    line-height: 1.25;
 }
 
-.coOptionMeta {
-    flex-basis: 100%;
-    color: var(--sp-text-2);
-    font-size: 12.5px;
-    font-weight: 550;
-}
-
-.coOptionPrice {
+.coCardPrice {
+    grid-area: price;
     display: inline-flex;
+    flex-wrap: wrap;
     align-items: baseline;
-    gap: 8px;
-    font-size: 15.5px;
+    gap: 2px 6px;
+    padding-top: 6px;
+    font-size: 21px;
     font-weight: 800;
-    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+}
+
+.coCardMeta {
+    grid-area: meta;
+    color: var(--sp-text-2);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.coCardCheck {
+    grid-area: check;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1.5px solid var(--sp-border-strong);
+    color: transparent;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease;
+}
+
+.coCard[aria-checked='true'] .coCardCheck {
+    border-color: var(--sp-accent);
+    background: var(--sp-accent);
+    color: #fff;
+    box-shadow: 0 0 12px rgba(43, 99, 245, 0.8);
 }
 
 .coStrike {
@@ -1511,10 +1777,130 @@
 .coBadge {
     padding: 2px 8px;
     border-radius: 999px;
-    background: var(--sp-success-soft);
-    color: var(--sp-success-text);
-    font-size: 11.5px;
+    background: var(--sp-accent);
+    color: var(--sp-on-accent);
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.5;
+}
+
+.coBadgeSale {
+    background: var(--sp-success);
+    color: #04210f;
+}
+
+/* rows: tariffs, payment methods */
+.coList {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.coRow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 56px;
+    padding: 8px 14px 8px 10px;
+    border-radius: 16px;
+    border: 1px solid var(--sp-inner-border);
+    background: var(--sp-inner);
+    color: var(--sp-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition:
+        border-color 0.15s ease,
+        background 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.coRow[aria-checked='true'] {
+    border-color: var(--sp-accent);
+    background: var(--sp-accent-soft);
+    box-shadow: inset 0 0 0 1px var(--sp-accent);
+}
+
+.coRowIcon {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: var(--sp-surface-2);
+    border: 1px solid var(--sp-inner-border);
+    color: var(--sp-accent-text);
+}
+
+.coRow[aria-checked='true'] .coRowIcon {
+    background: var(--sp-accent);
+    border-color: transparent;
+    color: #fff;
+}
+
+.coRowText {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.coRowTitle {
+    font-size: 15px;
     font-weight: 750;
+    line-height: 1.3;
+}
+
+.coRowMeta {
+    color: var(--sp-text-2);
+    font-size: 12.5px;
+    font-weight: 550;
+    line-height: 1.35;
+}
+
+.coRadio {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1.5px solid var(--sp-border-strong);
+    transition:
+        border 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+.coRow[aria-checked='true'] .coRadio {
+    border: 6px solid var(--sp-accent);
+    background: #fff;
+    box-shadow: 0 0 10px rgba(43, 99, 245, 0.7);
+}
+
+/* "будет действовать до …" / "устройств станет 3 → 4" */
+.coResult {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    background: var(--sp-success-soft);
+    border: 1px solid rgba(34, 181, 115, 0.28);
+    color: var(--sp-text-2);
+    font-size: 13.5px;
+    font-weight: 650;
+}
+
+.coResult strong {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--sp-success-text);
+    font-size: 15px;
+    font-weight: 800;
+    white-space: nowrap;
 }
 
 .coLabel {
@@ -1529,37 +1915,48 @@
     line-height: 1.45;
 }
 
-.coFull {
-    grid-column: 1 / -1;
-}
-
+/* devices */
 .coDevices {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 10px 12px;
-    padding: 12px 14px;
-    border-radius: 16px;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 20px;
     background: var(--sp-inner);
     border: 1px solid var(--sp-inner-border);
+    text-align: center;
+}
+
+.coDevicesHead {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
 .coStepper {
     display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: center;
+    gap: 14px;
+    width: 100%;
 }
 
 .coStepBtn {
     display: grid;
     place-items: center;
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
     border: 1px solid var(--sp-glass-border);
     background: var(--sp-surface-2);
     color: var(--sp-text);
     cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.coStepBtn:not(:disabled):active {
+    transform: scale(0.95);
 }
 
 .coStepBtn:disabled {
@@ -1568,18 +1965,30 @@
 }
 
 .coStepValue {
-    min-width: 32px;
-    text-align: center;
-    font-size: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-width: 118px;
+    font-size: 34px;
     font-weight: 800;
-    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+
+.coStepFrom {
+    color: var(--sp-text-2);
+    font-size: 22px;
+}
+
+.coStepArrow {
+    color: var(--sp-text-2);
 }
 
 .coChips {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    margin-top: 8px;
+    padding: 2px 0 4px 50px;
 }
 
 .coChip {
@@ -1600,39 +2009,214 @@
     background: var(--sp-accent-soft);
 }
 
+/* sticky pay button */
 .coFooter {
     position: sticky;
     bottom: 0;
+    z-index: 2;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding-top: 8px;
-    background: var(--sp-surface);
+    align-items: center;
+    gap: 6px;
+    margin: 0 -16px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, transparent, var(--sp-surface) 18px);
 }
 
-.coTotal {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
+.coPayBtn {
+    width: 100%;
+    min-height: 56px;
+    border-radius: 18px;
+    font-size: 16.5px;
+}
+
+.coPayStrike {
+    opacity: 0.7;
+    font-size: 13.5px;
+    font-weight: 600;
+}
+
+.coSecure {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     color: var(--sp-text-2);
-    font-size: 14px;
-    font-weight: 650;
+    font-size: 11.5px;
+    font-weight: 600;
+    text-align: center;
 }
 
-.coTotal strong {
-    color: var(--sp-text);
+/* payment step */
+.coOrder {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 18px;
+    background: var(--sp-inner);
+    border: 1px solid var(--sp-inner-border);
+}
+
+.coOrderPrice {
+    flex-shrink: 0;
     font-size: 22px;
     font-weight: 800;
 }
 
-.coPayBtn {
-    min-height: 56px;
-    font-size: 16.5px;
+.coSteps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 0;
+    padding: 2px 4px;
+    list-style: none;
+}
+
+.coStep {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 38px;
+    color: var(--sp-text-2);
+    font-size: 14.5px;
+    font-weight: 650;
+}
+
+.coStep + .coStep::before {
+    content: '';
+    position: absolute;
+    bottom: 50%;
+    left: 11px;
+    width: 2px;
+    height: 38px;
+    margin-bottom: 12px;
+    border-radius: 1px;
+    background: var(--sp-inner-border);
+}
+
+.coStep_done + .coStep::before {
+    background: var(--sp-success);
+}
+
+.coStepDot {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1.5px solid var(--sp-border-strong);
+    background: var(--sp-surface);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.coStep_done {
+    color: var(--sp-text);
+}
+
+.coStep_done .coStepDot {
+    border-color: transparent;
+    background: var(--sp-success);
+    color: #fff;
+    box-shadow: 0 0 12px rgba(34, 181, 115, 0.6);
+}
+
+.coStep_active {
+    color: var(--sp-text);
+    font-weight: 750;
+}
+
+.coStep_active .coStepDot {
+    border-color: var(--sp-accent);
+    color: var(--sp-accent-text);
+    box-shadow: 0 0 12px rgba(43, 99, 245, 0.6);
+}
+
+.coPayRow {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+}
+
+.coQr {
+    display: block;
+    width: 200px;
+    height: 200px;
+    margin: 0 auto calc(12px + env(safe-area-inset-bottom));
+    padding: 10px;
+    border-radius: 16px;
+    background: #fff;
+}
+
+/* success */
+.coSuccess {
+    align-items: center;
+    padding: 8px 0 calc(16px + env(safe-area-inset-bottom));
+    text-align: center;
+}
+
+.coSuccessIcon {
+    display: grid;
+    place-items: center;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #4fd69a, var(--sp-success));
+    color: #fff;
+    box-shadow:
+        0 0 0 8px var(--sp-success-soft),
+        0 0 36px rgba(34, 181, 115, 0.7);
+    animation: pop 0.35s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+@keyframes pop {
+    from {
+        transform: scale(0.6);
+        opacity: 0;
+    }
+}
+
+.coSuccessTitle {
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.coSuccessDate {
+    color: var(--sp-success-text);
+    font-size: 16px;
+    font-weight: 800;
+    text-shadow: 0 0 18px rgba(34, 181, 115, 0.45);
 }
 
 .btn:disabled {
     opacity: 0.55;
     cursor: default;
+}
+
+@media (max-width: 370px) {
+    .coTab {
+        font-size: 12.5px;
+        gap: 4px;
+    }
+    .coTab svg {
+        display: none;
+    }
+    .coCardPrice {
+        font-size: 19px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .skel,
+    .coSuccessIcon {
+        animation: none;
+    }
 }
 
 .pendingBanner {

@@ -3,16 +3,16 @@ import { TSubscriptionPageLanguageCode } from '@remnawave/subscription-page-type
 // deep import: the package entry is CommonJS and pulls in every zod schema
 import { getLanguageInfo } from '@remnawave/subscription-page-types/build/backend/constants'
 import {
-    IconArrowRight,
     IconArrowsUpDown,
     IconCalendarEvent,
+    IconDevices,
     IconChevronDown,
-    IconHourglassHigh,
     IconLifebuoy,
     IconPlus,
     IconRefresh
 } from '@tabler/icons-react'
 import clsx from 'clsx'
+import { useEffect } from 'react'
 
 import { useAppConfig, useAppConfigStoreActions, useCurrentLang } from '@entities/app-config-store'
 
@@ -29,6 +29,7 @@ import {
 } from '../format'
 import { TSpofyKey, useSpofyT } from '../i18n'
 import { SpofyShield } from '../spofy-shield'
+import { useSpofyData } from '../spofy-store'
 import classes from '../spofy.module.css'
 
 const STATUS_SHORT: Record<TSpofyState, TSpofyKey> = {
@@ -159,7 +160,19 @@ interface IBannerProps {
 export function SubscriptionBanner(props: IBannerProps) {
     const { checkout, state, user, renewUrl, trafficUrl, supportUrl } = props
     const openCheckout = useCheckoutStore((s) => s.open)
-    const onBuy = checkout ? (tab: TCheckoutTab) => openCheckout(tab) : undefined
+    const loadOffer = useCheckoutStore((s) => s.loadOffer)
+    const offerError = useCheckoutStore((s) => s.offerError)
+    // Subscriptions the bot does not know keep the old behaviour: buttons link to the bot.
+    const inPage = checkout && offerError !== 'coErrNotInBot'
+    const onBuy = inPage ? (tab: TCheckoutTab) => openCheckout(tab) : undefined
+
+    // Prefetch the offer shortly after paint: the sheet opens instantly and the tiles
+    // only offer what the bot actually sells.
+    useEffect(() => {
+        if (!checkout) return
+        const id = window.setTimeout(() => loadOffer(user.shortUuid), 600)
+        return () => window.clearTimeout(id)
+    }, [checkout, loadOffer, user.shortUuid])
     const config = useAppConfig()
     const { t, lang } = useSpofyT()
 
@@ -215,7 +228,7 @@ export function SubscriptionBanner(props: IBannerProps) {
 
             <div className={classes.statTiles}>
                 <DateTile onBuy={onBuy} renewUrl={renewUrl} state={state} user={user} />
-                <DaysTile state={state} user={user} />
+                <DevicesTile onBuy={onBuy} renewUrl={renewUrl} />
                 <TrafficTile onBuy={onBuy} trafficUrl={trafficUrl} user={user} />
             </div>
 
@@ -233,43 +246,50 @@ export function SubscriptionBanner(props: IBannerProps) {
     )
 }
 
-function Tile(props: {
-    children: React.ReactNode
-    cta?: { href?: null | string; label: string; onClick?: () => void } | null
+interface ITileAction {
+    href?: null | string
     icon: React.ReactNode
     label: string
+    onClick?: () => void
+}
+
+function Tile(props: {
+    action?: ITileAction | null
+    caption?: React.ReactNode
+    children: React.ReactNode
+    icon: React.ReactNode
+    label: string
+    /** shown in place of the button when there is nothing to buy */
+    note?: null | string
     tone?: 'error' | 'ok' | 'warning'
 }) {
+    const { action } = props
     return (
         <div className={clsx(classes.statTile, props.tone && classes[`statTile_${props.tone}`])}>
-            <span className={classes.statTileLabel}>
-                <span aria-hidden className={classes.statTileIcon}>
-                    {props.icon}
-                </span>
-                {props.label}
+            <span aria-hidden className={classes.statTileIcon}>
+                {props.icon}
             </span>
+            <span className={classes.statTileLabel}>{props.label}</span>
             <span className={classes.statTileValue}>{props.children}</span>
-            {props.cta &&
-                (props.cta.onClick ? (
-                    <button
-                        className={classes.statTileCta}
-                        onClick={props.cta.onClick}
-                        type="button"
-                    >
-                        {props.cta.label}
-                        <IconArrowRight aria-hidden size={13} stroke={2.25} />
+            {props.caption && <span className={classes.statTileCaption}>{props.caption}</span>}
+            {action &&
+                (action.onClick ? (
+                    <button className={classes.tileAction} onClick={action.onClick} type="button">
+                        {action.icon}
+                        {action.label}
                     </button>
-                ) : props.cta.href ? (
+                ) : action.href ? (
                     <a
-                        className={classes.statTileCta}
-                        href={props.cta.href}
+                        className={classes.tileAction}
+                        href={action.href}
                         rel="noopener noreferrer"
                         target="_blank"
                     >
-                        {props.cta.label}
-                        <IconArrowRight aria-hidden size={13} stroke={2.25} />
+                        {action.icon}
+                        {action.label}
                     </a>
                 ) : null)}
+            {!action && props.note && <span className={classes.tileNote}>{props.note}</span>}
         </div>
     )
 }
@@ -283,21 +303,25 @@ function DateTile(props: {
     const { onBuy, renewUrl, state, user } = props
     const { t, lang } = useSpofyT()
     const indefinite = isIndefinite(user.expiresAt)
+    const days = state === 'expired' ? 0 : Math.max(0, user.daysLeft)
+    const tone =
+        state === 'expired' ? 'error' : days <= EXPIRING_DAYS && !indefinite ? 'warning' : undefined
 
     return (
         <Tile
-            cta={
+            action={
                 indefinite
                     ? null
-                    : onBuy
-                      ? { label: t('renewShort'), onClick: () => onBuy('renew') }
-                      : renewUrl
-                        ? { href: renewUrl, label: t('renewShort') }
-                        : null
+                    : {
+                          icon: <IconRefresh aria-hidden size={15} stroke={2.25} />,
+                          label: t('renewShort'),
+                          onClick: onBuy ? () => onBuy('renew') : undefined,
+                          href: onBuy ? null : renewUrl
+                      }
             }
-            icon={<IconCalendarEvent size={15} stroke={2} />}
+            icon={<IconCalendarEvent size={16} stroke={2} />}
             label={state === 'expired' ? t('ended') : t('validUntilLabel')}
-            tone={state === 'expired' ? 'error' : undefined}
+            tone={tone}
         >
             <span className={classes.num}>
                 {indefinite ? '∞' : formatDateNumeric(user.expiresAt, lang)}
@@ -306,24 +330,42 @@ function DateTile(props: {
     )
 }
 
-function DaysTile({ state, user }: { state: TSpofyState; user: TSpofyUser }) {
+function DevicesTile(props: { onBuy?: (tab: TCheckoutTab) => void; renewUrl: null | string }) {
+    const { onBuy, renewUrl } = props
     const { t } = useSpofyT()
-    const indefinite = isIndefinite(user.expiresAt)
-    const days = state === 'expired' ? 0 : Math.max(0, user.daysLeft)
-    const tone =
-        state === 'expired' ? 'error' : days <= EXPIRING_DAYS && !indefinite ? 'warning' : 'ok'
+    const { devicesUsed, devicesLimit } = useSpofyData()
+    const offer = useCheckoutStore((s) => s.offer)
+    // Before the offer arrives we assume devices can be bought; hide once the bot says no.
+    const sellable = !offer || (!!offer.devices.available && (offer.devices.can_add ?? 1) > 0)
+    const limit = devicesLimit ?? offer?.devices.current_device_limit ?? null
+    const full = devicesUsed !== null && limit !== null && devicesUsed >= limit
 
     return (
-        <Tile icon={<IconHourglassHigh size={15} stroke={2} />} label={t('remaining')} tone={tone}>
-            {indefinite ? (
-                '∞'
-            ) : (
+        <Tile
+            action={
+                (onBuy && sellable) || (!onBuy && renewUrl)
+                    ? {
+                          icon: <IconPlus aria-hidden size={15} stroke={2.5} />,
+                          label: t('buyMore'),
+                          onClick: onBuy ? () => onBuy('devices') : undefined,
+                          href: onBuy ? null : renewUrl
+                      }
+                    : null
+            }
+            icon={<IconDevices size={16} stroke={2} />}
+            label={t('devices')}
+            note={limit === null ? t('devicesNoLimit') : null}
+            tone={full ? 'warning' : undefined}
+        >
+            {devicesUsed !== null && limit !== null ? (
                 <>
-                    <span className={clsx(classes.num, classes.glowSoft, classes[`glow_${tone}`])}>
-                        {days}
+                    <span className={classes.num}>{devicesUsed}</span>
+                    <span className={clsx(classes.statTileUnit, classes.num)}>
+                        {t('ofLimit', { limit })}
                     </span>
-                    <span className={classes.statTileUnit}>{t('daysShort')}</span>
                 </>
+            ) : (
+                <span className={classes.num}>{limit ?? '∞'}</span>
             )}
         </Tile>
     )
@@ -339,16 +381,37 @@ function TrafficTile({
     user: TSpofyUser
 }) {
     const { t, lang } = useSpofyT()
+    const offer = useCheckoutStore((s) => s.offer)
     const used = toNumber(user.trafficUsedBytes)
     const limit = toNumber(user.trafficLimitBytes)
+    const unlimited = limit <= 0
+    // Optimistic until the offer arrives; the note and the button have the same size.
+    const sellable = offer ? offer.traffic.length > 0 : true
+    const action: ITileAction | null =
+        onBuy && sellable
+            ? {
+                  icon: <IconPlus aria-hidden size={15} stroke={2.5} />,
+                  label: t('buyGb'),
+                  onClick: () => onBuy('traffic')
+              }
+            : !onBuy && trafficUrl && !unlimited
+              ? {
+                    icon: <IconPlus aria-hidden size={15} stroke={2.5} />,
+                    label: t('buyGb'),
+                    href: trafficUrl
+                }
+              : null
 
-    if (limit <= 0) {
+    if (unlimited) {
         return (
-            <Tile icon={<IconArrowsUpDown size={15} stroke={2} />} label={t('traffic')}>
+            <Tile
+                action={action}
+                caption={<span className={classes.num}>{formatBytes(used, lang)}</span>}
+                icon={<IconArrowsUpDown size={16} stroke={2} />}
+                label={t('traffic')}
+                note={t('devicesNoLimit')}
+            >
                 <span className={clsx(classes.glowSoft, classes.glow_accent)}>∞</span>
-                <span className={clsx(classes.statTileUnit, classes.num)}>
-                    {formatBytes(used, lang)}
-                </span>
             </Tile>
         )
     }
@@ -360,34 +423,30 @@ function TrafficTile({
 
     return (
         <Tile
-            cta={
-                onBuy
-                    ? { label: t('buyGb'), onClick: () => onBuy('traffic') }
-                    : trafficUrl
-                      ? { href: trafficUrl, label: t('buyGb') }
-                      : null
+            action={action}
+            caption={
+                <span
+                    aria-label={t('traffic')}
+                    aria-valuemax={100}
+                    aria-valuemin={0}
+                    aria-valuenow={usedPercent}
+                    aria-valuetext={t('trafficLeft', { p: 100 - usedPercent })}
+                    className={classes.miniBar}
+                    role="progressbar"
+                >
+                    <span
+                        className={clsx(classes.miniBarFill, classes[`miniBar_${level}`])}
+                        style={{ width: `${Math.max(usedPercent, used > 0 ? 3 : 0)}%` }}
+                    />
+                </span>
             }
-            icon={<IconArrowsUpDown size={15} stroke={2} />}
+            icon={<IconArrowsUpDown size={16} stroke={2} />}
             label={t('traffic')}
             tone={level === 'ok' ? undefined : level}
         >
             <span className={classes.num}>{num}</span>
             <span className={clsx(classes.statTileUnit, classes.num)}>
                 {unit} {t('ofLimit', { limit: formatBytes(limit, lang) })}
-            </span>
-            <span
-                aria-label={t('traffic')}
-                aria-valuemax={100}
-                aria-valuemin={0}
-                aria-valuenow={usedPercent}
-                aria-valuetext={t('trafficLeft', { p: 100 - usedPercent })}
-                className={classes.miniBar}
-                role="progressbar"
-            >
-                <span
-                    className={clsx(classes.miniBarFill, classes[`miniBar_${level}`])}
-                    style={{ width: `${Math.max(usedPercent, used > 0 ? 3 : 0)}%` }}
-                />
             </span>
         </Tile>
     )

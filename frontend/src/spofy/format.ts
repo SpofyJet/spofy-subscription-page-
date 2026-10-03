@@ -64,6 +64,29 @@ export function formatDays(n: number, lang: TSubscriptionPageLanguageCode): stri
     return translate(lang, key)
 }
 
+function plural(n: number, lang: TSubscriptionPageLanguageCode, unit: 'day' | 'month' | 'year') {
+    let rule = 'other'
+    try {
+        rule = new Intl.PluralRules(intlLocale(lang)).select(n)
+    } catch {
+        // keep "other"
+    }
+    return translate(lang, `${unit}_${rule}` as `${typeof unit}_few`)
+}
+
+/** 30 → «1 месяц», 90 → «3 месяца», 365 → «1 год», 14 → «14 дней» */
+export function formatPeriod(days: number, lang: TSubscriptionPageLanguageCode): string {
+    const years = Math.round(days / 365)
+    if (years >= 1 && (days === years * 360 || Math.abs(days - years * 365) <= years)) {
+        return `${years} ${plural(years, lang, 'year')}`
+    }
+    if (days >= 28 && days % 30 === 0) {
+        const months = days / 30
+        return `${months} ${plural(months, lang, 'month')}`
+    }
+    return `${days} ${plural(days, lang, 'day')}`
+}
+
 const BYTE_UNITS: Partial<Record<TSubscriptionPageLanguageCode, string[]>> = {
     ru: ['Б', 'КБ', 'МБ', 'ГБ', 'ТБ'],
     fr: ['o', 'Ko', 'Mo', 'Go', 'To']

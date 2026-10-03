@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { GetUserByShortUuidCommand } from '@remnawave/backend-contract';
+import { GetUserByShortUuidCommand, GetUserHwidDevicesCommand } from '@remnawave/backend-contract';
 
 import { AxiosService } from '@common/axios';
 import { TypedConfigService } from '@common/config/app-config';
@@ -13,11 +13,16 @@ export interface ISpofyPageData {
     bypassDisabled: boolean;
     /** Telegram @nickname, else masked email, else Telegram name; null → page falls back */
     displayName: string | null;
+    /** HWID devices connected / allowed (null = unknown or unlimited) */
+    devicesUsed: number | null;
+    devicesLimit: number | null;
     /** in-page checkout through the bot bridge is configured */
     checkoutEnabled: boolean;
 }
 
 interface IUserFacts {
+    devicesUsed: number | null;
+    devicesLimit: number | null;
     bypassDisabled: boolean;
     displayName: string | null;
 }
@@ -27,7 +32,12 @@ const CACHE_ERROR_TTL_MS = 15_000;
 const CACHE_MAX_ENTRIES = 5_000;
 const LOOKUP_TIMEOUT_MS = 3_000;
 
-const NO_FACTS: IUserFacts = { bypassDisabled: false, displayName: null };
+const NO_FACTS: IUserFacts = {
+    bypassDisabled: false,
+    displayName: null,
+    devicesUsed: null,
+    devicesLimit: null,
+};
 
 /** "ivan.petrov@gmail.com" → "iv•••ov@gmail.com"; short local parts keep their first letter only. */
 export function maskEmail(email: string): string {
@@ -134,6 +144,8 @@ export class SpofyService {
             cabinetUrl: this.cabinetUrl,
             bypassDisabled: facts.bypassDisabled,
             displayName: facts.displayName,
+            devicesUsed: facts.devicesUsed,
+            devicesLimit: facts.devicesLimit,
             checkoutEnabled:
                 this.checkoutEnabled && isCheckoutAllowed(this.checkoutAllowlist, shortUuid),
         };
@@ -166,6 +178,11 @@ export class SpofyService {
                     ? squads.some((squad) => squad.uuid === this.bypassOffSquadUuid)
                     : false,
                 displayName: user ? deriveDisplayName(user) : null,
+                devicesUsed: user ? await this.countDevices(user) : null,
+                devicesLimit:
+                    typeof user?.hwidDeviceLimit === 'number' && user.hwidDeviceLimit > 0
+                        ? user.hwidDeviceLimit
+                        : null,
             };
         } catch (error) {
             this.logger.warn(
@@ -179,6 +196,23 @@ export class SpofyService {
         this.factsCache.set(shortUuid, { value, expiresAt: now + ttl });
 
         return value;
+    }
+
+    /** Connected HWID devices; null when unknown (never blocks the page). */
+    private async countDevices(user: { id?: number | string }): Promise<number | null> {
+        if (user.id === undefined || user.id === null) return null;
+        try {
+            const response =
+                await this.axiosService.axiosInstance.request<GetUserHwidDevicesCommand.Response>({
+                    method: GetUserHwidDevicesCommand.endpointDetails.REQUEST_METHOD,
+                    url: GetUserHwidDevicesCommand.url(String(user.id)),
+                    timeout: LOOKUP_TIMEOUT_MS,
+                });
+            const total = response.data?.response?.total;
+            return typeof total === 'number' ? total : null;
+        } catch {
+            return null;
+        }
     }
 
     private pruneCache(now: number): void {

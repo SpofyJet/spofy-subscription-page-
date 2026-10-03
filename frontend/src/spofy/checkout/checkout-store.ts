@@ -1,6 +1,14 @@
 import { create } from 'zustand'
 
-import { ICheckoutResult, TCheckoutKind } from './api'
+import { TSpofyKey } from '../i18n'
+import {
+    CheckoutError,
+    checkoutApi,
+    ICheckoutResult,
+    IOffer,
+    ISnapshot,
+    TCheckoutKind
+} from './api'
 
 export type TCheckoutTab = 'devices' | 'renew' | 'traffic'
 
@@ -9,9 +17,12 @@ export interface IPendingPayment {
     kind: TCheckoutKind
     result: ICheckoutResult
     shortUuid: string
+    /** what was bought, already translated ("Продление на 1 месяц") */
+    summary?: string
 }
 
 const KEY = 'spofy.subpage.pending'
+const METHOD_KEY = 'spofy.subpage.method'
 const TTL_MS = 30 * 60_000
 
 function loadPending(): IPendingPayment | null {
@@ -34,23 +45,73 @@ function savePending(pending: IPendingPayment | null) {
     }
 }
 
+export function loadMethod(): null | string {
+    try {
+        return localStorage.getItem(METHOD_KEY)
+    } catch {
+        return null
+    }
+}
+
+export function saveMethod(id: string) {
+    try {
+        localStorage.setItem(METHOD_KEY, id)
+    } catch {
+        // per-viewer convenience only
+    }
+}
+
+export const errorKey = (error: unknown): TSpofyKey => {
+    if (!(error instanceof CheckoutError)) return 'coErrGeneric'
+    if (error.code === 'rate_limited') return 'coErrRate'
+    if (error.code === 'no_session') return 'coErrSession'
+    if (error.code === 'bot_unavailable' || error.code === 'network') return 'coErrBot'
+    if (error.status === 409 || error.code === 'checkout_disabled') return 'coErrDisabled'
+    if (error.code === 'bridge_error' && error.status === 404) return 'coErrNotInBot'
+    return 'coErrGeneric'
+}
+
 interface IStore {
     close: () => void
+    /** latest subscription snapshot seen while polling a payment */
+    latest: ISnapshot | null
+    /** fetch the offer once per page (or again after an error when `force`) */
+    loadOffer: (shortUuid: string, force?: boolean) => void
+    offer: IOffer | null
+    offerError: null | TSpofyKey
+    offerLoading: boolean
     open: (tab: TCheckoutTab) => void
     opened: boolean
     pending: IPendingPayment | null
+    setLatest: (snapshot: ISnapshot | null) => void
     setPending: (pending: IPendingPayment | null) => void
+    setTab: (tab: TCheckoutTab) => void
     tab: TCheckoutTab
 }
 
-export const useCheckoutStore = create<IStore>()((set) => ({
+export const useCheckoutStore = create<IStore>()((set, get) => ({
     opened: false,
     tab: 'renew',
     pending: loadPending(),
+    latest: null,
+    offer: null,
+    offerError: null,
+    offerLoading: false,
     open: (tab) => set({ opened: true, tab }),
     close: () => set({ opened: false }),
+    setTab: (tab) => set({ tab }),
+    setLatest: (latest) => set({ latest }),
     setPending: (pending) => {
         savePending(pending)
-        set({ pending })
+        set({ pending, latest: null })
+    },
+    loadOffer: (shortUuid, force = false) => {
+        const { offer, offerError, offerLoading } = get()
+        if (offerLoading || offer || (offerError && !force)) return
+        set({ offerLoading: true, offerError: null })
+        checkoutApi
+            .offer(shortUuid)
+            .then((next) => set({ offer: next, offerLoading: false }))
+            .catch((error) => set({ offerError: errorKey(error), offerLoading: false }))
     }
 }))
