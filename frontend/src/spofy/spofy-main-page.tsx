@@ -59,7 +59,9 @@ export function SpofyMainPage() {
 
                 {checkout && <PendingBanner phase={phase} />}
 
-                {spofy.bypassDisabled && <BypassNotice trafficUrl={spofy.trafficUrl} />}
+                {spofy.bypassDisabled && (
+                    <BypassNotice checkout={checkout} trafficUrl={spofy.trafficUrl} />
+                )}
 
                 <ConnectSection detected={detected} />
 

@@ -17,6 +17,8 @@ import { useEffect } from 'react'
 import { useAppConfig, useAppConfigStoreActions, useCurrentLang } from '@entities/app-config-store'
 
 import { TCheckoutTab, useCheckoutStore } from '../checkout/checkout-store'
+import { useMoney } from '../checkout/money'
+import { cheapestTraffic } from '../checkout/offer-utils'
 import {
     EXPIRING_DAYS,
     formatBytes,
@@ -31,6 +33,7 @@ import { TSpofyKey, useSpofyT } from '../i18n'
 import { SpofyShield } from '../spofy-shield'
 import { useSpofyData } from '../spofy-store'
 import classes from '../spofy.module.css'
+import { RenewStrip } from './renew-strip'
 
 const STATUS_SHORT: Record<TSpofyState, TSpofyKey> = {
     active: 'wordActive',
@@ -202,7 +205,24 @@ export function SubscriptionBanner(props: IBannerProps) {
     else if (user.daysLeft <= 0) line = t('lastDay')
     else line = t('daysLeftLine', { n: user.daysLeft, days: formatDays(user.daysLeft, lang) })
 
-    const showHeroCta = inactive || state === 'expiring'
+    const offer = useCheckoutStore((s) => s.offer)
+    const money = useMoney()
+    // Prices on the page: the strip replaces the big «Продлить» button while it loads or shows.
+    const strip = inPage && !isIndefinite(user.expiresAt) && state !== 'disabled'
+    const renewInStrip = strip && !offerError
+    const showHeroCta =
+        (inactive || state === 'expiring') &&
+        !(renewInStrip && (state === 'expired' || state === 'expiring'))
+    const pack = inPage ? cheapestTraffic(offer) : null
+    const trafficCta = pack
+        ? {
+              label: t('trafficBuy', {
+                  gb: t('coGb', { n: pack.gb }),
+                  price: money(pack.price_kopeks)
+              }),
+              onClick: () => openCheckout('traffic', { trafficGb: pack.gb })
+          }
+        : null
 
     return (
         <section aria-labelledby="sp-hero" className={clsx(classes.card, classes.banner)}>
@@ -232,10 +252,13 @@ export function SubscriptionBanner(props: IBannerProps) {
                 <TrafficTile onBuy={onBuy} trafficUrl={trafficUrl} user={user} />
             </div>
 
+            {strip && <RenewStrip />}
+
             {showHeroCta && (
                 <Actions
                     prominent
                     onBuy={onBuy}
+                    trafficCta={trafficCta}
                     renewUrl={renewUrl}
                     state={state}
                     supportUrl={supportUrl}
@@ -461,6 +484,8 @@ function TrafficTile({
 
 function Actions(props: {
     onBuy?: (tab: TCheckoutTab) => void
+    /** «Купить 50 ГБ за 99 ₽» with the package preselected */
+    trafficCta?: { label: string; onClick: () => void } | null
     prominent: boolean
     renewUrl: null | string
     state: TSpofyState
@@ -484,12 +509,12 @@ function Actions(props: {
     )
     const traffic = prominent && (trafficUrl || (onBuy && state === 'limited')) && (
         <ActionLink
-            onClick={onBuy ? () => onBuy('traffic') : undefined}
+            onClick={props.trafficCta?.onClick ?? (onBuy ? () => onBuy('traffic') : undefined)}
             glow={trafficFirst}
             href={trafficUrl ?? '#'}
             icon={<IconPlus aria-hidden size={20} stroke={2} />}
             key="traffic"
-            label={t('buyTraffic')}
+            label={props.trafficCta?.label ?? t('buyTraffic')}
             primary={trafficFirst}
         />
     )

@@ -12,6 +12,13 @@ import {
 
 export type TCheckoutTab = 'devices' | 'renew' | 'traffic'
 
+/** What to preselect when the sheet opens from a card or a CTA on the page. */
+export interface ICheckoutPreset {
+    periodDays?: number
+    tariffId?: null | number
+    trafficGb?: number
+}
+
 export interface IPendingPayment {
     createdAt: number
     kind: TCheckoutKind
@@ -95,9 +102,10 @@ interface IStore {
     offer: IOffer | null
     offerError: null | TSpofyKey
     offerLoading: boolean
-    open: (tab: TCheckoutTab) => void
+    open: (tab: TCheckoutTab, preset?: ICheckoutPreset) => void
     opened: boolean
     pending: IPendingPayment | null
+    preset: ICheckoutPreset | null
     setLatest: (snapshot: ISnapshot | null) => void
     setPending: (pending: IPendingPayment | null) => void
     setTab: (tab: TCheckoutTab) => void
@@ -112,7 +120,8 @@ export const useCheckoutStore = create<IStore>()((set, get) => ({
     offer: null,
     offerError: null,
     offerLoading: false,
-    open: (tab) => set({ opened: true, tab }),
+    preset: null,
+    open: (tab, preset) => set({ opened: true, tab, preset: preset ?? null }),
     close: () => set({ opened: false }),
     setTab: (tab) => set({ tab }),
     setLatest: (latest) => set({ latest }),

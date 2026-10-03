@@ -21,7 +21,7 @@ import {
     IconWallet
 } from '@tabler/icons-react'
 import clsx from 'clsx'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { renderSVG } from 'uqr'
 
 import { vibrate } from '@shared/utils/vibrate'
@@ -45,26 +45,17 @@ import {
     TCheckoutTab,
     useCheckoutStore
 } from '../checkout/checkout-store'
+import { useMoney } from '../checkout/money'
 import { formatDate, formatDays, formatPeriod, isIndefinite } from '../format'
 import { TSpofyKey, useSpofyT } from '../i18n'
 import classes from '../spofy.module.css'
+import { PeriodCard } from './period-card'
 
 const POLL_MS = 4_000
 const GIVE_UP_MS = 15 * 60_000
 const DAY_MS = 86_400_000
 
-export function useMoney() {
-    const { lang } = useSpofyT()
-    return useCallback(
-        (kopeks: number) =>
-            new Intl.NumberFormat(lang === 'en' ? 'en-GB' : lang, {
-                style: 'currency',
-                currency: 'RUB',
-                maximumFractionDigits: kopeks % 100 === 0 ? 0 : 2
-            }).format(kopeks / 100),
-        [lang]
-    )
-}
+export { useMoney }
 
 /* ───────────── payment status watcher (runs while a payment is pending) ───────────── */
 
@@ -290,18 +281,11 @@ function methodIcon(id: string) {
     return IconWallet
 }
 
-const discountOf = (o: IPeriodOption) =>
-    o.discount_percent && o.discount_percent > 0
-        ? o.discount_percent
-        : o.original_price_kopeks && o.original_price_kopeks > o.price_kopeks
-          ? Math.round((1 - o.price_kopeks / o.original_price_kopeks) * 100)
-          : 0
-
 function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }) {
     const { t, lang } = useSpofyT()
     const money = useMoney()
     const subscription = useSubscription()
-    const { tab: wantedTab, setTab, setPending } = useCheckoutStore()
+    const { tab: wantedTab, setTab, setPending, preset } = useCheckoutStore()
 
     const isTrial = offer.subscription.is_trial
     const canRenew = offer.renewal.length > 0
@@ -323,13 +307,29 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
     }, [tab, wantedTab, setTab])
     const tariffMode = tab === 'renew' && (isTrial || !canRenew)
 
+    // A card or CTA on the page may have chosen the period / package already.
     const [period, setPeriod] = useState<number | null>(
-        () => (offer.renewal.find((o) => o.is_highlighted) ?? offer.renewal[0])?.period_days ?? null
+        () =>
+            (preset?.periodDays && offer.renewal.find((o) => o.period_days === preset.periodDays)
+                ? preset.periodDays
+                : null) ??
+            (offer.renewal.find((o) => o.is_highlighted) ?? offer.renewal[0])?.period_days ??
+            null
     )
-    const [tariffId, setTariffId] = useState<number | null>(offer.tariffs[0]?.id ?? null)
+    const [tariffId, setTariffId] = useState<number | null>(
+        () =>
+            (preset?.tariffId && offer.tariffs.some((x) => x.id === preset.tariffId)
+                ? preset.tariffId
+                : null) ??
+            offer.tariffs[0]?.id ??
+            null
+    )
     const tariff = offer.tariffs.find((x) => x.id === tariffId) ?? offer.tariffs[0]
     const [tariffPeriod, setTariffPeriod] = useState<number | null>(
         () =>
+            (preset?.periodDays && tariff?.periods.some((p) => p.period_days === preset.periodDays)
+                ? preset.periodDays
+                : null) ??
             (tariff?.periods.find((p) => p.is_highlighted) ?? tariff?.periods[0])?.period_days ??
             null
     )
@@ -342,7 +342,11 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
             : [])
     const maxAdd = Math.max(1, deviceQuotes.length)
     const [devices, setDevices] = useState(1)
-    const [trafficGb, setTrafficGb] = useState<number | null>(offer.traffic[0]?.gb ?? null)
+    const [trafficGb, setTrafficGb] = useState<number | null>(() =>
+        preset?.trafficGb !== undefined && offer.traffic.some((p) => p.gb === preset.trafficGb)
+            ? preset.trafficGb
+            : (offer.traffic[0]?.gb ?? null)
+    )
     const [methodId, setMethodId] = useState<string | null>(() => {
         const saved = loadMethod()
         return offer.payment_methods.some((m) => m.id === saved)
@@ -461,58 +465,17 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
         onChange: (v: number) => void
     ) => (
         <div aria-label={t('coPeriod')} className={classes.coGrid} role="radiogroup">
-            {options.map((option) => {
-                const discount = discountOf(option)
-                const months = option.period_days / 30
-                return (
-                    <button
-                        aria-checked={option.period_days === value}
-                        className={clsx(
-                            classes.coCard,
-                            option.is_highlighted && classes.coCardBest
-                        )}
-                        key={option.period_days}
-                        onClick={() => {
-                            vibrate('tap')
-                            onChange(option.period_days)
-                        }}
-                        role="radio"
-                        type="button"
-                    >
-                        {(option.is_highlighted || discount > 0) && (
-                            <span className={classes.coCardBadges}>
-                                {option.is_highlighted && (
-                                    <span className={classes.coBadge}>{t('coBest')}</span>
-                                )}
-                                {discount > 0 && (
-                                    <span className={clsx(classes.coBadge, classes.coBadgeSale)}>
-                                        −{discount}%
-                                    </span>
-                                )}
-                            </span>
-                        )}
-                        <span className={classes.coCardTitle}>
-                            {formatPeriod(option.period_days, lang)}
-                        </span>
-                        <span className={clsx(classes.coCardPrice, classes.num)}>
-                            {money(option.price_kopeks)}
-                            {discount > 0 && option.original_price_kopeks ? (
-                                <s className={classes.coStrike}>
-                                    {money(option.original_price_kopeks)}
-                                </s>
-                            ) : null}
-                        </span>
-                        <span className={clsx(classes.coCardMeta, classes.num)}>
-                            {months >= 2
-                                ? t('coPerMonth', {
-                                      price: money(Math.round(option.price_kopeks / months))
-                                  })
-                                : ' '}
-                        </span>
-                        {checkMark}
-                    </button>
-                )
-            })}
+            {options.map((option) => (
+                <PeriodCard
+                    checked={option.period_days === value}
+                    key={option.period_days}
+                    onClick={() => {
+                        vibrate('tap')
+                        onChange(option.period_days)
+                    }}
+                    option={option}
+                />
+            ))}
         </div>
     )
 

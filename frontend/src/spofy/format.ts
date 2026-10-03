@@ -87,6 +87,16 @@ export function formatPeriod(days: number, lang: TSubscriptionPageLanguageCode):
     return `${days} ${plural(days, lang, 'day')}`
 }
 
+/** Compact period for small cards: «1 мес», «3 мес», «1 год», «14 дн.» */
+export function formatPeriodShort(days: number, lang: TSubscriptionPageLanguageCode): string {
+    const years = Math.round(days / 365)
+    if (years >= 1 && (days === years * 360 || Math.abs(days - years * 365) <= years)) {
+        return `${years} ${plural(years, lang, 'year')}`
+    }
+    if (days >= 28 && days % 30 === 0) return `${days / 30} ${translate(lang, 'monthShort')}`
+    return `${days} ${translate(lang, 'daysShort')}`
+}
+
 const BYTE_UNITS: Partial<Record<TSubscriptionPageLanguageCode, string[]>> = {
     ru: ['Б', 'КБ', 'МБ', 'ГБ', 'ТБ'],
     fr: ['o', 'Ko', 'Mo', 'Go', 'To']

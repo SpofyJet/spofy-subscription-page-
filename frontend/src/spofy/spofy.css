@@ -77,6 +77,7 @@
     --sp-grid-line: rgba(11, 18, 32, 0.05);
     --sp-glow-a: 0.28;
     --sp-glow-ok: #138a55;
+    --sp-sale: #0e6e40;
     --sp-glow-warning: #a35f00;
     --sp-glow-error: #c4262b;
     --sp-glow-accent: #2457e0;
@@ -118,6 +119,7 @@
         --sp-grid-line: rgba(255, 255, 255, 0.035);
         --sp-glow-a: 0.65;
         --sp-glow-ok: #34e08f;
+        --sp-sale: #34e08f;
         --sp-glow-warning: #ffb547;
         --sp-glow-error: #ff6b70;
         --sp-glow-accent: #86a6ff;

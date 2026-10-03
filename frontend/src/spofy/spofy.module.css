@@ -1405,6 +1405,269 @@
     }
 }
 
+/* ---------- renewal strip (prices on the page) ---------- */
+.strip {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 8px 6px;
+    border-radius: 18px;
+    background:
+        radial-gradient(120% 90% at 100% 0%, rgba(34, 181, 115, 0.12), transparent 60%),
+        var(--sp-inner);
+    border: 1px solid var(--sp-inner-border);
+}
+
+.stripHead {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 8px;
+    padding: 0 4px;
+}
+
+.stripTitle {
+    font-size: 14.5px;
+    white-space: nowrap;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+}
+
+.stripSale {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 9px 2px 7px;
+    border-radius: 999px;
+    background: rgba(34, 181, 115, 0.14);
+    border: 1px solid rgba(34, 181, 115, 0.5);
+    color: var(--sp-sale);
+    font-size: 12px;
+    font-weight: 800;
+    text-shadow: 0 0 12px rgba(34, 181, 115, 0.75);
+    box-shadow: 0 0 18px -4px rgba(34, 181, 115, 0.65);
+    animation: saleGlow 2.6s ease-in-out infinite;
+    white-space: nowrap;
+}
+
+@keyframes saleGlow {
+    50% {
+        box-shadow: 0 0 26px -2px rgba(34, 181, 115, 0.85);
+    }
+}
+
+.stripCards {
+    display: grid;
+    grid-auto-columns: minmax(74px, 1fr);
+    grid-auto-flow: column;
+    gap: 6px;
+    padding: 12px 2px 4px;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+}
+
+.stripCards::-webkit-scrollbar {
+    display: none;
+}
+
+.stripSkelHead {
+    width: 166px;
+    height: 21px;
+    border-radius: 8px;
+}
+
+.stripSkelChip {
+    width: 158px;
+    height: 23.4px;
+    border-radius: 999px;
+}
+
+.stripSkelCard {
+    height: 75.8px;
+    border-radius: 15px;
+}
+
+/* ---------- period card (page strip + sheet) ---------- */
+.pcard {
+    --pcard-ring: var(--sp-surface);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    min-height: 96px;
+    padding: 14px 12px 10px;
+    border-radius: 18px;
+    border: 1px solid var(--sp-inner-border);
+    background: var(--sp-surface-2);
+    color: var(--sp-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    scroll-snap-align: start;
+    transition:
+        border-color 0.15s ease,
+        background 0.15s ease,
+        box-shadow 0.2s ease,
+        transform 0.12s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.pcard:active {
+    transform: scale(0.97);
+}
+
+.pcard:focus-visible {
+    outline: 2px solid var(--sp-accent);
+    outline-offset: 2px;
+}
+
+.pcardCompact {
+    --pcard-ring: var(--sp-surface);
+    min-height: 68px;
+    padding: 10px 7px 7px;
+    border-radius: 15px;
+}
+
+.pcardSale {
+    border-color: rgba(34, 181, 115, 0.38);
+    background:
+        linear-gradient(160deg, rgba(34, 181, 115, 0.13), transparent 70%),
+        var(--sp-surface-2);
+}
+
+.pcardHit {
+    border-color: rgba(91, 140, 255, 0.6);
+    box-shadow:
+        inset 0 0 0 1px rgba(91, 140, 255, 0.35),
+        0 10px 24px -14px rgba(43, 99, 245, 0.95);
+}
+
+.pcard[aria-checked='true'] {
+    border-color: var(--sp-accent);
+    background:
+        linear-gradient(160deg, rgba(91, 140, 255, 0.22), rgba(43, 99, 245, 0.06)),
+        var(--sp-surface-2);
+    box-shadow:
+        inset 0 0 0 1px var(--sp-accent),
+        0 10px 26px -14px rgba(43, 99, 245, 0.95);
+}
+
+.pcardRibbon {
+    position: absolute;
+    top: -9px;
+    left: 9px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: var(--sp-accent);
+    color: var(--sp-on-accent);
+    font-size: 10.5px;
+    font-weight: 800;
+    line-height: 1.6;
+    letter-spacing: 0.02em;
+    box-shadow: 0 0 0 3px var(--pcard-ring);
+    white-space: nowrap;
+}
+
+.pcardTop {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px;
+}
+
+.pcardTitle {
+    min-width: 0;
+    font-size: 15px;
+    font-weight: 750;
+    line-height: 1.25;
+    white-space: nowrap;
+}
+
+.pcardCompact .pcardTitle {
+    color: var(--sp-text-2);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+/* the discount glows green */
+.pcardDiscount {
+    flex-shrink: 0;
+    color: var(--sp-sale);
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: -0.01em;
+    text-shadow:
+        0 0 10px rgba(34, 181, 115, 0.85),
+        0 0 22px rgba(34, 181, 115, 0.5);
+}
+
+.pcardCompact .pcardDiscount {
+    font-size: 12px;
+}
+
+.pcardPrice {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 6px;
+    margin-top: auto;
+    padding-top: 4px;
+    font-size: 21px;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+}
+
+.pcardCompact .pcardPrice {
+    padding-top: 2px;
+    font-size: 16px;
+    white-space: nowrap;
+}
+
+.pcardMeta {
+    color: var(--sp-text-2);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.pcardCompact .pcardMeta {
+    font-size: 10.5px;
+    white-space: nowrap;
+}
+
+.pcardCheck {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1.5px solid var(--sp-border-strong);
+    color: transparent;
+}
+
+.pcardCheckBottom {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+}
+
+.pcard[aria-checked='true'] .pcardCheck {
+    border-color: var(--sp-accent);
+    background: var(--sp-accent);
+    color: #fff;
+    box-shadow: 0 0 12px rgba(43, 99, 245, 0.8);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .stripSale {
+        animation: none;
+    }
+}
+
 /* ---------- checkout sheet ---------- */
 .sheetContent {
     background:
@@ -2245,4 +2508,47 @@
 .pendingOpen {
     color: var(--sp-accent-text);
     font-weight: 800;
+}
+
+/* odd last period card in the sheet spans the row */
+.coGrid > .pcard:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+    min-height: 0;
+}
+
+/* compact cards: the discount is a glowing pill on the top edge, «Выгодно» on the bottom edge */
+.pcardCompact .pcardDiscount {
+    position: absolute;
+    top: -9px;
+    right: 6px;
+    padding: 0 6px;
+    border-radius: 999px;
+    border: 1px solid rgba(34, 181, 115, 0.65);
+    background: var(--sp-surface);
+    font-size: 11.5px;
+    line-height: 1.5;
+    box-shadow: 0 0 14px -3px rgba(34, 181, 115, 0.85);
+}
+
+.pcardCompact .pcardRibbon {
+    top: auto;
+    bottom: -9px;
+    left: 50%;
+    padding: 0 7px;
+    font-size: 10px;
+    transform: translateX(-50%);
+}
+
+.pcardCompact {
+    padding-bottom: 10px;
+}
+
+.stripCards {
+    padding-bottom: 12px;
+}
+
+/* long CTA labels («Вернуть обходы — купить 50 ГБ за 99 ₽») wrap evenly */
+.notice .btn {
+    width: 100%;
+    text-wrap: balance;
 }
