@@ -155,7 +155,8 @@ const ru = {
     coErrGeneric: 'Не получилось создать платёж. Попробуйте другой способ оплаты.',
     coErrSession: 'Страница устарела. Обновите её и попробуйте снова.',
     coOpenBot: 'Открыть бота',
-    coNothing: 'Сейчас здесь нечего купить.'
+    coNothing: 'Сейчас здесь нечего купить.',
+    coErrNotInBot: 'Для этой подписки оплата на странице недоступна — продлите её в боте.'
 }
 
 type TKey = keyof typeof ru
@@ -296,7 +297,9 @@ const en: TDict = {
     coErrGeneric: 'Could not create the payment. Try another payment method.',
     coErrSession: 'This page is outdated. Refresh it and try again.',
     coOpenBot: 'Open the bot',
-    coNothing: 'Nothing to buy here right now.'
+    coNothing: 'Nothing to buy here right now.',
+    coErrNotInBot:
+        'Payments on this page are not available for this subscription — renew it in the bot.'
 }
 
 const fr: TDict = {
@@ -437,7 +440,9 @@ const fr: TDict = {
     coErrGeneric: 'Impossible de créer le paiement. Essayez un autre moyen.',
     coErrSession: 'Cette page est périmée. Actualisez-la et réessayez.',
     coOpenBot: 'Ouvrir le bot',
-    coNothing: 'Rien à acheter pour le moment.'
+    coNothing: 'Rien à acheter pour le moment.',
+    coErrNotInBot:
+        "Le paiement sur cette page n'est pas disponible pour cet abonnement — passez par le bot."
 }
 
 const DICTS: Partial<Record<TSubscriptionPageLanguageCode, TDict>> = { ru, en, fr }

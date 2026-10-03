@@ -53,6 +53,7 @@ const errorKey = (error: unknown): TSpofyKey => {
     if (error.code === 'no_session') return 'coErrSession'
     if (error.code === 'bot_unavailable' || error.code === 'network') return 'coErrBot'
     if (error.status === 409 || error.code === 'checkout_disabled') return 'coErrDisabled'
+    if (error.code === 'bridge_error' && error.status === 404) return 'coErrNotInBot'
     return 'coErrGeneric'
 }
 
@@ -181,16 +182,17 @@ function ErrorBox({ errorKey: key, renewUrl }: { errorKey: TSpofyKey; renewUrl: 
         <div className={classes.coError} role="alert">
             <IconAlertCircle aria-hidden size={20} />
             <span>{t(key)}</span>
-            {renewUrl && (key === 'coErrDisabled' || key === 'coErrBot') && (
-                <a
-                    className={clsx(classes.btn, classes.btnSecondary, classes.btnSmall)}
-                    href={renewUrl}
-                    rel="noopener noreferrer"
-                    target="_blank"
-                >
-                    {t('coOpenBot')}
-                </a>
-            )}
+            {renewUrl &&
+                (key === 'coErrDisabled' || key === 'coErrBot' || key === 'coErrNotInBot') && (
+                    <a
+                        className={clsx(classes.btn, classes.btnSecondary, classes.btnSmall)}
+                        href={renewUrl}
+                        rel="noopener noreferrer"
+                        target="_blank"
+                    >
+                        {t('coOpenBot')}
+                    </a>
+                )}
         </div>
     )
 }
