@@ -3,6 +3,7 @@ import { create } from 'zustand'
 /** Mirrors backend `ISpofyPageData` (backend/src/modules/spofy/spofy.service.ts). */
 export interface ISpofyPageData {
     bypassDisabled: boolean
+    checkoutEnabled: boolean
     cabinetUrl: null | string
     displayName: null | string
     renewUrl: null | string
@@ -12,6 +13,7 @@ export interface ISpofyPageData {
 
 const EMPTY: ISpofyPageData = {
     bypassDisabled: false,
+    checkoutEnabled: false,
     cabinetUrl: null,
     displayName: null,
     renewUrl: null,
@@ -38,6 +40,7 @@ export const useSpofyStore = create<IStore>()((set) => ({
         set({
             data: {
                 bypassDisabled: raw.bypassDisabled === true,
+                checkoutEnabled: raw.checkoutEnabled === true,
                 cabinetUrl: str(raw.cabinetUrl),
                 displayName: str(raw.displayName),
                 renewUrl: str(raw.renewUrl),

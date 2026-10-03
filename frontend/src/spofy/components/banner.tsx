@@ -16,6 +16,7 @@ import clsx from 'clsx'
 
 import { useAppConfig, useAppConfigStoreActions, useCurrentLang } from '@entities/app-config-store'
 
+import { TCheckoutTab, useCheckoutStore } from '../checkout/checkout-store'
 import {
     EXPIRING_DAYS,
     formatBytes,
@@ -144,6 +145,8 @@ function LanguageMenu(props: {
 /* ───────────────────────── hero ───────────────────────── */
 
 interface IBannerProps {
+    /** in-page checkout: CTAs open the sheet instead of linking to the bot */
+    checkout: boolean
     renewUrl: null | string
     state: TSpofyState
     supportUrl: null | string
@@ -154,7 +157,9 @@ interface IBannerProps {
 
 /** Dark hero with the big Spofy icon, then the stat tiles and the renewal action. */
 export function SubscriptionBanner(props: IBannerProps) {
-    const { state, user, renewUrl, trafficUrl, supportUrl } = props
+    const { checkout, state, user, renewUrl, trafficUrl, supportUrl } = props
+    const openCheckout = useCheckoutStore((s) => s.open)
+    const onBuy = checkout ? (tab: TCheckoutTab) => openCheckout(tab) : undefined
     const config = useAppConfig()
     const { t, lang } = useSpofyT()
 
@@ -209,14 +214,15 @@ export function SubscriptionBanner(props: IBannerProps) {
             </div>
 
             <div className={classes.statTiles}>
-                <DateTile renewUrl={renewUrl} state={state} user={user} />
+                <DateTile onBuy={onBuy} renewUrl={renewUrl} state={state} user={user} />
                 <DaysTile state={state} user={user} />
-                <TrafficTile trafficUrl={trafficUrl} user={user} />
+                <TrafficTile onBuy={onBuy} trafficUrl={trafficUrl} user={user} />
             </div>
 
             {showHeroCta && (
                 <Actions
                     prominent
+                    onBuy={onBuy}
                     renewUrl={renewUrl}
                     state={state}
                     supportUrl={supportUrl}
@@ -229,7 +235,7 @@ export function SubscriptionBanner(props: IBannerProps) {
 
 function Tile(props: {
     children: React.ReactNode
-    cta?: { href: string; label: string } | null
+    cta?: { href?: null | string; label: string; onClick?: () => void } | null
     icon: React.ReactNode
     label: string
     tone?: 'error' | 'ok' | 'warning'
@@ -243,29 +249,52 @@ function Tile(props: {
                 {props.label}
             </span>
             <span className={classes.statTileValue}>{props.children}</span>
-            {props.cta && (
-                <a
-                    className={classes.statTileCta}
-                    href={props.cta.href}
-                    rel="noopener noreferrer"
-                    target="_blank"
-                >
-                    {props.cta.label}
-                    <IconArrowRight aria-hidden size={13} stroke={2.25} />
-                </a>
-            )}
+            {props.cta &&
+                (props.cta.onClick ? (
+                    <button
+                        className={classes.statTileCta}
+                        onClick={props.cta.onClick}
+                        type="button"
+                    >
+                        {props.cta.label}
+                        <IconArrowRight aria-hidden size={13} stroke={2.25} />
+                    </button>
+                ) : props.cta.href ? (
+                    <a
+                        className={classes.statTileCta}
+                        href={props.cta.href}
+                        rel="noopener noreferrer"
+                        target="_blank"
+                    >
+                        {props.cta.label}
+                        <IconArrowRight aria-hidden size={13} stroke={2.25} />
+                    </a>
+                ) : null)}
         </div>
     )
 }
 
-function DateTile(props: { renewUrl: null | string; state: TSpofyState; user: TSpofyUser }) {
-    const { renewUrl, state, user } = props
+function DateTile(props: {
+    onBuy?: (tab: TCheckoutTab) => void
+    renewUrl: null | string
+    state: TSpofyState
+    user: TSpofyUser
+}) {
+    const { onBuy, renewUrl, state, user } = props
     const { t, lang } = useSpofyT()
     const indefinite = isIndefinite(user.expiresAt)
 
     return (
         <Tile
-            cta={renewUrl && !indefinite ? { href: renewUrl, label: t('renewShort') } : null}
+            cta={
+                indefinite
+                    ? null
+                    : onBuy
+                      ? { label: t('renewShort'), onClick: () => onBuy('renew') }
+                      : renewUrl
+                        ? { href: renewUrl, label: t('renewShort') }
+                        : null
+            }
             icon={<IconCalendarEvent size={15} stroke={2} />}
             label={state === 'expired' ? t('ended') : t('validUntilLabel')}
             tone={state === 'expired' ? 'error' : undefined}
@@ -300,7 +329,15 @@ function DaysTile({ state, user }: { state: TSpofyState; user: TSpofyUser }) {
     )
 }
 
-function TrafficTile({ trafficUrl, user }: { trafficUrl: null | string; user: TSpofyUser }) {
+function TrafficTile({
+    onBuy,
+    trafficUrl,
+    user
+}: {
+    onBuy?: (tab: TCheckoutTab) => void
+    trafficUrl: null | string
+    user: TSpofyUser
+}) {
     const { t, lang } = useSpofyT()
     const used = toNumber(user.trafficUsedBytes)
     const limit = toNumber(user.trafficLimitBytes)
@@ -323,7 +360,13 @@ function TrafficTile({ trafficUrl, user }: { trafficUrl: null | string; user: TS
 
     return (
         <Tile
-            cta={trafficUrl ? { href: trafficUrl, label: t('buyGb') } : null}
+            cta={
+                onBuy
+                    ? { label: t('buyGb'), onClick: () => onBuy('traffic') }
+                    : trafficUrl
+                      ? { href: trafficUrl, label: t('buyGb') }
+                      : null
+            }
             icon={<IconArrowsUpDown size={15} stroke={2} />}
             label={t('traffic')}
             tone={level === 'ok' ? undefined : level}
@@ -351,30 +394,33 @@ function TrafficTile({ trafficUrl, user }: { trafficUrl: null | string; user: TS
 }
 
 function Actions(props: {
+    onBuy?: (tab: TCheckoutTab) => void
     prominent: boolean
     renewUrl: null | string
     state: TSpofyState
     supportUrl: null | string
     trafficUrl: null | string
 }) {
-    const { prominent, renewUrl, trafficUrl, supportUrl, state } = props
+    const { onBuy, prominent, renewUrl, trafficUrl, supportUrl, state } = props
     const { t } = useSpofyT()
 
-    const trafficFirst = state === 'limited' && !!trafficUrl
-    const renew = renewUrl && (
+    const trafficFirst = state === 'limited' && (!!trafficUrl || !!onBuy)
+    const renew = (renewUrl || onBuy) && (
         <ActionLink
+            onClick={onBuy ? () => onBuy('renew') : undefined}
             glow={prominent && !trafficFirst}
-            href={renewUrl}
+            href={renewUrl ?? '#'}
             icon={<IconRefresh aria-hidden size={20} stroke={2} />}
             key="renew"
             label={t('renew')}
             primary={!trafficFirst}
         />
     )
-    const traffic = prominent && trafficUrl && (
+    const traffic = prominent && (trafficUrl || (onBuy && state === 'limited')) && (
         <ActionLink
+            onClick={onBuy ? () => onBuy('traffic') : undefined}
             glow={trafficFirst}
-            href={trafficUrl}
+            href={trafficUrl ?? '#'}
             icon={<IconPlus aria-hidden size={20} stroke={2} />}
             key="traffic"
             label={t('buyTraffic')}
@@ -400,21 +446,26 @@ export function ActionLink(props: {
     href: string
     icon?: React.ReactNode
     label: string
+    onClick?: () => void
     primary?: boolean
     small?: boolean
 }) {
+    const className = clsx(
+        classes.btn,
+        props.primary ? classes.btnPrimary : classes.btnSecondary,
+        props.small && classes.btnSmall,
+        props.glow && classes.btnGlow
+    )
+    if (props.onClick) {
+        return (
+            <button className={className} onClick={props.onClick} type="button">
+                {props.icon}
+                {props.label}
+            </button>
+        )
+    }
     return (
-        <a
-            className={clsx(
-                classes.btn,
-                props.primary ? classes.btnPrimary : classes.btnSecondary,
-                props.small && classes.btnSmall,
-                props.glow && classes.btnGlow
-            )}
-            href={props.href}
-            rel="noopener noreferrer"
-            target="_blank"
-        >
+        <a className={className} href={props.href} rel="noopener noreferrer" target="_blank">
             {props.icon}
             {props.label}
         </a>

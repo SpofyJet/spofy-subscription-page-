@@ -5,6 +5,7 @@ import { useSubscription } from '@entities/subscription-info-store'
 
 import { BypassNotice } from './components/actions'
 import { SubscriptionBanner, TopBar } from './components/banner'
+import { CheckoutSheet, PendingBanner, usePendingPhase } from './components/checkout-sheet'
 import { ConnectSection } from './components/connect-section'
 import { LinkCard } from './components/link-card'
 import { detectPlatform, getSubscriptionState, toNumber } from './format'
@@ -30,6 +31,8 @@ export function SpofyMainPage() {
     const state = getSubscriptionState(user)
     const supportUrl = spofy.supportUrl ?? (config.brandingSettings.supportUrl || null)
     const hasTrafficLimit = toNumber(user.trafficLimitBytes) > 0
+    const checkout = spofy.checkoutEnabled
+    const phase = usePendingPhase()
 
     return (
         <>
@@ -46,6 +49,7 @@ export function SpofyMainPage() {
                 />
 
                 <SubscriptionBanner
+                    checkout={checkout}
                     renewUrl={spofy.renewUrl}
                     state={state}
                     supportUrl={supportUrl}
@@ -53,11 +57,15 @@ export function SpofyMainPage() {
                     user={user}
                 />
 
+                {checkout && <PendingBanner phase={phase} />}
+
                 {spofy.bypassDisabled && <BypassNotice trafficUrl={spofy.trafficUrl} />}
 
                 <ConnectSection detected={detected} />
 
                 <LinkCard cabinetUrl={spofy.cabinetUrl} />
+
+                {checkout && <CheckoutSheet phase={phase} renewUrl={spofy.renewUrl} />}
             </div>
         </>
     )

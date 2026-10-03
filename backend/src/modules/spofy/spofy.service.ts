@@ -13,6 +13,8 @@ export interface ISpofyPageData {
     bypassDisabled: boolean;
     /** Telegram @nickname, else masked email, else Telegram name; null → page falls back */
     displayName: string | null;
+    /** in-page checkout through the bot bridge is configured */
+    checkoutEnabled: boolean;
 }
 
 interface IUserFacts {
@@ -77,6 +79,7 @@ export class SpofyService {
     private readonly supportUrl: string | null;
     private readonly cabinetUrl: string | null;
     private readonly bypassOffSquadUuid: string | null;
+    private readonly checkoutEnabled: boolean;
     private readonly factsCache = new Map<string, { value: IUserFacts; expiresAt: number }>();
 
     constructor(
@@ -88,6 +91,9 @@ export class SpofyService {
         this.supportUrl = this.readEnv('SPOFY_SUPPORT_URL');
         this.cabinetUrl = this.readEnv('SPOFY_CABINET_URL');
         this.bypassOffSquadUuid = this.readEnv('SPOFY_BYPASS_OFF_SQUAD_UUID');
+        this.checkoutEnabled =
+            !!this.readEnv('SPOFY_BOT_API_URL') &&
+            (this.readEnv('SPOFY_BOT_API_KEY')?.length ?? 0) >= 32;
 
         this.logger.log(
             `Spofy: renew=${!!this.renewUrl} traffic=${!!this.trafficUrl} support=${!!this.supportUrl} cabinet=${!!this.cabinetUrl} bypassOffNotice=${!!this.bypassOffSquadUuid}`,
@@ -111,6 +117,7 @@ export class SpofyService {
             cabinetUrl: this.cabinetUrl,
             bypassDisabled: facts.bypassDisabled,
             displayName: facts.displayName,
+            checkoutEnabled: this.checkoutEnabled,
         };
     }
 
@@ -170,6 +177,8 @@ export class SpofyService {
 
     private readEnv(
         key:
+            | 'SPOFY_BOT_API_KEY'
+            | 'SPOFY_BOT_API_URL'
             | 'SPOFY_BYPASS_OFF_SQUAD_UUID'
             | 'SPOFY_CABINET_URL'
             | 'SPOFY_RENEW_URL'
