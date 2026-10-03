@@ -122,13 +122,24 @@ def snapshot(subscription: Subscription) -> dict[str, Any]:
     }
 
 
-async def _soft(coro: Any, default: Any) -> Any:
-    """One unavailable part (e.g. devices for a legacy subscription) must not break the offer."""
+async def _soft(coro: Any, default: Any, part: str = 'offer part') -> Any:
+    """One unavailable or failing part (devices, traffic, trial...) must not break the whole offer."""
     try:
         return await coro
     except HTTPException as error:
-        logger.debug('spofy subpage: offer part unavailable', status=error.status_code, detail=str(error.detail))
+        logger.debug('spofy subpage: offer part unavailable', part=part, status=error.status_code, detail=str(error.detail))
         return default
+    except Exception:
+        # Any other error in a cabinet helper (e.g. a multi-tariff edge case) used to turn the
+        # whole offer into a 500 and every button on the page into an error.
+        logger.exception('spofy subpage: offer part failed', part=part)
+        return default
+
+
+def _bridge_failure(error: Exception, where: str) -> HTTPException:
+    """Unexpected error → 502 with the error type (the caller holds the key; no internals leak to users)."""
+    logger.exception('spofy subpage: bridge failure', where=where)
+    return HTTPException(status.HTTP_502_BAD_GATEWAY, f'bridge failure in {where}: {type(error).__name__}')
 
 
 def _restricted(user: User) -> str | None:
@@ -300,6 +311,7 @@ async def device_offer(db: AsyncSession, user: User, subscription: Subscription)
     info = await _soft(
         get_device_price(devices=1, subscription_id=subscription.id, user=user, db=db),
         {'available': False, 'reason_code': 'unavailable'},
+        'devices',
     )
     if not info.get('available'):
         return info
@@ -311,7 +323,9 @@ async def device_offer(db: AsyncSession, user: User, subscription: Subscription)
             info
             if count == 1
             else await _soft(
-                get_device_price(devices=count, subscription_id=subscription.id, user=user, db=db), None
+                get_device_price(devices=count, subscription_id=subscription.id, user=user, db=db),
+                None,
+                f'devices x{count}',
             )
         )
         if not quote or not quote.get('available'):
@@ -331,19 +345,32 @@ async def device_offer(db: AsyncSession, user: User, subscription: Subscription)
 
 @router.get('/{short_uuid}/offer')
 async def get_offer(short_uuid: str, db: AsyncSession = Depends(get_cabinet_db)) -> dict[str, Any]:
+    try:
+        return await _offer(short_uuid, db)
+    except HTTPException:
+        raise
+    except Exception as error:
+        raise _bridge_failure(error, 'offer') from error
+
+
+async def _offer(short_uuid: str, db: AsyncSession) -> dict[str, Any]:
     user, subscription = await resolve_owner(db, short_uuid)
     restriction = _restricted(user)
 
-    methods = await _soft(get_payment_methods(user=user, db=db), [])
+    methods = await _soft(get_payment_methods(user=user, db=db), [], 'payment_methods')
     renewal = (
         []
         if subscription.is_trial
-        else await _soft(get_renewal_options(user=user, db=db, subscription_id=subscription.id), [])
+        else await _soft(get_renewal_options(user=user, db=db, subscription_id=subscription.id), [], 'renewal')
     )
-    tariffs = await tariff_offers(db, user, subscription) if (subscription.is_trial or not renewal) else []
+    tariffs = (
+        await _soft(tariff_offers(db, user, subscription), [], 'tariffs')
+        if (subscription.is_trial or not renewal)
+        else []
+    )
     devices = await device_offer(db, user, subscription)
-    traffic = await _soft(get_traffic_packages(user=user, db=db, subscription_id=subscription.id), [])
-    trial = await _soft(get_trial_info(user=user, db=db), None)
+    traffic = await _soft(get_traffic_packages(user=user, db=db, subscription_id=subscription.id), [], 'traffic')
+    trial = await _soft(get_trial_info(user=user, db=db), None, 'trial')
 
     return {
         'checkout_enabled': restriction is None and bool(methods),
@@ -379,6 +406,15 @@ class CheckoutRequest(BaseModel):
 async def checkout(
     short_uuid: str, body: CheckoutRequest, db: AsyncSession = Depends(get_cabinet_db)
 ) -> dict[str, Any]:
+    try:
+        return await _checkout(short_uuid, body, db)
+    except HTTPException:
+        raise
+    except Exception as error:
+        raise _bridge_failure(error, f'checkout/{body.kind}') from error
+
+
+async def _checkout(short_uuid: str, body: CheckoutRequest, db: AsyncSession) -> dict[str, Any]:
     user, subscription = await resolve_owner(db, short_uuid)
     restriction = _restricted(user)
     if restriction:

@@ -372,6 +372,33 @@ async def test_device_offer_stops_at_first_unavailable_count(monkeypatch):
     assert [q['devices'] for q in offer['quotes']] == [1, 2]
 
 
+async def test_offer_survives_unexpected_errors_in_parts(monkeypatch, auto_on):
+    # multi-tariff edge case: a cabinet helper raises a plain exception, not HTTPException
+    user, sub = _user(), _subscription()
+    monkeypatch.setattr(bridge, 'resolve_owner', AsyncMock(return_value=(user, sub)))
+    monkeypatch.setattr(bridge, 'get_payment_methods', AsyncMock(return_value=[_method()]))
+    monkeypatch.setattr(bridge, 'get_renewal_options', AsyncMock(return_value=[]))
+    monkeypatch.setattr(bridge, 'tariff_offers', AsyncMock(side_effect=AttributeError('tariff')))
+    monkeypatch.setattr(bridge, 'get_device_price', AsyncMock(side_effect=RuntimeError('boom')))
+    monkeypatch.setattr(bridge, 'get_traffic_packages', AsyncMock(side_effect=KeyError('x')))
+    monkeypatch.setattr(bridge, 'get_trial_info', AsyncMock(side_effect=ValueError('y')))
+
+    offer = await bridge.get_offer('abcdefgh', db=None)
+
+    assert offer['devices']['available'] is False
+    assert offer['traffic'] == [] and offer['tariffs'] == [] and offer['trial'] is None
+    assert offer['checkout_enabled'] is True
+
+
+async def test_unexpected_checkout_error_is_a_502_with_its_type(monkeypatch, auto_on, owner):
+    monkeypatch.setattr(bridge, 'save_renewal_cart', AsyncMock(side_effect=AttributeError('lazy load')))
+    body = bridge.CheckoutRequest(kind='renew', period_days=30, payment_method='yookassa')
+    with pytest.raises(HTTPException) as caught:
+        await bridge.checkout('abcdefgh', body, db=None)
+    assert caught.value.status_code == 502
+    assert 'AttributeError' in caught.value.detail
+
+
 # ───────────── completion after top-up (app/services/spofy_subpage_service.py) ─────────────
 
 from app.services import spofy_subpage_service as completion  # noqa: E402

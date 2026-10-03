@@ -61,15 +61,30 @@ export function saveMethod(id: string) {
     }
 }
 
-export const errorKey = (error: unknown): TSpofyKey => {
-    if (!(error instanceof CheckoutError)) return 'coErrGeneric'
+/** What to tell the person. `phase` = loading the options or creating the payment. */
+export const errorKey = (error: unknown, phase: 'checkout' | 'offer' = 'checkout'): TSpofyKey => {
+    if (!(error instanceof CheckoutError)) return phase === 'offer' ? 'coErrLoad' : 'coErrGeneric'
     if (error.code === 'rate_limited') return 'coErrRate'
     if (error.code === 'no_session') return 'coErrSession'
-    if (error.code === 'bot_unavailable' || error.code === 'network') return 'coErrBot'
-    if (error.status === 409 || error.code === 'checkout_disabled') return 'coErrDisabled'
     if (error.code === 'bridge_error' && error.status === 404) return 'coErrNotInBot'
+    if (error.status === 409 || error.code === 'checkout_disabled') return 'coErrDisabled'
+    if (phase === 'offer') return 'coErrLoad'
+    if (error.code === 'bot_unavailable' || error.code === 'network' || error.status >= 500)
+        return 'coErrBot'
+    const detail = (error.detail ?? '').toLowerCase()
+    if (detail.includes('payment method')) return 'coErrMethod'
+    if (detail.includes('exceeds')) return 'coErrLimit'
+    if (detail.includes('restricted')) return 'coErrRestricted'
     return 'coErrGeneric'
 }
+
+/** Bot details that already have a translated message are not repeated in brackets. */
+export const KNOWN_ERROR_KEYS: TSpofyKey[] = [
+    'coErrMethod',
+    'coErrLimit',
+    'coErrRestricted',
+    'coErrBot'
+]
 
 interface IStore {
     close: () => void
@@ -112,6 +127,6 @@ export const useCheckoutStore = create<IStore>()((set, get) => ({
         checkoutApi
             .offer(shortUuid)
             .then((next) => set({ offer: next, offerLoading: false }))
-            .catch((error) => set({ offerError: errorKey(error), offerLoading: false }))
+            .catch((error) => set({ offerError: errorKey(error, 'offer'), offerLoading: false }))
     }
 }))

@@ -45,6 +45,23 @@ export interface ICheckoutBody {
  * browser; this service adds caching and rate limits on top of the bridge's own rules
  * (the bridge never spends the user's balance — it only creates top-up links).
  */
+/** FastAPI `detail`: a string, `{code, message}` or a validation list → short text (≤ 200 chars). */
+export function bridgeDetail(data: unknown): null | string {
+    const detail = (data as { detail?: unknown } | null | undefined)?.detail;
+    let text: null | string = null;
+    if (typeof detail === 'string') text = detail;
+    else if (Array.isArray(detail)) {
+        text = detail
+            .map((item) => (item as { msg?: unknown })?.msg)
+            .filter((msg): msg is string => typeof msg === 'string')
+            .join('; ');
+    } else if (detail && typeof detail === 'object') {
+        const { message, code } = detail as { code?: unknown; message?: unknown };
+        text = typeof message === 'string' ? message : typeof code === 'string' ? code : null;
+    }
+    return text ? text.slice(0, 200) : null;
+}
+
 @Injectable()
 export class SpofyCheckoutService {
     private readonly logger = new Logger(SpofyCheckoutService.name);
@@ -104,10 +121,16 @@ export class SpofyCheckoutService {
         body: ICheckoutBody,
         clientIp: string,
     ): Promise<unknown> {
-        this.limit(`sub:${shortUuid}`, CHECKOUTS_PER_SUBSCRIPTION);
-        this.limit(`ip:${clientIp}`, CHECKOUTS_PER_IP);
+        const keys: [string, number][] = [
+            [`sub:${shortUuid}`, CHECKOUTS_PER_SUBSCRIPTION],
+            [`ip:${clientIp}`, CHECKOUTS_PER_IP],
+        ];
+        for (const [key, max] of keys) this.checkLimit(key, max);
         this.offerCache.delete(shortUuid);
-        return this.call('post', `/${encodeURIComponent(shortUuid)}/checkout`, body);
+        const result = await this.call('post', `/${encodeURIComponent(shortUuid)}/checkout`, body);
+        // Only created payments count: failed attempts must not lock people out.
+        for (const [key] of keys) this.hit(key);
+        return result;
     }
 
     public async status(shortUuid: string, method: string, paymentId: string): Promise<unknown> {
@@ -126,13 +149,20 @@ export class SpofyCheckoutService {
         );
     }
 
-    private limit(key: string, max: number): void {
+    private recent(key: string): number[] {
         const now = Date.now();
-        const recent = (this.hits.get(key) ?? []).filter((t) => now - t < WINDOW_MS);
-        if (recent.length >= max) {
+        return (this.hits.get(key) ?? []).filter((t) => now - t < WINDOW_MS);
+    }
+
+    private checkLimit(key: string, max: number): void {
+        if (this.recent(key).length >= max) {
             throw new HttpException({ code: 'rate_limited' }, HttpStatus.TOO_MANY_REQUESTS);
         }
-        recent.push(now);
+    }
+
+    private hit(key: string): void {
+        const recent = this.recent(key);
+        recent.push(Date.now());
         this.trim(this.hits);
         this.hits.set(key, recent);
     }
@@ -156,15 +186,16 @@ export class SpofyCheckoutService {
         } catch (error) {
             if (error instanceof AxiosError && error.response) {
                 const status = error.response.status;
-                const detail = (error.response.data as { detail?: unknown } | undefined)?.detail;
+                const detail = bridgeDetail(error.response.data);
                 this.logger.warn(
-                    `Bot bridge ${method.toUpperCase()} ${path.split('/')[2] ?? ''} → ${status}`,
+                    `Bot bridge ${method.toUpperCase()} ${path.split('/')[2] ?? ''} → ${status}` +
+                        (detail ? `: ${detail}` : ''),
                 );
                 throw new HttpException(
                     {
                         code: 'bridge_error',
                         status,
-                        detail: typeof detail === 'string' ? detail : null,
+                        detail,
                     },
                     status >= 500 ? HttpStatus.BAD_GATEWAY : status,
                 );

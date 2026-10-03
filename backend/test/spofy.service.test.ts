@@ -136,3 +136,18 @@ test('checkout allowlist: unset → everyone, set → only listed', () => {
     assert.equal(isCheckoutAllowed(list, 'zzzzzz'), false);
     assert.equal(isCheckoutAllowed(parseAllowlist('none'), 'abcdef'), false);
 });
+
+import { bridgeDetail } from '../src/modules/spofy/spofy-checkout.service';
+
+test('bridgeDetail: string, {code,message}, validation list, junk', () => {
+    assert.equal(bridgeDetail({ detail: 'Invalid or unavailable payment method' }), 'Invalid or unavailable payment method');
+    assert.equal(
+        bridgeDetail({ detail: { code: 'tariff_required', message: 'Subscription has no tariff.' } }),
+        'Subscription has no tariff.',
+    );
+    assert.equal(bridgeDetail({ detail: { code: 'tariff_required' } }), 'tariff_required');
+    assert.equal(bridgeDetail({ detail: [{ msg: 'field required' }, { msg: 'too big' }] }), 'field required; too big');
+    assert.equal(bridgeDetail({ detail: 42 }), null);
+    assert.equal(bridgeDetail(null), null);
+    assert.equal(bridgeDetail({ detail: 'x'.repeat(500) })?.length, 200);
+});

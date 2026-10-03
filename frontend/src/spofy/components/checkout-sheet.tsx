@@ -39,6 +39,7 @@ import {
 import {
     errorKey,
     IPendingPayment,
+    KNOWN_ERROR_KEYS,
     loadMethod,
     saveMethod,
     TCheckoutTab,
@@ -225,21 +226,30 @@ function SkeletonChooser() {
 }
 
 function ErrorBox({
+    detail,
     errorKey: key,
     onRetry,
     renewUrl
 }: {
+    detail?: null | string
     errorKey: TSpofyKey
     onRetry?: () => void
     renewUrl: null | string
 }) {
     const { t } = useSpofyT()
     const botFallback =
-        !!renewUrl && (key === 'coErrDisabled' || key === 'coErrBot' || key === 'coErrNotInBot')
+        !!renewUrl &&
+        (key === 'coErrDisabled' ||
+            key === 'coErrBot' ||
+            key === 'coErrNotInBot' ||
+            key === 'coErrLoad')
     return (
         <div className={classes.coError} role="alert">
             <IconAlertCircle aria-hidden size={20} />
-            <span className={classes.coErrorText}>{t(key)}</span>
+            <span className={classes.coErrorText}>
+                {t(key)}
+                {detail ? ` (${detail})` : ''}
+            </span>
             {(onRetry || botFallback) && (
                 <div className={classes.coErrorActions}>
                     {onRetry && (
@@ -429,8 +439,11 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                 summary: summary()
             })
         } catch (err) {
-            setError(errorKey(err))
-            setErrorDetail(err instanceof CheckoutError ? err.detail : null)
+            const key = errorKey(err)
+            setError(key)
+            setErrorDetail(
+                err instanceof CheckoutError && !KNOWN_ERROR_KEYS.includes(key) ? err.detail : null
+            )
         } finally {
             setBusy(false)
         }
@@ -742,15 +755,7 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                 </div>
             )}
 
-            {error && (
-                <div className={classes.coError} role="alert">
-                    <IconAlertCircle aria-hidden size={20} />
-                    <span className={classes.coErrorText}>
-                        {t(error)}
-                        {errorDetail ? ` (${errorDetail})` : ''}
-                    </span>
-                </div>
-            )}
+            {error && <ErrorBox detail={errorDetail} errorKey={error} renewUrl={renewUrl} />}
 
             <div className={classes.coFooter}>
                 {deviceFree && renewUrl ? (

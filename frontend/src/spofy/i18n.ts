@@ -188,7 +188,11 @@ const ru = {
     coErrSession: 'Страница устарела. Обновите её и попробуйте снова.',
     coOpenBot: 'Открыть бота',
     coNothing: 'Сейчас здесь нечего купить.',
-    coErrNotInBot: 'Для этой подписки оплата на странице недоступна — продлите её в боте.'
+    coErrNotInBot: 'Для этой подписки оплата на странице недоступна — продлите её в боте.',
+    coErrLoad: 'Не удалось загрузить варианты оплаты. Попробуйте ещё раз или оформите в боте.',
+    coErrMethod: 'Этот способ оплаты сейчас недоступен — выберите другой.',
+    coErrLimit: 'Сумма больше лимита этого способа оплаты — выберите другой.',
+    coErrRestricted: 'Покупки для этого аккаунта ограничены — напишите в поддержку.'
 }
 
 type TKey = keyof typeof ru
@@ -359,7 +363,11 @@ const en: TDict = {
     coOpenBot: 'Open the bot',
     coNothing: 'Nothing to buy here right now.',
     coErrNotInBot:
-        'Payments on this page are not available for this subscription — renew it in the bot.'
+        'Payments on this page are not available for this subscription — renew it in the bot.',
+    coErrLoad: "Couldn't load payment options. Try again or use the bot.",
+    coErrMethod: 'This payment method is unavailable right now — choose another.',
+    coErrLimit: "The amount is above this method's limit — choose another.",
+    coErrRestricted: 'Purchases are restricted for this account — contact support.'
 }
 
 const fr: TDict = {
@@ -530,7 +538,11 @@ const fr: TDict = {
     coOpenBot: 'Ouvrir le bot',
     coNothing: 'Rien à acheter pour le moment.',
     coErrNotInBot:
-        "Le paiement sur cette page n'est pas disponible pour cet abonnement — passez par le bot."
+        "Le paiement sur cette page n'est pas disponible pour cet abonnement — passez par le bot.",
+    coErrLoad: 'Impossible de charger les options de paiement. Réessayez ou passez par le bot.',
+    coErrMethod: 'Ce moyen de paiement est indisponible — choisissez-en un autre.',
+    coErrLimit: 'Montant supérieur à la limite de ce moyen — choisissez-en un autre.',
+    coErrRestricted: 'Les achats sont restreints pour ce compte — contactez le support.'
 }
 
 const DICTS: Partial<Record<TSubscriptionPageLanguageCode, TDict>> = { ru, en, fr }

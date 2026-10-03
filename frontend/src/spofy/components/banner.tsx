@@ -364,6 +364,13 @@ function DevicesTile(props: { onBuy?: (tab: TCheckoutTab) => void; renewUrl: nul
                         {t('ofLimit', { limit })}
                     </span>
                 </>
+            ) : devicesUsed !== null ? (
+                <>
+                    <span className={classes.num}>{devicesUsed}</span>
+                    <span className={clsx(classes.statTileUnit, classes.num)}>
+                        {t('ofLimit', { limit: '∞' })}
+                    </span>
+                </>
             ) : (
                 <span className={classes.num}>{limit ?? '∞'}</span>
             )}
