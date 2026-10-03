@@ -287,6 +287,45 @@ async def save_tariff_cart(
     return price
 
 
+MAX_DEVICE_QUOTES = 10
+
+
+async def device_offer(db: AsyncSession, user: User, subscription: Subscription) -> dict[str, Any]:
+    """Device add-on with an exact quote per count.
+
+    The bot's price is not linear: it is prorated to the days left, devices still inside the
+    tariff's limit are free, and promo-group discounts and the 1 ₽ minimum apply. So the page
+    gets the bot's own total for 1..N devices instead of multiplying a single-device price.
+    """
+    info = await _soft(
+        get_device_price(devices=1, subscription_id=subscription.id, user=user, db=db),
+        {'available': False, 'reason_code': 'unavailable'},
+    )
+    if not info.get('available'):
+        return info
+    can_add = info.get('can_add')
+    upper = min(can_add, MAX_DEVICE_QUOTES) if can_add else MAX_DEVICE_QUOTES
+    quotes = []
+    for count in range(1, upper + 1):
+        quote = (
+            info
+            if count == 1
+            else await _soft(
+                get_device_price(devices=count, subscription_id=subscription.id, user=user, db=db), None
+            )
+        )
+        if not quote or not quote.get('available'):
+            break
+        quotes.append(
+            {
+                'devices': count,
+                'total_price_kopeks': int(quote['total_price_kopeks']),
+                'discount_percent': int(quote.get('discount_percent') or 0),
+            }
+        )
+    return {**info, 'quotes': quotes}
+
+
 # ───────────────────────── endpoints ─────────────────────────
 
 
@@ -302,10 +341,7 @@ async def get_offer(short_uuid: str, db: AsyncSession = Depends(get_cabinet_db))
         else await _soft(get_renewal_options(user=user, db=db, subscription_id=subscription.id), [])
     )
     tariffs = await tariff_offers(db, user, subscription) if (subscription.is_trial or not renewal) else []
-    devices = await _soft(
-        get_device_price(devices=1, subscription_id=subscription.id, user=user, db=db),
-        {'available': False, 'reason_code': 'unavailable'},
-    )
+    devices = await device_offer(db, user, subscription)
     traffic = await _soft(get_traffic_packages(user=user, db=db, subscription_id=subscription.id), [])
     trial = await _soft(get_trial_info(user=user, db=db), None)
 

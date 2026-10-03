@@ -44,7 +44,7 @@ import {
     TCheckoutTab,
     useCheckoutStore
 } from '../checkout/checkout-store'
-import { formatDate, formatPeriod, isIndefinite } from '../format'
+import { formatDate, formatDays, formatPeriod, isIndefinite } from '../format'
 import { TSpofyKey, useSpofyT } from '../i18n'
 import classes from '../spofy.module.css'
 
@@ -323,7 +323,14 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
             (tariff?.periods.find((p) => p.is_highlighted) ?? tariff?.periods[0])?.period_days ??
             null
     )
-    const maxAdd = Math.max(1, Math.min(offer.devices.can_add ?? 5, 10))
+    // Device prices are not linear (proration, free devices inside the tariff, discounts),
+    // so only counts the bot has quoted can be chosen. An older bridge quotes one device.
+    const deviceQuotes =
+        offer.devices.quotes ??
+        (typeof offer.devices.total_price_kopeks === 'number'
+            ? [{ devices: 1, total_price_kopeks: offer.devices.total_price_kopeks }]
+            : [])
+    const maxAdd = Math.max(1, deviceQuotes.length)
     const [devices, setDevices] = useState(1)
     const [trafficGb, setTrafficGb] = useState<number | null>(offer.traffic[0]?.gb ?? null)
     const [methodId, setMethodId] = useState<string | null>(() => {
@@ -342,15 +349,19 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
         setOptionId(method?.options?.[0]?.id ?? null)
     }, [methodId])
 
+    const deviceQuote = deviceQuotes.find((q) => q.devices === devices)
+    const deviceFree = tab === 'devices' && !!deviceQuote && deviceQuote.total_price_kopeks === 0
+    const freeDevices = deviceQuotes.filter((q) => q.total_price_kopeks === 0).length
+
     const selectedPeriod = tariffMode
         ? tariff?.periods.find((p) => p.period_days === tariffPeriod)
         : offer.renewal.find((o) => o.period_days === period)
 
     const price = useMemo(() => {
         if (tab === 'renew') return selectedPeriod?.price_kopeks ?? 0
-        if (tab === 'devices') return (offer.devices.price_per_device_kopeks ?? 0) * devices
+        if (tab === 'devices') return deviceQuote?.total_price_kopeks ?? 0
         return offer.traffic.find((p) => p.gb === trafficGb)?.price_kopeks ?? 0
-    }, [tab, selectedPeriod, devices, trafficGb, offer])
+    }, [tab, selectedPeriod, deviceQuote, trafficGb, offer])
 
     if (tabs.length === 0 || offer.payment_methods.length === 0 || !offer.checkout_enabled) {
         return (
@@ -593,11 +604,36 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                             <IconPlus aria-hidden size={20} />
                         </button>
                     </div>
-                    <span className={classes.coHint}>
-                        {t('coPerDevice', {
-                            price: money(offer.devices.price_per_device_kopeks ?? 0)
-                        })}
+                    {offer.devices.base_device_price_kopeks ? (
+                        <span className={classes.coHint}>
+                            {t('coDeviceBase', {
+                                price: money(offer.devices.base_device_price_kopeks)
+                            })}
+                            {offer.devices.days_left
+                                ? ` · ${t('coDeviceProrated', { n: offer.devices.days_left, days: formatDays(offer.devices.days_left, lang) })}`
+                                : ''}
+                        </span>
+                    ) : null}
+                </div>
+            )}
+
+            {tab === 'devices' && deviceQuote && (
+                <div className={classes.coResult}>
+                    <span>
+                        {deviceFree
+                            ? t('coDeviceFree')
+                            : freeDevices > 0
+                              ? t('coDeviceSomeFree', { n: freeDevices })
+                              : t('coTotal')}
                     </span>
+                    <strong className={classes.num}>
+                        {deviceFree ? t('coFree') : money(deviceQuote.total_price_kopeks)}
+                        {deviceQuote.discount_percent ? (
+                            <span className={clsx(classes.coBadge, classes.coBadgeSale)}>
+                                −{deviceQuote.discount_percent}%
+                            </span>
+                        ) : null}
+                    </strong>
                 </div>
             )}
 
@@ -652,55 +688,59 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                 </div>
             )}
 
-            <div className={classes.coSection}>
-                <div className={classes.coLabel}>{t('coMethod')}</div>
-                <div aria-label={t('coMethod')} className={classes.coList} role="radiogroup">
-                    {offer.payment_methods.map((m) => {
-                        const MethodIcon = methodIcon(m.id)
-                        return [
-                            <button
-                                aria-checked={m.id === methodId}
-                                className={classes.coRow}
-                                key={m.id}
-                                onClick={() => setMethodId(m.id)}
-                                role="radio"
-                                type="button"
-                            >
-                                <span aria-hidden className={classes.coRowIcon}>
-                                    <MethodIcon size={20} stroke={1.9} />
-                                </span>
-                                <span className={classes.coRowText}>
-                                    <span className={classes.coRowTitle}>{m.name}</span>
-                                    {m.description && (
-                                        <span className={classes.coRowMeta}>{m.description}</span>
-                                    )}
-                                </span>
-                                <span aria-hidden className={classes.coRadio} />
-                            </button>,
-                            m.id === methodId && m.options && m.options.length > 1 ? (
-                                <div
-                                    className={classes.coChips}
-                                    key={`${m.id}-options`}
-                                    role="radiogroup"
+            {!deviceFree && (
+                <div className={classes.coSection}>
+                    <div className={classes.coLabel}>{t('coMethod')}</div>
+                    <div aria-label={t('coMethod')} className={classes.coList} role="radiogroup">
+                        {offer.payment_methods.map((m) => {
+                            const MethodIcon = methodIcon(m.id)
+                            return [
+                                <button
+                                    aria-checked={m.id === methodId}
+                                    className={classes.coRow}
+                                    key={m.id}
+                                    onClick={() => setMethodId(m.id)}
+                                    role="radio"
+                                    type="button"
                                 >
-                                    {m.options.map((o) => (
-                                        <button
-                                            aria-checked={o.id === optionId}
-                                            className={classes.coChip}
-                                            key={o.id}
-                                            onClick={() => setOptionId(o.id)}
-                                            role="radio"
-                                            type="button"
-                                        >
-                                            {o.name}
-                                        </button>
-                                    ))}
-                                </div>
-                            ) : null
-                        ]
-                    })}
+                                    <span aria-hidden className={classes.coRowIcon}>
+                                        <MethodIcon size={20} stroke={1.9} />
+                                    </span>
+                                    <span className={classes.coRowText}>
+                                        <span className={classes.coRowTitle}>{m.name}</span>
+                                        {m.description && (
+                                            <span className={classes.coRowMeta}>
+                                                {m.description}
+                                            </span>
+                                        )}
+                                    </span>
+                                    <span aria-hidden className={classes.coRadio} />
+                                </button>,
+                                m.id === methodId && m.options && m.options.length > 1 ? (
+                                    <div
+                                        className={classes.coChips}
+                                        key={`${m.id}-options`}
+                                        role="radiogroup"
+                                    >
+                                        {m.options.map((o) => (
+                                            <button
+                                                aria-checked={o.id === optionId}
+                                                className={classes.coChip}
+                                                key={o.id}
+                                                onClick={() => setOptionId(o.id)}
+                                                role="radio"
+                                                type="button"
+                                            >
+                                                {o.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : null
+                            ]
+                        })}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {error && (
                 <div className={classes.coError} role="alert">
@@ -713,26 +753,37 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
             )}
 
             <div className={classes.coFooter}>
-                <button
-                    className={clsx(
-                        classes.btn,
-                        classes.btnPrimary,
-                        classes.btnGlow,
-                        classes.coPayBtn
-                    )}
-                    disabled={busy || price <= 0 || !method}
-                    onClick={submit}
-                    type="button"
-                >
-                    {busy ? (
-                        <IconLoader2 aria-hidden className={classes.spin} size={20} />
-                    ) : (
-                        <IconLock aria-hidden size={18} stroke={2.25} />
-                    )}
-                    <span>{t('coPay', { price: money(price) })}</span>
-                    {original && <s className={classes.coPayStrike}>{money(original)}</s>}
-                </button>
-                <span className={classes.coSecure}>{t('coSecure')}</span>
+                {deviceFree && renewUrl ? (
+                    <a
+                        className={clsx(classes.btn, classes.btnPrimary, classes.coPayBtn)}
+                        href={renewUrl}
+                        rel="noopener noreferrer"
+                        target="_blank"
+                    >
+                        {t('coAddFreeInBot')}
+                    </a>
+                ) : (
+                    <button
+                        className={clsx(
+                            classes.btn,
+                            classes.btnPrimary,
+                            classes.btnGlow,
+                            classes.coPayBtn
+                        )}
+                        disabled={busy || price <= 0 || !method}
+                        onClick={submit}
+                        type="button"
+                    >
+                        {busy ? (
+                            <IconLoader2 aria-hidden className={classes.spin} size={20} />
+                        ) : (
+                            <IconLock aria-hidden size={18} stroke={2.25} />
+                        )}
+                        <span>{t('coPay', { price: money(price) })}</span>
+                        {original && <s className={classes.coPayStrike}>{money(original)}</s>}
+                    </button>
+                )}
+                {!deviceFree && <span className={classes.coSecure}>{t('coSecure')}</span>}
             </div>
         </div>
     )

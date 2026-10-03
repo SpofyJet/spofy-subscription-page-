@@ -347,6 +347,31 @@ async def test_offer_for_trial_user_lists_tariffs_not_renewal(monkeypatch, auto_
     assert offer['payment_methods'][0]['id'] == 'yookassa'
 
 
+async def test_device_offer_quotes_each_count_from_the_bot(monkeypatch):
+    # 1st device is free (inside the tariff limit), the rest are prorated by the bot
+    def price(devices, **_):
+        total = max(0, devices - 1) * 96_700
+        return {'available': True, 'total_price_kopeks': total, 'can_add': 3, 'base_device_price_kopeks': 100_000}
+
+    monkeypatch.setattr(bridge, 'get_device_price', AsyncMock(side_effect=price))
+    offer = await bridge.device_offer(None, _user(), _subscription())
+
+    assert [q['total_price_kopeks'] for q in offer['quotes']] == [0, 96_700, 193_400]
+    assert offer['base_device_price_kopeks'] == 100_000
+
+
+async def test_device_offer_stops_at_first_unavailable_count(monkeypatch):
+    def price(devices, **_):
+        if devices > 2:
+            return {'available': False, 'reason': 'max'}
+        return {'available': True, 'total_price_kopeks': devices * 1000, 'can_add': None}
+
+    monkeypatch.setattr(bridge, 'get_device_price', AsyncMock(side_effect=price))
+    offer = await bridge.device_offer(None, _user(), _subscription())
+
+    assert [q['devices'] for q in offer['quotes']] == [1, 2]
+
+
 # ───────────── completion after top-up (app/services/spofy_subpage_service.py) ─────────────
 
 from app.services import spofy_subpage_service as completion  # noqa: E402

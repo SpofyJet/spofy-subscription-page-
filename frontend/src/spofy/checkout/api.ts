@@ -27,8 +27,15 @@ export interface IOffer {
         can_add?: null | number
         current_device_limit?: number
         max_device_limit?: null | number
+        /** monthly price of one device, before proration and discounts */
+        base_device_price_kopeks?: number
+        days_left?: number
         price_per_device_kopeks?: number
+        /** bot's exact total for adding 1..N devices (bridge ≥ v2) */
+        quotes?: { devices: number; discount_percent?: number; total_price_kopeks: number }[]
         reason?: string
+        /** total for one device */
+        total_price_kopeks?: number
     }
     disabled_reason: null | string
     payment_methods: {
