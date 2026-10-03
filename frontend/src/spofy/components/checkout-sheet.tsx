@@ -672,40 +672,6 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                                     >
                                         <span className={classes.coTariffText}>
                                             <span className={classes.coRowTitle}>{x.name}</span>
-                                            <span className={classes.coFacts}>
-                                                <span
-                                                    className={classes.coFact}
-                                                    style={
-                                                        {
-                                                            '--tone': '#0ea5b7'
-                                                        } as React.CSSProperties
-                                                    }
-                                                >
-                                                    <IconArrowsUpDown
-                                                        aria-hidden
-                                                        size={13}
-                                                        stroke={2.25}
-                                                    />
-                                                    {x.traffic_limit_gb > 0
-                                                        ? t('coGb', { n: x.traffic_limit_gb })
-                                                        : t('coTrafficUnlimited')}
-                                                </span>
-                                                <span
-                                                    className={classes.coFact}
-                                                    style={
-                                                        {
-                                                            '--tone': '#8b5cf6'
-                                                        } as React.CSSProperties
-                                                    }
-                                                >
-                                                    <IconDevices
-                                                        aria-hidden
-                                                        size={13}
-                                                        stroke={2.25}
-                                                    />
-                                                    {t('coDevShort', { n: x.device_limit })}
-                                                </span>
-                                            </span>
                                         </span>
                                         <span aria-hidden className={classes.coRadio} />
                                     </button>
