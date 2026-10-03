@@ -59,6 +59,12 @@ const DAY_MS = 86_400_000
 
 /* ───────────── sheet ───────────── */
 
+const TAB_TONE: Record<TCheckoutTab, string> = {
+    renew: '#2b63f5',
+    devices: '#8b5cf6',
+    traffic: '#0ea5b7'
+}
+
 const TAB_ICON: Record<TCheckoutTab, typeof IconRefresh> = {
     renew: IconRefresh,
     devices: IconDevices,
@@ -130,7 +136,11 @@ export default function CheckoutSheet({
 
     const title = (
         <span className={classes.coTitle}>
-            <span aria-hidden className={classes.coTitleIcon}>
+            <span
+                aria-hidden
+                className={classes.coTitleIcon}
+                style={{ '--tone': showPayment ? '#22b573' : TAB_TONE[tab] } as React.CSSProperties}
+            >
                 <Icon size={20} stroke={2} />
             </span>
             <span className={classes.coTitleText}>
@@ -253,14 +263,39 @@ function ErrorBox({
 
 /* ───────────── step 1: choose ───────────── */
 
-function methodIcon(id: string) {
-    const key = id.toLowerCase()
-    if (key.includes('star')) return IconStar
-    if (key.includes('sbp')) return IconBolt
-    if (/crypt|heleket|ton|usdt|bitcoin/.test(key)) return IconCurrencyBitcoin
-    if (/card|yookassa|tribute|pal24|platega|wata|mulen|freekassa|cloudpayments/.test(key))
-        return IconCreditCard
-    return IconWallet
+type TMethodKind = 'card' | 'crypto' | 'other' | 'sbp' | 'stars'
+
+/** Brand-like colour per kind of payment: card blue, SBP violet, crypto amber, Stars gold. */
+const METHOD_STYLE: Record<TMethodKind, { icon: typeof IconWallet; tone: string }> = {
+    card: { icon: IconCreditCard, tone: '#3b82f6' },
+    sbp: { icon: IconBolt, tone: '#8b5cf6' },
+    crypto: { icon: IconCurrencyBitcoin, tone: '#f59e0b' },
+    stars: { icon: IconStar, tone: '#facc15' },
+    other: { icon: IconWallet, tone: '#64748b' }
+}
+
+function methodKind(m: IOffer['payment_methods'][number]): TMethodKind {
+    const id = m.id.toLowerCase()
+    const optionIds = (m.options ?? []).map((o) => o.id.toLowerCase())
+    if (/heleket|crypt|ton|usdt|bitcoin|cashera/.test(id)) return 'crypto'
+    if (id.includes('star')) return 'stars'
+    if (optionIds.includes('sbp') && !optionIds.some((o) => o.includes('card'))) return 'sbp'
+    if (id.includes('sbp')) return 'sbp'
+    if (
+        optionIds.some((o) => o.includes('card') || o === 'sbp') ||
+        /card|yookassa|pal24|platega|wata|mulen|freekassa|cloudpayments|tribute/.test(id)
+    )
+        return 'card'
+    return 'other'
+}
+
+/** Methods shown up front: the first card/SBP one and Heleket (crypto). The rest sit behind «Другой способ». */
+function primaryMethods(methods: IOffer['payment_methods']): string[] {
+    const card = methods.find((m) => methodKind(m) === 'card' || methodKind(m) === 'sbp')
+    const crypto =
+        methods.find((m) => m.id.toLowerCase().includes('heleket')) ??
+        methods.find((m) => methodKind(m) === 'crypto')
+    return [card?.id, crypto?.id].filter((x): x is string => !!x)
 }
 
 function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }) {
@@ -329,11 +364,14 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
             ? preset.trafficGb
             : (offer.traffic[0]?.gb ?? null)
     )
+    const primary = primaryMethods(offer.payment_methods)
+    // Default: card / SBP. A method remembered from an earlier payment wins only if it is one of
+    // the two up-front choices.
     const [methodId, setMethodId] = useState<string | null>(() => {
         const saved = loadMethod()
-        return offer.payment_methods.some((m) => m.id === saved)
+        return saved && primary.includes(saved)
             ? saved
-            : (offer.payment_methods[0]?.id ?? null)
+            : (primary[0] ?? offer.payment_methods[0]?.id ?? null)
     })
     const method = offer.payment_methods.find((m) => m.id === methodId)
     const [optionId, setOptionId] = useState<null | string>(method?.options?.[0]?.id ?? null)
@@ -512,6 +550,7 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                                 aria-selected={key === tab}
                                 className={classes.coTab}
                                 key={key}
+                                style={{ '--tone': TAB_TONE[key] } as React.CSSProperties}
                                 onClick={() => {
                                     setTab(key)
                                     setError(null)
@@ -728,57 +767,62 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                 <div className={classes.coSection}>
                     <div className={classes.coLabel}>{t('coMethod')}</div>
                     <div aria-label={t('coMethod')} className={classes.coList} role="radiogroup">
-                        {(allMethods
-                            ? offer.payment_methods
-                            : offer.payment_methods.filter((m) => m.id === methodId)
-                        ).map((m) => {
-                            const MethodIcon = methodIcon(m.id)
-                            return [
-                                <button
-                                    aria-checked={m.id === methodId}
-                                    className={classes.coRow}
-                                    key={m.id}
-                                    onClick={() => setMethodId(m.id)}
-                                    role="radio"
-                                    type="button"
-                                >
-                                    <span aria-hidden className={classes.coRowIcon}>
-                                        <MethodIcon size={20} stroke={1.9} />
-                                    </span>
-                                    <span className={classes.coRowText}>
-                                        <span className={classes.coRowTitle}>{m.name}</span>
-                                        {m.description && (
-                                            <span className={classes.coRowMeta}>
-                                                {m.description}
-                                            </span>
-                                        )}
-                                    </span>
-                                    <span aria-hidden className={classes.coRadio} />
-                                </button>,
-                                m.id === methodId && m.options && m.options.length > 1 ? (
-                                    <div
-                                        className={classes.coChips}
-                                        key={`${m.id}-options`}
-                                        role="radiogroup"
+                        {offer.payment_methods
+                            .filter(
+                                (m) => allMethods || primary.includes(m.id) || m.id === methodId
+                            )
+                            .map((m) => {
+                                const style = METHOD_STYLE[methodKind(m)]
+                                const MethodIcon = style.icon
+                                return [
+                                    <button
+                                        aria-checked={m.id === methodId}
+                                        className={classes.coRow}
+                                        key={m.id}
+                                        style={{ '--tone': style.tone } as React.CSSProperties}
+                                        onClick={() => setMethodId(m.id)}
+                                        role="radio"
+                                        type="button"
                                     >
-                                        {m.options.map((o) => (
-                                            <button
-                                                aria-checked={o.id === optionId}
-                                                className={classes.coChip}
-                                                key={o.id}
-                                                onClick={() => setOptionId(o.id)}
-                                                role="radio"
-                                                type="button"
-                                            >
-                                                {o.name}
-                                            </button>
-                                        ))}
-                                    </div>
-                                ) : null
-                            ]
-                        })}
+                                        <span aria-hidden className={classes.coRowIcon}>
+                                            <MethodIcon size={20} stroke={1.9} />
+                                        </span>
+                                        <span className={classes.coRowText}>
+                                            <span className={classes.coRowTitle}>{m.name}</span>
+                                            {m.description && (
+                                                <span className={classes.coRowMeta}>
+                                                    {m.description}
+                                                </span>
+                                            )}
+                                        </span>
+                                        <span aria-hidden className={classes.coRadio} />
+                                    </button>,
+                                    m.id === methodId && m.options && m.options.length > 1 ? (
+                                        <div
+                                            className={classes.coChips}
+                                            key={`${m.id}-options`}
+                                            role="radiogroup"
+                                        >
+                                            {m.options.map((o) => (
+                                                <button
+                                                    aria-checked={o.id === optionId}
+                                                    className={classes.coChip}
+                                                    key={o.id}
+                                                    onClick={() => setOptionId(o.id)}
+                                                    role="radio"
+                                                    type="button"
+                                                >
+                                                    {o.name}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    ) : null
+                                ]
+                            })}
                     </div>
-                    {offer.payment_methods.length > 1 && (
+                    {offer.payment_methods.some(
+                        (m) => !primary.includes(m.id) && m.id !== methodId
+                    ) && (
                         <button
                             aria-expanded={allMethods}
                             className={classes.coMore}
@@ -815,9 +859,11 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                             classes.btn,
                             classes.btnPrimary,
                             classes.btnGlow,
-                            classes.coPayBtn
+                            classes.coPayBtn,
+                            classes.coPayTone
                         )}
                         disabled={busy || price <= 0 || !method}
+                        style={{ '--tone': TAB_TONE[tab] } as React.CSSProperties}
                         onClick={submit}
                         type="button"
                     >

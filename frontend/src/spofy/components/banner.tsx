@@ -276,6 +276,7 @@ function Tile(props: {
     children: React.ReactNode
     icon: React.ReactNode
     label: string
+    hue?: string
     /** shown in place of the button when there is nothing to buy */
     note?: null | string
     tone?: 'error' | 'ok' | 'warning'
@@ -283,7 +284,11 @@ function Tile(props: {
     const { action } = props
     return (
         <div className={clsx(classes.statTile, props.tone && classes[`statTile_${props.tone}`])}>
-            <span aria-hidden className={classes.statTileIcon}>
+            <span
+                aria-hidden
+                className={classes.statTileIcon}
+                style={props.hue ? ({ '--tone': props.hue } as React.CSSProperties) : undefined}
+            >
                 {props.icon}
             </span>
             <span className={classes.statTileLabel}>{props.label}</span>
@@ -336,6 +341,7 @@ function DateTile(props: {
                           href: onBuy ? null : renewUrl
                       }
             }
+            hue="#2b63f5"
             icon={<IconCalendarEvent size={16} stroke={2} />}
             label={state === 'expired' ? t('ended') : t('validUntilLabel')}
             tone={tone}
@@ -374,6 +380,7 @@ function DevicesTile(props: {
                       }
                     : null
             }
+            hue="#8b5cf6"
             icon={<IconDevices size={16} stroke={2} />}
             label={t('devices')}
             note={limit === null ? t('devicesNoLimit') : null}
@@ -437,6 +444,7 @@ function TrafficTile({
         return (
             <Tile
                 action={action}
+                hue="#0ea5b7"
                 icon={<IconArrowsUpDown size={16} stroke={2} />}
                 label={t('traffic')}
                 note={dormant ? null : t('devicesNoLimit')}
@@ -473,6 +481,7 @@ function TrafficTile({
                     />
                 </span>
             }
+            hue="#0ea5b7"
             icon={<IconArrowsUpDown size={16} stroke={2} />}
             label={t('traffic')}
             tone={level === 'ok' ? undefined : level}

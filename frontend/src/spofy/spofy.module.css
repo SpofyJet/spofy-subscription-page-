@@ -2598,3 +2598,51 @@
     font-weight: 750;
     cursor: pointer;
 }
+
+/* ---------- colour: every area has its own tone (renew blue, devices violet, traffic teal) ---------- */
+.coTitleIcon {
+    background: linear-gradient(145deg, color-mix(in srgb, var(--tone, #2b63f5) 70%, white), var(--tone, #2b63f5));
+    box-shadow: 0 8px 22px -8px var(--tone, #2b63f5);
+}
+
+.coTab[aria-selected='true'] {
+    background: var(--tone, var(--sp-accent));
+    box-shadow: 0 6px 18px -8px var(--tone, var(--sp-accent));
+}
+
+.coTab[aria-selected='false'] svg {
+    color: var(--tone, currentColor);
+}
+
+.coRowIcon {
+    border: 0;
+    background: color-mix(in srgb, var(--tone, #64748b) 18%, transparent);
+    color: var(--tone, var(--sp-accent-text));
+}
+
+.coRow[aria-checked='true'] .coRowIcon {
+    background: linear-gradient(145deg, color-mix(in srgb, var(--tone, #2b63f5) 65%, white), var(--tone, #2b63f5));
+    color: #fff;
+    box-shadow: 0 6px 16px -6px var(--tone, #2b63f5);
+}
+
+.statTileIcon {
+    background: color-mix(in srgb, var(--tone, #2b63f5) 20%, transparent);
+    color: var(--tone, var(--sp-accent-text));
+    box-shadow: 0 0 14px -4px var(--tone, #2b63f5);
+}
+
+.coPayTone {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--tone, #2b63f5) 78%, white), var(--tone, #2b63f5));
+    box-shadow: 0 14px 30px -12px var(--tone, #2b63f5);
+}
+
+.coChips {
+    gap: 6px;
+    padding: 0 0 2px 50px;
+}
+
+.coChip {
+    min-height: 40px;
+    padding: 0 12px;
+}
