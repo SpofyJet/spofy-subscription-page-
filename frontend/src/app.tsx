@@ -1,24 +1,28 @@
-import '@mantine/core/styles.layer.css'
-import '@mantine/notifications/styles.layer.css'
-import '@mantine/nprogress/styles.layer.css'
-import '@gfazioli/mantine-spinner/styles.css'
-
+// Only the Mantine styles the Spofy page uses (the full bundle was 224 KB of render-blocking CSS).
+import '@mantine/core/styles/baseline.layer.css'
+import '@mantine/core/styles/default-css-variables.layer.css'
+import '@mantine/core/styles/global.layer.css'
+import '@mantine/core/styles/UnstyledButton.layer.css'
+import '@mantine/core/styles/VisuallyHidden.layer.css'
+import '@mantine/core/styles/Paper.layer.css'
+import '@mantine/core/styles/Popover.layer.css'
+import '@mantine/core/styles/Menu.layer.css'
+import '@mantine/core/styles/CloseButton.layer.css'
+import '@mantine/core/styles/Overlay.layer.css'
+import '@mantine/core/styles/ModalBase.layer.css'
+import '@mantine/core/styles/Modal.layer.css'
+import '@mantine/core/styles/Drawer.layer.css'
+import '@mantine/core/styles/ScrollArea.layer.css'
 import './global.css'
-import { spofyTheme } from './spofy'
-
 import { DirectionProvider, MantineProvider, v8CssVariablesResolver } from '@mantine/core'
 import { enableMainThreadBlocking } from 'ios-vibrator-pro-max'
-import { Notifications } from '@mantine/notifications'
-import { ModalsProvider } from '@mantine/modals'
-import { useMediaQuery } from '@mantine/hooks'
 
 import { Router } from './app/router/router'
+import { spofyTheme } from './spofy'
 
 enableMainThreadBlocking(false)
 
 export function App() {
-    const mq = useMediaQuery('(min-width: 40em)')
-
     return (
         <DirectionProvider>
             <MantineProvider
@@ -26,11 +30,7 @@ export function App() {
                 defaultColorScheme="auto"
                 theme={spofyTheme}
             >
-                <ModalsProvider>
-                    <Notifications position={mq ? 'top-right' : 'bottom-right'} />
-
-                    <Router />
-                </ModalsProvider>
+                <Router />
             </MantineProvider>
         </DirectionProvider>
     )

@@ -18,7 +18,6 @@ import clsx from 'clsx'
 import { useId, useMemo, useRef, useState } from 'react'
 
 import { constructSubscriptionUrl } from '@shared/utils/construct-subscription-url'
-import { TemplateEngine } from '@shared/utils/template-engine'
 import { vibrate } from '@shared/utils/vibrate'
 
 import { useAppConfig } from '@entities/app-config-store'
@@ -27,6 +26,7 @@ import { useSubscription } from '@entities/subscription-info-store'
 import { getAppLogo } from '../app-logos'
 import { PLATFORM_ORDER } from '../format'
 import { useSpofyT } from '../i18n'
+import { formatLink, useLinkTemplates } from '../link-template'
 import { prefs } from '../prefs'
 import { useQrStore } from '../qr-store'
 import classes from '../spofy.module.css'
@@ -286,10 +286,11 @@ function AppSetup(props: {
 
     const { install, add } = pickHeroButtons(app)
 
+    useLinkTemplates(app.blocks.flatMap((block) => block.buttons.map((button) => button.link)))
     const format = (button: TButton) =>
         button.type === 'external'
             ? button.link
-            : TemplateEngine.formatWithMetaInfo(button.link, { username, subscriptionUrl })
+            : (formatLink(button.link, { username, subscriptionUrl }) ?? '#')
 
     const renderButton = (
         button: TButton,
@@ -377,7 +378,7 @@ function AppSetup(props: {
                 <span aria-hidden className={classes.iconSquare}>
                     <IconListNumbers size={18} stroke={2} />
                 </span>
-                <span className={classes.disclosureText}>
+                <span className={clsx(classes.disclosureText, classes.disclosureInline)}>
                     {t('instructions')}
                     <span className={classes.disclosureMeta}>
                         {t('stepsCount', { n: app.blocks.length })}

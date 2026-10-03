@@ -21,8 +21,7 @@ import {
     IconWallet
 } from '@tabler/icons-react'
 import clsx from 'clsx'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { renderSVG } from 'uqr'
+import { useEffect, useMemo, useState } from 'react'
 
 import { vibrate } from '@shared/utils/vibrate'
 
@@ -46,69 +45,14 @@ import {
     useCheckoutStore
 } from '../checkout/checkout-store'
 import { useMoney } from '../checkout/money'
+import { TPhase } from '../checkout/pending'
 import { formatDate, formatDays, formatPeriod, isIndefinite } from '../format'
 import { TSpofyKey, useSpofyT } from '../i18n'
+import { useQrDataUrl } from '../qr'
 import classes from '../spofy.module.css'
 import { PeriodCard } from './period-card'
 
-const POLL_MS = 4_000
-const GIVE_UP_MS = 15 * 60_000
 const DAY_MS = 86_400_000
-
-export { useMoney }
-
-/* ───────────── payment status watcher (runs while a payment is pending) ───────────── */
-
-export type TPhase = 'done' | 'paid' | 'timeout' | 'waiting'
-
-export function usePendingPhase(): TPhase | null {
-    const pending = useCheckoutStore((s) => s.pending)
-    const setLatest = useCheckoutStore((s) => s.setLatest)
-    const subscription = useSubscription()
-    const [phase, setPhase] = useState<TPhase | null>(null)
-
-    useEffect(() => {
-        if (!pending || pending.shortUuid !== subscription.user.shortUuid) {
-            setPhase(null)
-            return
-        }
-        let stopped = false
-        let timer: number | undefined
-        setPhase('waiting')
-
-        const tick = async () => {
-            if (stopped) return
-            if (Date.now() - pending.createdAt > GIVE_UP_MS) {
-                setPhase('timeout')
-                return
-            }
-            try {
-                const status = await checkoutApi.status(
-                    pending.shortUuid,
-                    pending.result.method,
-                    pending.result.payment_id
-                )
-                if (isApplied(pending.kind, pending.result.before, status.subscription)) {
-                    vibrate('success')
-                    setLatest(status.subscription)
-                    setPhase('done')
-                    return
-                }
-                if (status.is_paid) setPhase('paid')
-            } catch {
-                // transient: keep polling
-            }
-            timer = window.setTimeout(tick, POLL_MS)
-        }
-        timer = window.setTimeout(tick, 1_500)
-        return () => {
-            stopped = true
-            window.clearTimeout(timer)
-        }
-    }, [pending, subscription.user.shortUuid, setLatest])
-
-    return phase
-}
 
 /* ───────────── sheet ───────────── */
 
@@ -118,7 +62,7 @@ const TAB_ICON: Record<TCheckoutTab, typeof IconRefresh> = {
     traffic: IconArrowsUpDown
 }
 
-export function CheckoutSheet({
+export default function CheckoutSheet({
     phase,
     renewUrl
 }: {
@@ -765,16 +709,7 @@ function PaymentStep({ pending, phase }: { pending: IPendingPayment; phase: TPha
     const { setPending, close, latest } = useCheckoutStore()
     const [showQr, setShowQr] = useState(false)
     const { result } = pending
-    const qrRef = useRef<string>('')
-
-    if (showQr && !qrRef.current) {
-        qrRef.current = `data:image/svg+xml;utf8,${encodeURIComponent(
-            renderSVG(result.qr_payload || result.payment_url, {
-                whiteColor: '#FFFFFF',
-                blackColor: '#0B1220'
-            })
-        )}`
-    }
+    const qrSrc = useQrDataUrl(showQr ? result.qr_payload || result.payment_url : null)
 
     const done = phase === 'done'
     const paid = done || phase === 'paid'
@@ -901,41 +836,9 @@ function PaymentStep({ pending, phase }: { pending: IPendingPayment; phase: TPha
                     {t('coBack')}
                 </button>
             </div>
-            {showQr && !paid && (
-                <img alt={t('coOtherDevice')} className={classes.coQr} src={qrRef.current} />
+            {showQr && !paid && qrSrc && (
+                <img alt={t('coOtherDevice')} className={classes.coQr} src={qrSrc} />
             )}
         </div>
-    )
-}
-
-/* ───────────── small banner while a payment is pending and the sheet is closed ───────────── */
-
-export function PendingBanner({ phase }: { phase: TPhase | null }) {
-    const { opened, pending, open } = useCheckoutStore()
-    const subscription = useSubscription()
-    const money = useMoney()
-    const { t } = useSpofyT()
-    if (opened || !pending || pending.shortUuid !== subscription.user.shortUuid || !phase)
-        return null
-
-    const done = phase === 'done'
-    return (
-        <button
-            className={clsx(classes.pendingBanner, done && classes.coStatusDone)}
-            onClick={() => open('renew')}
-            type="button"
-        >
-            {done ? (
-                <IconCheck aria-hidden size={20} />
-            ) : (
-                <IconLoader2 aria-hidden className={classes.spin} size={20} />
-            )}
-            <span className={classes.pendingText}>
-                {done
-                    ? t('coDone')
-                    : t('coPendingBanner', { price: money(pending.result.amount_kopeks) })}
-            </span>
-            <span className={classes.pendingOpen}>{t('coPendingOpen')}</span>
-        </button>
     )
 }

@@ -1446,15 +1446,8 @@
     font-size: 12px;
     font-weight: 800;
     text-shadow: 0 0 12px rgba(34, 181, 115, 0.75);
-    box-shadow: 0 0 18px -4px rgba(34, 181, 115, 0.65);
-    animation: saleGlow 2.6s ease-in-out infinite;
+    box-shadow: 0 0 20px -4px rgba(34, 181, 115, 0.75);
     white-space: nowrap;
-}
-
-@keyframes saleGlow {
-    50% {
-        box-shadow: 0 0 26px -2px rgba(34, 181, 115, 0.85);
-    }
 }
 
 .stripCards {
@@ -1662,10 +1655,9 @@
     box-shadow: 0 0 12px rgba(43, 99, 245, 0.8);
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .stripSale {
-        animation: none;
-    }
+/* the strip placeholder stays still: a shimmer repaints every frame during load */
+.strip .skel {
+    animation: none;
 }
 
 /* ---------- checkout sheet ---------- */
@@ -2547,8 +2539,155 @@
     padding-bottom: 12px;
 }
 
-/* long CTA labels («Вернуть обходы — купить 50 ГБ за 99 ₽») wrap evenly */
-.notice .btn {
-    width: 100%;
-    text-wrap: balance;
+/* ---------- compact layout: prices + everything else on one screen ---------- */
+.strip {
+    padding: 2px 0 0;
+    border: 0;
+    background: none;
+}
+
+.stripHead {
+    flex-wrap: nowrap;
+}
+
+.stripTitle {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.stripSale {
+    flex-shrink: 0;
+}
+
+@media (max-width: 380px) {
+    .stripSaleLong {
+        display: none;
+    }
+}
+
+.disclosure {
+    min-height: 46px;
+    padding: 5px 12px 5px 6px;
+}
+
+.disclosure .iconSquare {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+}
+
+.disclosureInline {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 8px;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.linkCard {
+    padding: 8px;
+}
+
+.linkField {
+    gap: 6px;
+    min-height: 54px;
+    padding: 5px 5px 5px 0;
+}
+
+.linkTextWrap {
+    align-self: stretch;
+    justify-content: center;
+    padding: 0 4px 0 12px;
+    border: 0;
+    border-radius: 12px;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.linkTextWrap:focus-visible {
+    outline: 2px solid var(--sp-accent);
+    outline-offset: -2px;
+}
+
+.copyIconBtn {
+    border-color: transparent;
+    background: var(--sp-accent-soft);
+}
+
+.copyIconBtn:hover {
+    background: var(--sp-accent);
+    color: var(--sp-on-accent);
+}
+
+.cabinetBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    height: 44px;
+    padding: 0 12px 0 10px;
+    border-radius: 12px;
+    border: 1px solid var(--sp-inner-border);
+    background: var(--sp-surface-2);
+    color: var(--sp-text);
+    font-size: 13.5px;
+    font-weight: 750;
+    text-decoration: none;
+}
+
+.cabinetBtn svg {
+    color: var(--sp-accent-text);
+}
+
+.cabinetBtn:hover {
+    border-color: var(--sp-border-strong);
+}
+
+@media (max-width: 440px) {
+    .connect .sectionTitle {
+        font-size: 17px;
+        white-space: nowrap;
+    }
+    .connectHead {
+        flex-wrap: nowrap;
+        gap: 8px;
+    }
+    .platformButton {
+        flex-shrink: 0;
+        padding: 0 8px 0 6px;
+    }
+}
+
+@media (max-width: 380px) {
+    .connect .sectionTitle {
+        font-size: 15.5px;
+    }
+    .cabinetBtn {
+        padding: 0 10px 0 8px;
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 380px) {
+    .page {
+        gap: 8px;
+    }
+    .disclosure {
+        min-height: 44px;
+    }
+}
+
+/* bottom padding small enough that a 390×844 phone does not scroll at all */
+.page {
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+@media (max-width: 380px) {
+    .page {
+        padding-bottom: max(4px, env(safe-area-inset-bottom));
+    }
 }

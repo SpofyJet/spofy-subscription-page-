@@ -436,12 +436,14 @@ function TrafficTile({
         return (
             <Tile
                 action={action}
-                caption={<span className={classes.num}>{formatBytes(used, lang)}</span>}
                 icon={<IconArrowsUpDown size={16} stroke={2} />}
                 label={t('traffic')}
                 note={t('devicesNoLimit')}
             >
                 <span className={clsx(classes.glowSoft, classes.glow_accent)}>∞</span>
+                <span className={clsx(classes.statTileUnit, classes.num)}>
+                    {formatBytes(used, lang)}
+                </span>
             </Tile>
         )
     }

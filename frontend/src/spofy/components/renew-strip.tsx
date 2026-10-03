@@ -54,6 +54,7 @@ export function RenewStrip() {
                     <span className={classes.stripSale}>
                         <IconFlame aria-hidden size={14} stroke={2.25} />
                         {t('stripSale', { p: sale })}
+                        <span className={classes.stripSaleLong}> {t('stripSaleLong')}</span>
                     </span>
                 )}
             </div>
