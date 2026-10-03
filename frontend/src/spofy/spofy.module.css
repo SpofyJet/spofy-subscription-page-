@@ -2882,3 +2882,11 @@
     overflow-wrap: break-word;
     text-wrap: balance;
 }
+
+@media (max-width: 380px) {
+    .coChoice {
+        gap: 5px;
+        padding: 6px 6px;
+        font-size: 13.5px;
+    }
+}

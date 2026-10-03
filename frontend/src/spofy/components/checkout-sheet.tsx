@@ -918,7 +918,9 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                                             type="button"
                                         >
                                             <ChoiceIcon aria-hidden size={18} stroke={2} />
-                                            {choiceLabel(o ? o.name : m.name)}
+                                            {kind === 'crypto'
+                                                ? t('coCrypto')
+                                                : choiceLabel(o ? o.name : m.name)}
                                         </button>
                                     )
                                 })
