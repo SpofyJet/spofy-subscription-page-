@@ -126,7 +126,8 @@ export class SpofyCheckoutController {
     }
 
     private guard(req: Request, shortUuid: string): void {
-        if (!this.checkout.enabled || !SHORT_UUID.test(shortUuid)) throw new NotFoundException();
+        if (!SHORT_UUID.test(shortUuid) || !this.checkout.allows(shortUuid))
+            throw new NotFoundException();
 
         const cookie = (req.headers.cookie ?? '')
             .split(';')

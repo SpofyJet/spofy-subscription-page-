@@ -3,7 +3,13 @@ import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { deriveDisplayName, maskEmail, SpofyService } from '../src/modules/spofy/spofy.service';
+import {
+    deriveDisplayName,
+    isCheckoutAllowed,
+    maskEmail,
+    parseAllowlist,
+    SpofyService,
+} from '../src/modules/spofy/spofy.service';
 
 const SQUAD = '11111111-1111-1111-1111-111111111111';
 const env = (over: Record<string, string | undefined> = {}) => ({
@@ -119,4 +125,14 @@ test('lookup uses a short timeout', async () => {
     const { s, calls } = make(user([]));
     await s.getPageData('u1');
     assert.equal((calls[0] as { timeout: number }).timeout, 3000);
+});
+
+test('checkout allowlist: unset → everyone, set → only listed', () => {
+    assert.equal(parseAllowlist(undefined), null);
+    assert.equal(parseAllowlist('  '), null);
+    assert.equal(isCheckoutAllowed(null, 'abcdef'), true);
+    const list = parseAllowlist(' abcdef , ghijkl ,');
+    assert.equal(isCheckoutAllowed(list, 'abcdef'), true);
+    assert.equal(isCheckoutAllowed(list, 'zzzzzz'), false);
+    assert.equal(isCheckoutAllowed(parseAllowlist('none'), 'abcdef'), false);
 });

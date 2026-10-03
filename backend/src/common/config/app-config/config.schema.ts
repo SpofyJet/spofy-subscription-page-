@@ -77,6 +77,7 @@ export const configSchema = z
         SPOFY_BOT_API_URL: z.optional(z.string()),
         SPOFY_BOT_API_KEY: z.optional(z.string()),
         SPOFY_BOT_API_IP: z.optional(z.string()),
+        SPOFY_CHECKOUT_ALLOWLIST: z.optional(z.string()),
     })
     .superRefine((data, ctx) => {
         if (

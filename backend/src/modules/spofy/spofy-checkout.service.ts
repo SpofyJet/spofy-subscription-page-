@@ -8,6 +8,8 @@ import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 
 import { TypedConfigService } from '@common/config/app-config';
 
+import { isCheckoutAllowed, parseAllowlist } from './spofy.service';
+
 const OFFER_TTL_MS = 20_000;
 const ACTIVE_CHECK_EVERY_MS = 10_000;
 const WINDOW_MS = 10 * 60_000;
@@ -47,6 +49,7 @@ export interface ICheckoutBody {
 export class SpofyCheckoutService {
     private readonly logger = new Logger(SpofyCheckoutService.name);
     private readonly http: AxiosInstance | null;
+    private readonly allowlist: Set<string> | null;
     private readonly offerCache = new Map<string, { value: unknown; expiresAt: number }>();
     private readonly hits = new Map<string, number[]>();
     private readonly lastActiveCheck = new Map<string, number>();
@@ -55,6 +58,7 @@ export class SpofyCheckoutService {
         const url = this.configService.get('SPOFY_BOT_API_URL')?.trim();
         const key = this.configService.get('SPOFY_BOT_API_KEY')?.trim();
         const ip = this.configService.get('SPOFY_BOT_API_IP')?.trim();
+        this.allowlist = parseAllowlist(this.configService.get('SPOFY_CHECKOUT_ALLOWLIST'));
         const lookup = ip ? pinnedLookup(ip) : undefined;
 
         this.http =
@@ -78,6 +82,10 @@ export class SpofyCheckoutService {
 
     public get enabled(): boolean {
         return this.http !== null;
+    }
+
+    public allows(shortUuid: string): boolean {
+        return this.enabled && isCheckoutAllowed(this.allowlist, shortUuid);
     }
 
     public async offer(shortUuid: string): Promise<unknown> {

@@ -67,6 +67,21 @@ export function deriveDisplayName(user: {
     return null;
 }
 
+/** SPOFY_CHECKOUT_ALLOWLIST="a,b" → only these short UUIDs get in-page checkout (staged rollout). */
+export function parseAllowlist(raw: string | null | undefined): Set<string> | null {
+    if (!raw || !raw.trim()) return null;
+    return new Set(
+        raw
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean),
+    );
+}
+
+export function isCheckoutAllowed(allowlist: Set<string> | null, shortUuid: string): boolean {
+    return allowlist === null || allowlist.has(shortUuid);
+}
+
 /**
  * Extra data for the Spofy web page. Only used when serving the HTML page —
  * the raw subscription path never touches this service.
@@ -80,6 +95,7 @@ export class SpofyService {
     private readonly cabinetUrl: string | null;
     private readonly bypassOffSquadUuid: string | null;
     private readonly checkoutEnabled: boolean;
+    private readonly checkoutAllowlist: Set<string> | null;
     private readonly factsCache = new Map<string, { value: IUserFacts; expiresAt: number }>();
 
     constructor(
@@ -94,6 +110,7 @@ export class SpofyService {
         this.checkoutEnabled =
             !!this.readEnv('SPOFY_BOT_API_URL') &&
             (this.readEnv('SPOFY_BOT_API_KEY')?.length ?? 0) >= 32;
+        this.checkoutAllowlist = parseAllowlist(this.readEnv('SPOFY_CHECKOUT_ALLOWLIST'));
 
         this.logger.log(
             `Spofy: renew=${!!this.renewUrl} traffic=${!!this.trafficUrl} support=${!!this.supportUrl} cabinet=${!!this.cabinetUrl} bypassOffNotice=${!!this.bypassOffSquadUuid}`,
@@ -117,7 +134,8 @@ export class SpofyService {
             cabinetUrl: this.cabinetUrl,
             bypassDisabled: facts.bypassDisabled,
             displayName: facts.displayName,
-            checkoutEnabled: this.checkoutEnabled,
+            checkoutEnabled:
+                this.checkoutEnabled && isCheckoutAllowed(this.checkoutAllowlist, shortUuid),
         };
     }
 
@@ -181,6 +199,7 @@ export class SpofyService {
             | 'SPOFY_BOT_API_URL'
             | 'SPOFY_BYPASS_OFF_SQUAD_UUID'
             | 'SPOFY_CABINET_URL'
+            | 'SPOFY_CHECKOUT_ALLOWLIST'
             | 'SPOFY_RENEW_URL'
             | 'SPOFY_SUPPORT_URL'
             | 'SPOFY_TRAFFIC_URL',
