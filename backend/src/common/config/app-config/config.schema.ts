@@ -76,6 +76,7 @@ export const configSchema = z
         SPOFY_BYPASS_OFF_SQUAD_UUID: z.optional(z.string()),
         SPOFY_BOT_API_URL: z.optional(z.string()),
         SPOFY_BOT_API_KEY: z.optional(z.string()),
+        SPOFY_BOT_API_IP: z.optional(z.string()),
     })
     .superRefine((data, ctx) => {
         if (

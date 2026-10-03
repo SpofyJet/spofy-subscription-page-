@@ -1,4 +1,8 @@
+import type { LookupFunction } from 'node:net';
+
 import axios, { AxiosError, AxiosInstance } from 'axios';
+import http from 'node:http';
+import https from 'node:https';
 
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 
@@ -10,6 +14,19 @@ const WINDOW_MS = 10 * 60_000;
 const CHECKOUTS_PER_SUBSCRIPTION = 6;
 const CHECKOUTS_PER_IP = 20;
 const MAX_TRACKED = 5_000;
+
+/** Resolve every hostname to a fixed IP (talk to the bot's origin, bypassing the DDoS proxy). */
+function pinnedLookup(ip: string): LookupFunction {
+    const family = ip.includes(':') ? 6 : 4;
+    return ((
+        _hostname: string,
+        options: { all?: boolean } | undefined,
+        callback: (...args: unknown[]) => void,
+    ) => {
+        if (options && options.all) callback(null, [{ address: ip, family }]);
+        else callback(null, ip, family);
+    }) as unknown as LookupFunction;
+}
 
 export interface ICheckoutBody {
     kind: 'devices' | 'renew' | 'tariff' | 'traffic';
@@ -37,6 +54,8 @@ export class SpofyCheckoutService {
     constructor(private readonly configService: TypedConfigService) {
         const url = this.configService.get('SPOFY_BOT_API_URL')?.trim();
         const key = this.configService.get('SPOFY_BOT_API_KEY')?.trim();
+        const ip = this.configService.get('SPOFY_BOT_API_IP')?.trim();
+        const lookup = ip ? pinnedLookup(ip) : undefined;
 
         this.http =
             url && key && key.length >= 32
@@ -47,10 +66,14 @@ export class SpofyCheckoutService {
                           'X-Spofy-Subpage-Key': key,
                           'user-agent': 'Spofy Subscription Page',
                       },
+                      httpAgent: new http.Agent({ keepAlive: true, lookup }),
+                      httpsAgent: new https.Agent({ keepAlive: true, lookup }),
                   })
                 : null;
 
-        this.logger.log(`Spofy checkout: ${this.http ? 'enabled' : 'disabled'}`);
+        this.logger.log(
+            `Spofy checkout: ${this.http ? 'enabled' : 'disabled'}${ip ? ' (pinned IP)' : ''}`,
+        );
     }
 
     public get enabled(): boolean {

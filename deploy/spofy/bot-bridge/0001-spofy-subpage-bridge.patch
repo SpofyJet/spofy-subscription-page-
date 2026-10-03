@@ -1,24 +1,28 @@
-From 6a22549aafdaca2ce2cac0217ebd2423d8003df2 Mon Sep 17 00:00:00 2001
+From 7dbe144af38b8e14fbba6381ef898d8d45622ddc Mon Sep 17 00:00:00 2001
 From: SpofyJet <vtkzfytz5y@privaterelay.appleid.com>
 Date: Sat, 3 Oct 2026 00:08:16 +0000
-Subject: [PATCH] feat(cabinet): Spofy subscription-page checkout bridge
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Subject: [PATCH] feat: Spofy subscription-page checkout bridge
 
 Server-to-server router under /cabinet/spofy-subpage (key SPOFY_SUBPAGE_API_KEY):
 offer (prices, payment methods, devices, traffic, tariffs for trial users) and
-checkout that saves a cart and creates a top-up for the full price through the
-cabinet's own create_topup — the user's balance is never spent. Completion relies
-on AUTO_PURCHASE_AFTER_TOPUP_ENABLED.
+checkout that saves a cart tagged source='spofy_subpage' and creates a top-up for
+the full price through the cabinet's own create_topup.
+
+After a top-up, app/services/spofy_subpage_service completes ONLY carts with that
+tag, so the global AUTO_PURCHASE_AFTER_TOPUP_ENABLED stays off and no other cart
+or plain top-up is ever charged automatically. The user's existing balance is
+never spent by the bridge.
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ---
- app/cabinet/routes/__init__.py      |   2 +
- app/cabinet/routes/spofy_subpage.py | 452 ++++++++++++++++++++++++++++
- tests/cabinet/test_spofy_subpage.py | 342 +++++++++++++++++++++
- 3 files changed, 796 insertions(+)
+ app/cabinet/routes/__init__.py        |   2 +
+ app/cabinet/routes/spofy_subpage.py   | 452 ++++++++++++++++++++++++++
+ app/services/payment/common.py        |   7 +-
+ app/services/spofy_subpage_service.py |  81 +++++
+ tests/cabinet/test_spofy_subpage.py   | 409 +++++++++++++++++++++++
+ 5 files changed, 950 insertions(+), 1 deletion(-)
  create mode 100644 app/cabinet/routes/spofy_subpage.py
+ create mode 100644 app/services/spofy_subpage_service.py
  create mode 100644 tests/cabinet/test_spofy_subpage.py
 
 diff --git a/app/cabinet/routes/__init__.py b/app/cabinet/routes/__init__.py
@@ -43,7 +47,7 @@ index 93b5166..0759250 100644
  router.include_router(account_linking_router)
 diff --git a/app/cabinet/routes/spofy_subpage.py b/app/cabinet/routes/spofy_subpage.py
 new file mode 100644
-index 0000000..963b9da
+index 0000000..5f822ce
 --- /dev/null
 +++ b/app/cabinet/routes/spofy_subpage.py
 @@ -0,0 +1,452 @@
@@ -54,12 +58,13 @@ index 0000000..963b9da
 +USER'S BALANCE.
 +
 +Every checkout does what the cabinet does on insufficient funds — saves a cart with
-+``return_to_cart=True`` — and then creates a balance top-up for the FULL price via the
-+chosen payment method. When the payment lands, the bot's standard
-+``auto_purchase_saved_cart_after_topup`` completes the cart (requires
-+``AUTO_PURCHASE_AFTER_TOPUP_ENABLED``). Prices, payment methods and top-ups all come
-+from the cabinet's own functions, so promo groups, discounts and every payment
-+provider behave exactly as in the cabinet.
++``return_to_cart=True`` — tags it ``source='spofy_subpage'`` and creates a balance
++top-up for the FULL price via the chosen payment method. When the payment lands,
++``app/services/spofy_subpage_service.complete_subpage_carts_after_topup`` completes
++ONLY such carts, so the bot's global ``AUTO_PURCHASE_AFTER_TOPUP_ENABLED`` can stay
++off for every other purchase path. Prices, payment methods and top-ups all come from
++the cabinet's own functions, so promo groups, discounts and every payment provider
++behave exactly as in the cabinet.
 +
 +Server-to-server only: the caller must send ``X-Spofy-Subpage-Key`` equal to the
 +``SPOFY_SUBPAGE_API_KEY`` environment variable (≥ 32 chars). Without the variable the
@@ -91,6 +96,7 @@ index 0000000..963b9da
 +from app.database.crud.tariff import get_tariff_by_id, get_tariffs_for_user
 +from app.database.models import Subscription, SubscriptionStatus, User, UserStatus
 +from app.services.pricing_engine import pricing_engine
++from app.services.spofy_subpage_service import SUBPAGE_SOURCE, tag_current_cart_as_subpage
 +from app.services.user_cart_service import user_cart_service
 +
 +from ..dependencies import get_cabinet_db
@@ -266,7 +272,7 @@ index 0000000..963b9da
 +        'description': f'Продление подписки на {period_days} дней' + (f' ({tariff.name})' if tariff else ''),
 +        'discount_percent': discount_percent,
 +        'consume_promo_offer': pricing.promo_offer_discount > 0,
-+        'source': 'spofy_subpage',
++        'source': SUBPAGE_SOURCE,
 +        'device_limit': subscription.device_limit,
 +    }
 +    if subscription.tariff_id:
@@ -327,7 +333,7 @@ index 0000000..963b9da
 +        'allowed_squads': tariff.allowed_squads or [],
 +        'discount_percent': group_pcts.get('period', 0),
 +        'consume_promo_offer': pricing.promo_offer_discount > 0,
-+        'source': 'spofy_subpage',
++        'source': SUBPAGE_SOURCE,
 +        'subscription_id': subscription.id,
 +    }
 +    await user_cart_service.save_user_cart(user.id, cart)
@@ -341,7 +347,6 @@ index 0000000..963b9da
 +async def get_offer(short_uuid: str, db: AsyncSession = Depends(get_cabinet_db)) -> dict[str, Any]:
 +    user, subscription = await resolve_owner(db, short_uuid)
 +    restriction = _restricted(user)
-+    auto_purchase = settings.is_auto_purchase_after_topup_enabled()
 +
 +    methods = await _soft(get_payment_methods(user=user, db=db), [])
 +    renewal = (
@@ -358,8 +363,8 @@ index 0000000..963b9da
 +    trial = await _soft(get_trial_info(user=user, db=db), None)
 +
 +    return {
-+        'checkout_enabled': auto_purchase and restriction is None and bool(methods),
-+        'disabled_reason': None if auto_purchase else 'auto_purchase_disabled',
++        'checkout_enabled': restriction is None and bool(methods),
++        'disabled_reason': restriction,
 +        'restriction': restriction,
 +        'subscription': snapshot(subscription),
 +        'renewal': [option.model_dump() for option in renewal],
@@ -391,9 +396,6 @@ index 0000000..963b9da
 +async def checkout(
 +    short_uuid: str, body: CheckoutRequest, db: AsyncSession = Depends(get_cabinet_db)
 +) -> dict[str, Any]:
-+    if not settings.is_auto_purchase_after_topup_enabled():
-+        raise HTTPException(status.HTTP_409_CONFLICT, 'AUTO_PURCHASE_AFTER_TOPUP_ENABLED is off')
-+
 +    user, subscription = await resolve_owner(db, short_uuid)
 +    restriction = _restricted(user)
 +    if restriction:
@@ -419,6 +421,7 @@ index 0000000..963b9da
 +        await save_devices_cart(
 +            request=DevicePurchaseRequest(devices=body.devices), subscription_id=subscription.id, user=user, db=db
 +        )
++        await tag_current_cart_as_subpage(user.id)
 +    else:
 +        if body.traffic_gb is None:
 +            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, 'traffic_gb is required')
@@ -430,6 +433,7 @@ index 0000000..963b9da
 +        await save_traffic_cart(
 +            request=TrafficPurchaseRequest(gb=body.traffic_gb), user=user, db=db, subscription_id=subscription.id
 +        )
++        await tag_current_cart_as_subpage(user.id)
 +
 +    if price <= 0:
 +        raise HTTPException(status.HTTP_400_BAD_REQUEST, 'Nothing to pay — use the bot for free options')
@@ -499,19 +503,126 @@ index 0000000..963b9da
 +    db.expire_all()
 +    _, subscription = await resolve_owner(db, short_uuid)
 +    return {'is_paid': is_paid, 'status_text': status_text, 'subscription': snapshot(subscription)}
+diff --git a/app/services/payment/common.py b/app/services/payment/common.py
+index 41b2c0a..a37e8f6 100644
+--- a/app/services/payment/common.py
++++ b/app/services/payment/common.py
+@@ -436,7 +436,12 @@ async def send_cart_notification_after_topup(
+         # оно дублировало «Пополнение успешно!», а его клавиатура не учитывала
+         # MAIN_MENU_MODE=cabinet и уводила из миниаппа в полное меню бота.
+         try:
+-            await auto_purchase_saved_cart_after_topup(db, user, bot=bot)
++            completed = await auto_purchase_saved_cart_after_topup(db, user, bot=bot)
++            if not completed:
++                # Spofy: purchases started on sub.spofyltd.ru complete even with the global switch off.
++                from app.services.spofy_subpage_service import complete_subpage_carts_after_topup
++
++                await complete_subpage_carts_after_topup(db, user, bot=bot)
+         except Exception as auto_error:
+             logger.error(
+                 'Ошибка автоматической покупки подписки для пользователя',
+diff --git a/app/services/spofy_subpage_service.py b/app/services/spofy_subpage_service.py
+new file mode 100644
+index 0000000..61a28b4
+--- /dev/null
++++ b/app/services/spofy_subpage_service.py
+@@ -0,0 +1,81 @@
++"""Spofy: finish purchases started on the subscription page (sub.spofyltd.ru).
++
++The bot's global ``AUTO_PURCHASE_AFTER_TOPUP_ENABLED`` stays OFF. Only carts the
++subscription-page bridge saved (``source == 'spofy_subpage'``) are completed after
++a top-up — every other cart (bot, cabinet, mini app) keeps the bot's normal
++behaviour. Called from ``app/services/payment/common.py`` right after the standard
++auto-purchase.
++"""
++
++from __future__ import annotations
++
++from typing import Any
++
++import structlog
++from aiogram import Bot
++from sqlalchemy.ext.asyncio import AsyncSession
++
++from app.config import settings
++from app.database.models import User
++from app.services.user_cart_service import user_cart_service
++
++
++logger = structlog.get_logger(__name__)
++
++SUBPAGE_SOURCE = 'spofy_subpage'
++
++
++def is_subpage_cart(cart: dict[str, Any] | None) -> bool:
++    return bool(cart) and cart.get('source') == SUBPAGE_SOURCE
++
++
++async def tag_current_cart_as_subpage(user_id: int) -> bool:
++    """Re-tag the cart the cabinet helpers just saved (devices / traffic carry source='cabinet')."""
++    cart = await user_cart_service.get_user_cart(user_id)
++    if not cart:
++        return False
++    cart['source'] = SUBPAGE_SOURCE
++    cart['return_to_cart'] = True  # keeps the fresh top-up intent for this purchase
++    return await user_cart_service.save_user_cart(user_id, cart)
++
++
++async def complete_subpage_carts_after_topup(db: AsyncSession, user: User, *, bot: Bot | None = None) -> bool:
++    """Complete only subscription-page carts. Returns True when a purchase went through."""
++    if settings.is_auto_purchase_after_topup_enabled():
++        # The standard auto-purchase already handled every cart, ours included.
++        return False
++    if not user or not getattr(user, 'id', None):
++        return False
++
++    carts: list[dict[str, Any]] = []
++    seen_subscriptions: set[Any] = set()
++    for cart in await user_cart_service.get_all_subscription_carts(user.id):
++        if is_subpage_cart(cart):
++            carts.append(cart)
++            seen_subscriptions.add(cart.get('subscription_id'))
++    global_cart = await user_cart_service.get_user_cart(user.id)
++    if is_subpage_cart(global_cart) and global_cart.get('subscription_id') not in seen_subscriptions:
++        carts.append(global_cart)
++
++    if not carts:
++        return False
++
++    if not await user_cart_service.has_topup_intent(user.id):
++        logger.info('spofy subpage: cart found but no fresh top-up intent, skipping', user_id=user.id)
++        return False
++
++    # Lazy import: subscription_auto_purchase_service imports payment helpers.
++    from app.services.subscription_auto_purchase_service import _process_single_cart
++
++    completed = False
++    for cart in carts:
++        try:
++            if await _process_single_cart(db, user, cart, bot=bot):
++                completed = True
++        except Exception as error:  # one cart must not block the others
++            logger.error('spofy subpage: cart completion failed', user_id=user.id, error=error, exc_info=True)
++
++    if completed:
++        await user_cart_service.clear_topup_intent(user.id)
++        logger.info('spofy subpage: purchase completed after top-up', user_id=user.id, carts=len(carts))
++    return completed
 diff --git a/tests/cabinet/test_spofy_subpage.py b/tests/cabinet/test_spofy_subpage.py
 new file mode 100644
-index 0000000..3d370a7
+index 0000000..e63fdad
 --- /dev/null
 +++ b/tests/cabinet/test_spofy_subpage.py
-@@ -0,0 +1,342 @@
+@@ -0,0 +1,409 @@
 +"""Spofy subscription-page bridge (``app/cabinet/routes/spofy_subpage.py``).
 +
 +The bridge must:
 +* answer 404 when ``SPOFY_SUBPAGE_API_KEY`` is unset and 401 on a wrong key;
 +* never spend the user's balance — every checkout saves a cart and creates a
 +  top-up for the FULL price through the cabinet's own ``create_topup``;
-+* refuse checkouts while ``AUTO_PURCHASE_AFTER_TOPUP_ENABLED`` is off.
++* work with the bot's global ``AUTO_PURCHASE_AFTER_TOPUP_ENABLED`` OFF — its carts are
++  tagged ``source='spofy_subpage'`` and only those are completed after a top-up
++  (``app/services/spofy_subpage_service.py``).
 +
 +Handlers are called directly (house pattern); the HTTP layer is exercised with
 +a minimal FastAPI app for the key check only.
@@ -598,7 +709,9 @@ index 0000000..3d370a7
 +
 +@pytest.fixture
 +def auto_on(monkeypatch):
-+    monkeypatch.setattr(settings, 'AUTO_PURCHASE_AFTER_TOPUP_ENABLED', True, raising=False)
++    # name kept for the fixtures below: the global switch is deliberately OFF
++    monkeypatch.setattr(settings, 'AUTO_PURCHASE_AFTER_TOPUP_ENABLED', False, raising=False)
++    monkeypatch.setattr(bridge, 'tag_current_cart_as_subpage', AsyncMock(return_value=True))
 +
 +
 +@pytest.fixture
@@ -663,13 +776,12 @@ index 0000000..3d370a7
 +# ───────────── checkout ─────────────
 +
 +
-+async def test_checkout_refused_when_auto_purchase_off(monkeypatch, owner, topup):
-+    monkeypatch.setattr(settings, 'AUTO_PURCHASE_AFTER_TOPUP_ENABLED', False, raising=False)
++async def test_checkout_works_with_global_auto_purchase_off(monkeypatch, auto_on, owner, topup):
++    monkeypatch.setattr(bridge, 'save_renewal_cart', AsyncMock(return_value=19900))
 +    body = bridge.CheckoutRequest(kind='renew', period_days=30, payment_method='yookassa')
-+    with pytest.raises(HTTPException) as error:
-+        await bridge.checkout('abcdefgh', body, db=None)
-+    assert error.value.status_code == 409
-+    topup.assert_not_awaited()
++    result = await bridge.checkout('abcdefgh', body, db=None)
++    assert result['payment_url'] == 'https://pay.example/x'
++    topup.assert_awaited_once()
 +
 +
 +async def test_renew_checkout_tops_up_full_price_and_never_charges(monkeypatch, auto_on, owner, topup):
@@ -734,6 +846,7 @@ index 0000000..3d370a7
 +    await bridge.checkout('abcdefgh', body, db=None)
 +    assert save.await_args.kwargs['request'].devices == 2
 +    assert save.await_args.kwargs['subscription_id'] == 42
++    bridge.tag_current_cart_as_subpage.assert_awaited_once_with(5)  # cabinet cart re-tagged
 +    assert topup.await_args.kwargs['request'].amount_kopeks == 15000
 +
 +
@@ -783,6 +896,7 @@ index 0000000..3d370a7
 +    user_id, cart = save.await_args.args
 +    assert user_id == 5
 +    assert cart['cart_mode'] == 'extend'
++    assert cart['source'] == 'spofy_subpage'
 +    assert cart['return_to_cart'] is True  # sets the fresh top-up intent
 +    assert cart['missing_amount'] == 49900
 +    assert cart['subscription_id'] == 42 and cart['period_days'] == 90
@@ -847,6 +961,68 @@ index 0000000..3d370a7
 +    assert offer['devices']['available'] is False  # one failing part does not break the offer
 +    assert offer['checkout_enabled'] is True
 +    assert offer['payment_methods'][0]['id'] == 'yookassa'
++
++
++# ───────────── completion after top-up (app/services/spofy_subpage_service.py) ─────────────
++
++from app.services import spofy_subpage_service as completion  # noqa: E402
++
++
++def _carts(monkeypatch, *, per_sub, global_cart, intent=True):
++    svc = completion.user_cart_service
++    monkeypatch.setattr(svc, 'get_all_subscription_carts', AsyncMock(return_value=per_sub))
++    monkeypatch.setattr(svc, 'get_user_cart', AsyncMock(return_value=global_cart))
++    monkeypatch.setattr(svc, 'has_topup_intent', AsyncMock(return_value=intent))
++    monkeypatch.setattr(svc, 'clear_topup_intent', AsyncMock(return_value=True))
++    process = AsyncMock(return_value=True)
++    from app.services import subscription_auto_purchase_service
++
++    monkeypatch.setattr(subscription_auto_purchase_service, '_process_single_cart', process)
++    return process
++
++
++async def test_completion_only_processes_subpage_carts(monkeypatch):
++    monkeypatch.setattr(settings, 'AUTO_PURCHASE_AFTER_TOPUP_ENABLED', False, raising=False)
++    ours = {'source': 'spofy_subpage', 'cart_mode': 'extend', 'subscription_id': 1}
++    cabinet = {'source': 'cabinet', 'cart_mode': 'extend', 'subscription_id': 2}
++    process = _carts(monkeypatch, per_sub=[ours, cabinet], global_cart=cabinet)
++
++    assert await completion.complete_subpage_carts_after_topup(None, _user()) is True
++    assert [c.args[2] for c in process.await_args_list] == [ours]
++    completion.user_cart_service.clear_topup_intent.assert_awaited_once_with(5)
++
++
++async def test_completion_skips_when_global_switch_on(monkeypatch):
++    monkeypatch.setattr(settings, 'AUTO_PURCHASE_AFTER_TOPUP_ENABLED', True, raising=False)
++    process = _carts(monkeypatch, per_sub=[{'source': 'spofy_subpage', 'cart_mode': 'extend'}], global_cart=None)
++    assert await completion.complete_subpage_carts_after_topup(None, _user()) is False
++    process.assert_not_awaited()  # the standard auto-purchase already ran
++
++
++async def test_completion_needs_fresh_intent(monkeypatch):
++    monkeypatch.setattr(settings, 'AUTO_PURCHASE_AFTER_TOPUP_ENABLED', False, raising=False)
++    process = _carts(
++        monkeypatch, per_sub=[], global_cart={'source': 'spofy_subpage', 'cart_mode': 'add_traffic'}, intent=False
++    )
++    assert await completion.complete_subpage_carts_after_topup(None, _user()) is False
++    process.assert_not_awaited()
++
++
++async def test_completion_ignores_plain_topups(monkeypatch):
++    monkeypatch.setattr(settings, 'AUTO_PURCHASE_AFTER_TOPUP_ENABLED', False, raising=False)
++    process = _carts(monkeypatch, per_sub=[], global_cart={'source': 'cabinet', 'cart_mode': 'extend'})
++    assert await completion.complete_subpage_carts_after_topup(None, _user()) is False
++    process.assert_not_awaited()
++
++
++async def test_tagging_rewrites_source_and_intent(monkeypatch):
++    svc = completion.user_cart_service
++    monkeypatch.setattr(svc, 'get_user_cart', AsyncMock(return_value={'cart_mode': 'add_devices', 'source': 'cabinet'}))
++    save = AsyncMock(return_value=True)
++    monkeypatch.setattr(svc, 'save_user_cart', save)
++    assert await completion.tag_current_cart_as_subpage(5) is True
++    saved = save.await_args.args[1]
++    assert saved['source'] == 'spofy_subpage' and saved['return_to_cart'] is True
 -- 
 2.43.0
 

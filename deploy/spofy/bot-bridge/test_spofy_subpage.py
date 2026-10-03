@@ -4,7 +4,9 @@ The bridge must:
 * answer 404 when ``SPOFY_SUBPAGE_API_KEY`` is unset and 401 on a wrong key;
 * never spend the user's balance — every checkout saves a cart and creates a
   top-up for the FULL price through the cabinet's own ``create_topup``;
-* refuse checkouts while ``AUTO_PURCHASE_AFTER_TOPUP_ENABLED`` is off.
+* work with the bot's global ``AUTO_PURCHASE_AFTER_TOPUP_ENABLED`` OFF — its carts are
+  tagged ``source='spofy_subpage'`` and only those are completed after a top-up
+  (``app/services/spofy_subpage_service.py``).
 
 Handlers are called directly (house pattern); the HTTP layer is exercised with
 a minimal FastAPI app for the key check only.
@@ -91,7 +93,9 @@ def _pricing(final, original=None):
 
 @pytest.fixture
 def auto_on(monkeypatch):
-    monkeypatch.setattr(settings, 'AUTO_PURCHASE_AFTER_TOPUP_ENABLED', True, raising=False)
+    # name kept for the fixtures below: the global switch is deliberately OFF
+    monkeypatch.setattr(settings, 'AUTO_PURCHASE_AFTER_TOPUP_ENABLED', False, raising=False)
+    monkeypatch.setattr(bridge, 'tag_current_cart_as_subpage', AsyncMock(return_value=True))
 
 
 @pytest.fixture
@@ -156,13 +160,12 @@ async def test_resolve_rejects_malformed_short_uuid(bad):
 # ───────────── checkout ─────────────
 
 
-async def test_checkout_refused_when_auto_purchase_off(monkeypatch, owner, topup):
-    monkeypatch.setattr(settings, 'AUTO_PURCHASE_AFTER_TOPUP_ENABLED', False, raising=False)
+async def test_checkout_works_with_global_auto_purchase_off(monkeypatch, auto_on, owner, topup):
+    monkeypatch.setattr(bridge, 'save_renewal_cart', AsyncMock(return_value=19900))
     body = bridge.CheckoutRequest(kind='renew', period_days=30, payment_method='yookassa')
-    with pytest.raises(HTTPException) as error:
-        await bridge.checkout('abcdefgh', body, db=None)
-    assert error.value.status_code == 409
-    topup.assert_not_awaited()
+    result = await bridge.checkout('abcdefgh', body, db=None)
+    assert result['payment_url'] == 'https://pay.example/x'
+    topup.assert_awaited_once()
 
 
 async def test_renew_checkout_tops_up_full_price_and_never_charges(monkeypatch, auto_on, owner, topup):
@@ -227,6 +230,7 @@ async def test_devices_checkout_saves_cabinet_cart(monkeypatch, auto_on, owner, 
     await bridge.checkout('abcdefgh', body, db=None)
     assert save.await_args.kwargs['request'].devices == 2
     assert save.await_args.kwargs['subscription_id'] == 42
+    bridge.tag_current_cart_as_subpage.assert_awaited_once_with(5)  # cabinet cart re-tagged
     assert topup.await_args.kwargs['request'].amount_kopeks == 15000
 
 
@@ -276,6 +280,7 @@ async def test_renewal_cart_mirrors_cabinet_extend_cart(monkeypatch):
     user_id, cart = save.await_args.args
     assert user_id == 5
     assert cart['cart_mode'] == 'extend'
+    assert cart['source'] == 'spofy_subpage'
     assert cart['return_to_cart'] is True  # sets the fresh top-up intent
     assert cart['missing_amount'] == 49900
     assert cart['subscription_id'] == 42 and cart['period_days'] == 90
@@ -340,3 +345,65 @@ async def test_offer_for_trial_user_lists_tariffs_not_renewal(monkeypatch, auto_
     assert offer['devices']['available'] is False  # one failing part does not break the offer
     assert offer['checkout_enabled'] is True
     assert offer['payment_methods'][0]['id'] == 'yookassa'
+
+
+# ───────────── completion after top-up (app/services/spofy_subpage_service.py) ─────────────
+
+from app.services import spofy_subpage_service as completion  # noqa: E402
+
+
+def _carts(monkeypatch, *, per_sub, global_cart, intent=True):
+    svc = completion.user_cart_service
+    monkeypatch.setattr(svc, 'get_all_subscription_carts', AsyncMock(return_value=per_sub))
+    monkeypatch.setattr(svc, 'get_user_cart', AsyncMock(return_value=global_cart))
+    monkeypatch.setattr(svc, 'has_topup_intent', AsyncMock(return_value=intent))
+    monkeypatch.setattr(svc, 'clear_topup_intent', AsyncMock(return_value=True))
+    process = AsyncMock(return_value=True)
+    from app.services import subscription_auto_purchase_service
+
+    monkeypatch.setattr(subscription_auto_purchase_service, '_process_single_cart', process)
+    return process
+
+
+async def test_completion_only_processes_subpage_carts(monkeypatch):
+    monkeypatch.setattr(settings, 'AUTO_PURCHASE_AFTER_TOPUP_ENABLED', False, raising=False)
+    ours = {'source': 'spofy_subpage', 'cart_mode': 'extend', 'subscription_id': 1}
+    cabinet = {'source': 'cabinet', 'cart_mode': 'extend', 'subscription_id': 2}
+    process = _carts(monkeypatch, per_sub=[ours, cabinet], global_cart=cabinet)
+
+    assert await completion.complete_subpage_carts_after_topup(None, _user()) is True
+    assert [c.args[2] for c in process.await_args_list] == [ours]
+    completion.user_cart_service.clear_topup_intent.assert_awaited_once_with(5)
+
+
+async def test_completion_skips_when_global_switch_on(monkeypatch):
+    monkeypatch.setattr(settings, 'AUTO_PURCHASE_AFTER_TOPUP_ENABLED', True, raising=False)
+    process = _carts(monkeypatch, per_sub=[{'source': 'spofy_subpage', 'cart_mode': 'extend'}], global_cart=None)
+    assert await completion.complete_subpage_carts_after_topup(None, _user()) is False
+    process.assert_not_awaited()  # the standard auto-purchase already ran
+
+
+async def test_completion_needs_fresh_intent(monkeypatch):
+    monkeypatch.setattr(settings, 'AUTO_PURCHASE_AFTER_TOPUP_ENABLED', False, raising=False)
+    process = _carts(
+        monkeypatch, per_sub=[], global_cart={'source': 'spofy_subpage', 'cart_mode': 'add_traffic'}, intent=False
+    )
+    assert await completion.complete_subpage_carts_after_topup(None, _user()) is False
+    process.assert_not_awaited()
+
+
+async def test_completion_ignores_plain_topups(monkeypatch):
+    monkeypatch.setattr(settings, 'AUTO_PURCHASE_AFTER_TOPUP_ENABLED', False, raising=False)
+    process = _carts(monkeypatch, per_sub=[], global_cart={'source': 'cabinet', 'cart_mode': 'extend'})
+    assert await completion.complete_subpage_carts_after_topup(None, _user()) is False
+    process.assert_not_awaited()
+
+
+async def test_tagging_rewrites_source_and_intent(monkeypatch):
+    svc = completion.user_cart_service
+    monkeypatch.setattr(svc, 'get_user_cart', AsyncMock(return_value={'cart_mode': 'add_devices', 'source': 'cabinet'}))
+    save = AsyncMock(return_value=True)
+    monkeypatch.setattr(svc, 'save_user_cart', save)
+    assert await completion.tag_current_cart_as_subpage(5) is True
+    saved = save.await_args.args[1]
+    assert saved['source'] == 'spofy_subpage' and saved['return_to_cart'] is True

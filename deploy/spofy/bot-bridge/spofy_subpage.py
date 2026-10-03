@@ -5,12 +5,13 @@ user who owns a Remnawave short UUID, without a login and WITHOUT EVER SPENDING 
 USER'S BALANCE.
 
 Every checkout does what the cabinet does on insufficient funds — saves a cart with
-``return_to_cart=True`` — and then creates a balance top-up for the FULL price via the
-chosen payment method. When the payment lands, the bot's standard
-``auto_purchase_saved_cart_after_topup`` completes the cart (requires
-``AUTO_PURCHASE_AFTER_TOPUP_ENABLED``). Prices, payment methods and top-ups all come
-from the cabinet's own functions, so promo groups, discounts and every payment
-provider behave exactly as in the cabinet.
+``return_to_cart=True`` — tags it ``source='spofy_subpage'`` and creates a balance
+top-up for the FULL price via the chosen payment method. When the payment lands,
+``app/services/spofy_subpage_service.complete_subpage_carts_after_topup`` completes
+ONLY such carts, so the bot's global ``AUTO_PURCHASE_AFTER_TOPUP_ENABLED`` can stay
+off for every other purchase path. Prices, payment methods and top-ups all come from
+the cabinet's own functions, so promo groups, discounts and every payment provider
+behave exactly as in the cabinet.
 
 Server-to-server only: the caller must send ``X-Spofy-Subpage-Key`` equal to the
 ``SPOFY_SUBPAGE_API_KEY`` environment variable (≥ 32 chars). Without the variable the
@@ -42,6 +43,7 @@ from app.config import settings
 from app.database.crud.tariff import get_tariff_by_id, get_tariffs_for_user
 from app.database.models import Subscription, SubscriptionStatus, User, UserStatus
 from app.services.pricing_engine import pricing_engine
+from app.services.spofy_subpage_service import SUBPAGE_SOURCE, tag_current_cart_as_subpage
 from app.services.user_cart_service import user_cart_service
 
 from ..dependencies import get_cabinet_db
@@ -217,7 +219,7 @@ async def save_renewal_cart(db: AsyncSession, user: User, subscription: Subscrip
         'description': f'Продление подписки на {period_days} дней' + (f' ({tariff.name})' if tariff else ''),
         'discount_percent': discount_percent,
         'consume_promo_offer': pricing.promo_offer_discount > 0,
-        'source': 'spofy_subpage',
+        'source': SUBPAGE_SOURCE,
         'device_limit': subscription.device_limit,
     }
     if subscription.tariff_id:
@@ -278,7 +280,7 @@ async def save_tariff_cart(
         'allowed_squads': tariff.allowed_squads or [],
         'discount_percent': group_pcts.get('period', 0),
         'consume_promo_offer': pricing.promo_offer_discount > 0,
-        'source': 'spofy_subpage',
+        'source': SUBPAGE_SOURCE,
         'subscription_id': subscription.id,
     }
     await user_cart_service.save_user_cart(user.id, cart)
@@ -292,7 +294,6 @@ async def save_tariff_cart(
 async def get_offer(short_uuid: str, db: AsyncSession = Depends(get_cabinet_db)) -> dict[str, Any]:
     user, subscription = await resolve_owner(db, short_uuid)
     restriction = _restricted(user)
-    auto_purchase = settings.is_auto_purchase_after_topup_enabled()
 
     methods = await _soft(get_payment_methods(user=user, db=db), [])
     renewal = (
@@ -309,8 +310,8 @@ async def get_offer(short_uuid: str, db: AsyncSession = Depends(get_cabinet_db))
     trial = await _soft(get_trial_info(user=user, db=db), None)
 
     return {
-        'checkout_enabled': auto_purchase and restriction is None and bool(methods),
-        'disabled_reason': None if auto_purchase else 'auto_purchase_disabled',
+        'checkout_enabled': restriction is None and bool(methods),
+        'disabled_reason': restriction,
         'restriction': restriction,
         'subscription': snapshot(subscription),
         'renewal': [option.model_dump() for option in renewal],
@@ -342,9 +343,6 @@ class CheckoutRequest(BaseModel):
 async def checkout(
     short_uuid: str, body: CheckoutRequest, db: AsyncSession = Depends(get_cabinet_db)
 ) -> dict[str, Any]:
-    if not settings.is_auto_purchase_after_topup_enabled():
-        raise HTTPException(status.HTTP_409_CONFLICT, 'AUTO_PURCHASE_AFTER_TOPUP_ENABLED is off')
-
     user, subscription = await resolve_owner(db, short_uuid)
     restriction = _restricted(user)
     if restriction:
@@ -370,6 +368,7 @@ async def checkout(
         await save_devices_cart(
             request=DevicePurchaseRequest(devices=body.devices), subscription_id=subscription.id, user=user, db=db
         )
+        await tag_current_cart_as_subpage(user.id)
     else:
         if body.traffic_gb is None:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, 'traffic_gb is required')
@@ -381,6 +380,7 @@ async def checkout(
         await save_traffic_cart(
             request=TrafficPurchaseRequest(gb=body.traffic_gb), user=user, db=db, subscription_id=subscription.id
         )
+        await tag_current_cart_as_subpage(user.id)
 
     if price <= 0:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, 'Nothing to pay — use the bot for free options')
