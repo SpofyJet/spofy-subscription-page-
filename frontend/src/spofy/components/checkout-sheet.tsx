@@ -47,9 +47,9 @@ import {
     useCheckoutStore
 } from '../checkout/checkout-store'
 import { useMoney } from '../checkout/money'
-import { perMonthKopeks } from '../checkout/offer-utils'
+import { minPerMonth, perMonthKopeks } from '../checkout/offer-utils'
 import { TPhase } from '../checkout/pending'
-import { formatDate, formatDays, formatPeriod, isIndefinite } from '../format'
+import { formatDate, formatDateNumeric, formatDays, formatPeriod, isIndefinite } from '../format'
 import { TSpofyKey, useSpofyT } from '../i18n'
 import { useQrDataUrl } from '../qr'
 import classes from '../spofy.module.css'
@@ -131,7 +131,12 @@ export default function CheckoutSheet({
                         ? 'coSubTraffic'
                         : trial
                           ? 'coSubTariff'
-                          : 'coSubRenew'
+                          : isIndefinite(subscription.user.expiresAt)
+                            ? 'coSubRenewPlain'
+                            : 'coSubRenew',
+                  tab === 'renew'
+                      ? { date: formatDateNumeric(subscription.user.expiresAt, lang) }
+                      : undefined
               )
 
     const title = (
@@ -301,7 +306,8 @@ function primaryMethods(methods: IOffer['payment_methods']): string[] {
     const crypto =
         methods.find((m) => m.id.toLowerCase().includes('heleket')) ??
         methods.find((m) => methodKind(m) === 'crypto')
-    return [card?.id, crypto?.id].filter((x): x is string => !!x)
+    const ids = [card?.id, crypto?.id].filter((x): x is string => !!x)
+    return ids.length ? ids : methods.slice(0, 1).map((m) => m.id)
 }
 
 function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }) {
@@ -382,12 +388,17 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
     const method = offer.payment_methods.find((m) => m.id === methodId)
     const [optionId, setOptionId] = useState<null | string>(method?.options?.[0]?.id ?? null)
     const [allMethods, setAllMethods] = useState(false)
+    const [allPeriods, setAllPeriods] = useState(false)
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState<TSpofyKey | null>(null)
     const [errorDetail, setErrorDetail] = useState<null | string>(null)
 
     useEffect(() => {
-        setOptionId(method?.options?.[0]?.id ?? null)
+        setOptionId((current) =>
+            method?.options?.some((o) => o.id === current)
+                ? current
+                : (method?.options?.[0]?.id ?? null)
+        )
     }, [methodId])
 
     const deviceQuote = deviceQuotes.find((q) => q.devices === devices)
@@ -529,21 +540,57 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
         options: IPeriodOption[],
         value: number | null,
         onChange: (v: number) => void
-    ) => (
-        <div aria-label={t('coPeriod')} className={classes.coGrid} role="radiogroup">
-            {options.map((option) => (
-                <PeriodCard
-                    checked={option.period_days === value}
-                    key={option.period_days}
-                    onClick={() => {
-                        vibrate('tap')
-                        onChange(option.period_days)
-                    }}
-                    option={option}
-                />
-            ))}
-        </div>
-    )
+    ) => {
+        const sorted = [...options].sort((a, b) => a.period_days - b.period_days)
+        // Three cards in a row: the shortest, the recommended (or middle) and the longest.
+        const star = sorted.find((o) => o.is_highlighted) ?? sorted[Math.floor(sorted.length / 2)]
+        const front =
+            sorted.length <= 3
+                ? sorted
+                : [sorted[0], star, sorted[sorted.length - 1]].filter(
+                      (o, idx, all) =>
+                          o && all.findIndex((x) => x?.period_days === o.period_days) === idx
+                  )
+        const shown = allPeriods
+            ? sorted
+            : sorted.filter(
+                  (o) =>
+                      front.some((f) => f.period_days === o.period_days) || o.period_days === value
+              )
+        return (
+            <>
+                <div aria-label={t('coPeriod')} className={classes.coGrid3} role="radiogroup">
+                    {shown.map((option) => (
+                        <PeriodCard
+                            checked={option.period_days === value}
+                            key={option.period_days}
+                            onClick={() => {
+                                vibrate('tap')
+                                onChange(option.period_days)
+                            }}
+                            option={option}
+                        />
+                    ))}
+                </div>
+                {sorted.length > 3 && (
+                    <button
+                        aria-expanded={allPeriods}
+                        className={classes.coMore}
+                        onClick={() => setAllPeriods((v) => !v)}
+                        type="button"
+                    >
+                        {allPeriods ? t('coMethodLess') : t('coPeriodsMore')}
+                        <IconChevronDown
+                            aria-hidden
+                            className={clsx(allPeriods && classes.chevronOpen)}
+                            size={16}
+                            stroke={2.25}
+                        />
+                    </button>
+                )}
+            </>
+        )
+    }
 
     return (
         <div className={classes.coStack}>
@@ -597,12 +644,27 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                                 >
                                     <span className={classes.coRowText}>
                                         <span className={classes.coRowTitle}>{x.name}</span>
-                                        {x.description && (
+                                        <span className={classes.coRowMeta}>
+                                            {[
+                                                x.traffic_limit_gb > 0
+                                                    ? t('coGb', { n: x.traffic_limit_gb })
+                                                    : t('coTrafficUnlimited'),
+                                                t('coDevShort', { n: x.device_limit })
+                                            ].join(' · ')}
+                                        </span>
+                                        {plain(x.description) && (
                                             <span className={classes.coRowMeta}>
-                                                {x.description}
+                                                {plain(x.description)}
                                             </span>
                                         )}
                                     </span>
+                                    {minPerMonth(x.periods) !== null && (
+                                        <span className={clsx(classes.coRowPrice, classes.num)}>
+                                            {t('coFromPrice', {
+                                                price: money(minPerMonth(x.periods) ?? 0)
+                                            })}
+                                        </span>
+                                    )}
                                     <span aria-hidden className={classes.coRadio} />
                                 </button>
                             ))}
@@ -772,65 +834,81 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
             {!deviceFree && (
                 <div className={classes.coSection}>
                     <div className={classes.coLabel}>{t('coMethod')}</div>
-                    <div aria-label={t('coMethod')} className={classes.coList} role="radiogroup">
+                    <div aria-label={t('coMethod')} className={classes.coChoices} role="radiogroup">
                         {offer.payment_methods
-                            .filter(
-                                (m) => allMethods || primary.includes(m.id) || m.id === methodId
-                            )
-                            .map((m) => {
-                                const style = METHOD_STYLE[methodKind(m)]
-                                const MethodIcon = style.icon
-                                return [
-                                    <button
-                                        aria-checked={m.id === methodId}
-                                        className={classes.coRow}
-                                        key={m.id}
-                                        style={{ '--tone': style.tone } as React.CSSProperties}
-                                        onClick={() => setMethodId(m.id)}
-                                        role="radio"
-                                        type="button"
-                                    >
-                                        <span aria-hidden className={classes.coRowIcon}>
-                                            <MethodIcon size={20} stroke={1.9} />
-                                        </span>
-                                        <span className={classes.coRowText}>
-                                            <span className={classes.coRowTitle}>
-                                                {plain(m.name)}
-                                            </span>
-                                            {plain(m.description) && (
-                                                <span className={classes.coRowMeta}>
-                                                    {plain(m.description)}
-                                                </span>
-                                            )}
-                                        </span>
-                                        <span aria-hidden className={classes.coRadio} />
-                                    </button>,
-                                    m.id === methodId && m.options && m.options.length > 1 ? (
-                                        <div
-                                            className={classes.coChips}
-                                            key={`${m.id}-options`}
-                                            role="radiogroup"
+                            .filter((m) => primary.includes(m.id))
+                            .flatMap((m) => {
+                                const options = m.options && m.options.length > 1 ? m.options : null
+                                return (options ?? [null]).map((o) => {
+                                    const kind: TMethodKind = o
+                                        ? o.id.toLowerCase().includes('sbp')
+                                            ? 'sbp'
+                                            : 'card'
+                                        : methodKind(m)
+                                    const style = METHOD_STYLE[kind]
+                                    const ChoiceIcon = style.icon
+                                    const checked = m.id === methodId && (!o || o.id === optionId)
+                                    return (
+                                        <button
+                                            aria-checked={checked}
+                                            className={classes.coChoice}
+                                            key={`${m.id}:${o?.id ?? ''}`}
+                                            onClick={() => {
+                                                vibrate('tap')
+                                                setMethodId(m.id)
+                                                setOptionId(o?.id ?? m.options?.[0]?.id ?? null)
+                                            }}
+                                            role="radio"
+                                            style={{ '--tone': style.tone } as React.CSSProperties}
+                                            type="button"
                                         >
-                                            {m.options.map((o) => (
-                                                <button
-                                                    aria-checked={o.id === optionId}
-                                                    className={classes.coChip}
-                                                    key={o.id}
-                                                    onClick={() => setOptionId(o.id)}
-                                                    role="radio"
-                                                    type="button"
-                                                >
-                                                    {plain(o.name)}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    ) : null
-                                ]
+                                            <ChoiceIcon aria-hidden size={18} stroke={2} />
+                                            {plain(o ? o.name : m.name)}
+                                        </button>
+                                    )
+                                })
                             })}
                     </div>
-                    {offer.payment_methods.some(
-                        (m) => !primary.includes(m.id) && m.id !== methodId
-                    ) && (
+                    {allMethods && (
+                        <div className={classes.coList} role="radiogroup">
+                            {offer.payment_methods
+                                .filter((m) => !primary.includes(m.id))
+                                .map((m) => {
+                                    const style = METHOD_STYLE[methodKind(m)]
+                                    const MethodIcon = style.icon
+                                    return (
+                                        <button
+                                            aria-checked={m.id === methodId}
+                                            className={classes.coRow}
+                                            key={m.id}
+                                            onClick={() => {
+                                                setMethodId(m.id)
+                                                setOptionId(m.options?.[0]?.id ?? null)
+                                            }}
+                                            role="radio"
+                                            style={{ '--tone': style.tone } as React.CSSProperties}
+                                            type="button"
+                                        >
+                                            <span aria-hidden className={classes.coRowIcon}>
+                                                <MethodIcon size={20} stroke={1.9} />
+                                            </span>
+                                            <span className={classes.coRowText}>
+                                                <span className={classes.coRowTitle}>
+                                                    {plain(m.name)}
+                                                </span>
+                                                {plain(m.description) && (
+                                                    <span className={classes.coRowMeta}>
+                                                        {plain(m.description)}
+                                                    </span>
+                                                )}
+                                            </span>
+                                            <span aria-hidden className={classes.coRadio} />
+                                        </button>
+                                    )
+                                })}
+                        </div>
+                    )}
+                    {offer.payment_methods.some((m) => !primary.includes(m.id)) && (
                         <button
                             aria-expanded={allMethods}
                             className={classes.coMore}
