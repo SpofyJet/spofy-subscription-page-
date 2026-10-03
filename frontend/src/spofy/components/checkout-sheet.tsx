@@ -6,6 +6,7 @@ import {
     IconArrowRight,
     IconArrowsUpDown,
     IconBolt,
+    IconBulb,
     IconCheck,
     IconCreditCard,
     IconCurrencyBitcoin,
@@ -45,6 +46,7 @@ import {
     useCheckoutStore
 } from '../checkout/checkout-store'
 import { useMoney } from '../checkout/money'
+import { perMonthKopeks } from '../checkout/offer-utils'
 import { TPhase } from '../checkout/pending'
 import { formatDate, formatDays, formatPeriod, isIndefinite } from '../format'
 import { TSpofyKey, useSpofyT } from '../i18n'
@@ -73,7 +75,7 @@ export default function CheckoutSheet({
     const subscription = useSubscription()
     const shortUuid = subscription.user.shortUuid
     const isDesktop = useMediaQuery('(min-width: 48em)')
-    const { t } = useSpofyT()
+    const { t, lang } = useSpofyT()
 
     useEffect(() => {
         if (opened) loadOffer(shortUuid)
@@ -91,6 +93,30 @@ export default function CheckoutSheet({
               ? 'coTariffTitle'
               : 'coRenewTitle'
     const Icon = showPayment ? IconWallet : TAB_ICON[tab]
+    // What the person gets, not how payment works; urgency only when it is true.
+    const daysLeft = subscription.user.daysLeft
+    const ending =
+        !showPayment &&
+        tab === 'renew' &&
+        !trial &&
+        !isIndefinite(subscription.user.expiresAt) &&
+        daysLeft >= 0 &&
+        daysLeft <= 3
+    const subtitle = showPayment
+        ? t('coSub')
+        : ending
+          ? daysLeft === 0
+              ? t('coSubEndsToday')
+              : t('coSubEnding', { n: daysLeft, days: formatDays(daysLeft, lang) })
+          : t(
+                tab === 'devices'
+                    ? 'coSubDevices'
+                    : tab === 'traffic'
+                      ? 'coSubTraffic'
+                      : trial
+                        ? 'coSubTariff'
+                        : 'coSubRenew'
+            )
 
     const title = (
         <span className={classes.coTitle}>
@@ -99,7 +125,9 @@ export default function CheckoutSheet({
             </span>
             <span className={classes.coTitleText}>
                 <span>{t(titleKey)}</span>
-                <span className={classes.coTitleSub}>{t('coSub')}</span>
+                <span className={clsx(classes.coTitleSub, ending && classes.coTitleSubWarn)}>
+                    {subtitle}
+                </span>
             </span>
         </span>
     )
@@ -330,6 +358,34 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
         )
     }
 
+    // Savings in rubles against paying month by month, and the best per-month period.
+    const periodOptions = tariffMode ? (tariff?.periods ?? []) : offer.renewal
+    const monthly = periodOptions.find((o) => o.period_days === 30)
+    const savingOf = (o: IPeriodOption | undefined) => {
+        if (!o) return 0
+        if (monthly && o.period_days > 30) {
+            return Math.max(
+                0,
+                Math.round((monthly.price_kopeks * o.period_days) / 30) - o.price_kopeks
+            )
+        }
+        return o.original_price_kopeks ? Math.max(0, o.original_price_kopeks - o.price_kopeks) : 0
+    }
+    const best = periodOptions.reduce<IPeriodOption | undefined>(
+        (top, o) => (!top || perMonthKopeks(o) < perMonthKopeks(top) ? o : top),
+        undefined
+    )
+    const saving = tab === 'renew' ? savingOf(selectedPeriod) : 0
+    const upsell =
+        tab === 'renew' &&
+        best &&
+        selectedPeriod &&
+        best.period_days !== selectedPeriod.period_days &&
+        perMonthKopeks(best) < perMonthKopeks(selectedPeriod) &&
+        savingOf(best) > 0
+            ? best
+            : null
+
     const original =
         tab === 'renew' &&
         selectedPeriod?.original_price_kopeks &&
@@ -348,6 +404,17 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
 
     const currentDevices = offer.devices.current_device_limit ?? offer.subscription.device_limit
     const currentGb = offer.subscription.traffic_limit_gb
+    // Cheapest gigabyte among sized packages (only when there is something to compare).
+    const sized = offer.traffic.filter((p) => p.gb > 0 && p.price_kopeks > 0)
+    const perGb = (p: { gb: number; price_kopeks: number }) => p.price_kopeks / p.gb
+    const cheapest = sized.reduce<(typeof sized)[number] | null>(
+        (top, p) => (!top || perGb(p) < perGb(top) ? p : top),
+        null
+    )
+    const bestGb =
+        cheapest && sized.length > 1 && sized.some((p) => perGb(p) > perGb(cheapest) * 1.05)
+            ? cheapest.gb
+            : null
     const trafficLabel = (gb: number) => (gb === 0 ? t('coUnlimited') : t('coGb', { n: gb }))
 
     const summary = (): string => {
@@ -557,6 +624,8 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                 </div>
             )}
 
+            {tab === 'traffic' && <p className={classes.coHint}>{t('coTrafficWhat')}</p>}
+
             {tab === 'traffic' && (
                 <div aria-label={t('coTabTraffic')} className={classes.coGrid} role="radiogroup">
                     {offer.traffic.map((p) => (
@@ -571,17 +640,31 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                             role="radio"
                             type="button"
                         >
-                            {p.discount_percent ? (
+                            {p.discount_percent || p.gb === bestGb ? (
                                 <span className={classes.coCardBadges}>
-                                    <span className={clsx(classes.coBadge, classes.coBadgeSale)}>
-                                        −{p.discount_percent}%
-                                    </span>
+                                    {p.gb === bestGb && (
+                                        <span className={classes.coBadge}>{t('coBestGb')}</span>
+                                    )}
+                                    {p.discount_percent ? (
+                                        <span
+                                            className={clsx(classes.coBadge, classes.coBadgeSale)}
+                                        >
+                                            −{p.discount_percent}%
+                                        </span>
+                                    ) : null}
                                 </span>
                             ) : null}
                             <span className={classes.coCardTitle}>{trafficLabel(p.gb)}</span>
                             <span className={clsx(classes.coCardPrice, classes.num)}>
                                 {money(p.price_kopeks)}
                             </span>
+                            {p.gb > 0 && (
+                                <span className={clsx(classes.coCardMeta, classes.num)}>
+                                    {t('coPerGb', {
+                                        price: money(Math.round(p.price_kopeks / p.gb))
+                                    })}
+                                </span>
+                            )}
                             {checkMark}
                         </button>
                     ))}
@@ -599,6 +682,28 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                             : t('coGb', { n: currentGb + trafficGb })}
                     </strong>
                 </div>
+            )}
+
+            {upsell && (
+                <button
+                    className={classes.coUpsell}
+                    onClick={() => {
+                        vibrate('tap')
+                        if (tariffMode) setTariffPeriod(upsell.period_days)
+                        else setPeriod(upsell.period_days)
+                    }}
+                    type="button"
+                >
+                    <IconBulb aria-hidden size={18} stroke={2} />
+                    <span className={classes.coUpsellText}>
+                        {t('coUpsell', {
+                            period: formatPeriod(upsell.period_days, lang),
+                            price: money(perMonthKopeks(upsell)),
+                            saving: money(savingOf(upsell))
+                        })}
+                    </span>
+                    <span className={classes.coUpsellCta}>{t('coUpsellCta')}</span>
+                </button>
             )}
 
             {newEnd && (
@@ -694,6 +799,11 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                         <span>{t('coPay', { price: money(price) })}</span>
                         {original && <s className={classes.coPayStrike}>{money(original)}</s>}
                     </button>
+                )}
+                {saving > 0 && (
+                    <span className={clsx(classes.coSaving, classes.num)}>
+                        {t('coSaving', { saving: money(saving) })}
+                    </span>
                 )}
                 {!deviceFree && <span className={classes.coSecure}>{t('coSecure')}</span>}
             </div>
