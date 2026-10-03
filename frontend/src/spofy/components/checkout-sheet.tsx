@@ -263,6 +263,12 @@ function ErrorBox({
 
 /* ───────────── step 1: choose ───────────── */
 
+/** The bot decorates names with emoji («💳 Карта»); the page has its own icons. */
+const plain = (text: null | string | undefined) =>
+    (text ?? '')
+        .replace(/^[\p{Extended_Pictographic}\p{Emoji_Modifier}\uFE0F\u200D\s]+/u, '')
+        .trim()
+
 type TMethodKind = 'card' | 'crypto' | 'other' | 'sbp' | 'stars'
 
 /** Brand-like colour per kind of payment: card blue, SBP violet, crypto amber, Stars gold. */
@@ -788,10 +794,12 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                                             <MethodIcon size={20} stroke={1.9} />
                                         </span>
                                         <span className={classes.coRowText}>
-                                            <span className={classes.coRowTitle}>{m.name}</span>
-                                            {m.description && (
+                                            <span className={classes.coRowTitle}>
+                                                {plain(m.name)}
+                                            </span>
+                                            {plain(m.description) && (
                                                 <span className={classes.coRowMeta}>
-                                                    {m.description}
+                                                    {plain(m.description)}
                                                 </span>
                                             )}
                                         </span>
@@ -812,7 +820,7 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                                                     role="radio"
                                                     type="button"
                                                 >
-                                                    {o.name}
+                                                    {plain(o.name)}
                                                 </button>
                                             ))}
                                         </div>
