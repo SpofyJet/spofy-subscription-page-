@@ -33,7 +33,6 @@ import { TSpofyKey, useSpofyT } from '../i18n'
 import { SpofyShield } from '../spofy-shield'
 import { useSpofyData } from '../spofy-store'
 import classes from '../spofy.module.css'
-import { RenewStrip } from './renew-strip'
 
 const STATUS_SHORT: Record<TSpofyState, TSpofyKey> = {
     active: 'wordActive',
@@ -207,12 +206,7 @@ export function SubscriptionBanner(props: IBannerProps) {
 
     const offer = useCheckoutStore((s) => s.offer)
     const money = useMoney()
-    // Prices on the page: the strip replaces the big «Продлить» button while it loads or shows.
-    const strip = inPage && !isIndefinite(user.expiresAt) && state !== 'disabled'
-    const renewInStrip = strip && !offerError
-    const showHeroCta =
-        (inactive || state === 'expiring') &&
-        !(renewInStrip && (state === 'expired' || state === 'expiring'))
+    const showHeroCta = inactive || state === 'expiring'
     const pack = inPage ? cheapestTraffic(offer) : null
     const trafficCta = pack
         ? {
@@ -251,8 +245,6 @@ export function SubscriptionBanner(props: IBannerProps) {
                 <DevicesTile onBuy={onBuy} renewUrl={renewUrl} />
                 <TrafficTile onBuy={onBuy} trafficUrl={trafficUrl} user={user} />
             </div>
-
-            {strip && <RenewStrip />}
 
             {showHeroCta && (
                 <Actions
