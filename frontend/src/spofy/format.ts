@@ -41,17 +41,20 @@ export function getSubscriptionState(user: TSpofyUser, now = Date.now()): TSpofy
 export const isInactiveState = (state: TSpofyState) =>
     state === 'expired' || state === 'disabled' || state === 'limited'
 
-export function formatDate(date: Date | string, lang: TSubscriptionPageLanguageCode): string {
+function formatDateWith(
+    date: Date | string,
+    lang: TSubscriptionPageLanguageCode,
+    options: Intl.DateTimeFormatOptions
+): string {
     try {
-        return new Intl.DateTimeFormat(intlLocale(lang), {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric'
-        }).format(new Date(date))
+        return new Intl.DateTimeFormat(intlLocale(lang), options).format(new Date(date))
     } catch {
         return new Date(date).toLocaleDateString()
     }
 }
+
+export const formatDate = (date: Date | string, lang: TSubscriptionPageLanguageCode) =>
+    formatDateWith(date, lang, { day: 'numeric', month: 'long', year: 'numeric' })
 
 export function formatDays(n: number, lang: TSubscriptionPageLanguageCode): string {
     let rule = 'other'
@@ -140,30 +143,9 @@ export const PLATFORM_ORDER: TSubscriptionPagePlatformKey[] = [
 ]
 
 /** "2 окт. 2026 г." — for compact tiles */
-export function formatDateShort(date: Date | string, lang: TSubscriptionPageLanguageCode): string {
-    try {
-        return new Intl.DateTimeFormat(intlLocale(lang), {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric'
-        }).format(new Date(date))
-    } catch {
-        return new Date(date).toLocaleDateString()
-    }
-}
+export const formatDateShort = (date: Date | string, lang: TSubscriptionPageLanguageCode) =>
+    formatDateWith(date, lang, { day: 'numeric', month: 'short', year: 'numeric' })
 
 /** "01.11.2026" — numeric date for the compact hero tiles */
-export function formatDateNumeric(
-    date: Date | string,
-    lang: TSubscriptionPageLanguageCode
-): string {
-    try {
-        return new Intl.DateTimeFormat(intlLocale(lang), {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        }).format(new Date(date))
-    } catch {
-        return new Date(date).toLocaleDateString()
-    }
-}
+export const formatDateNumeric = (date: Date | string, lang: TSubscriptionPageLanguageCode) =>
+    formatDateWith(date, lang, { day: '2-digit', month: '2-digit', year: 'numeric' })

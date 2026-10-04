@@ -49,7 +49,31 @@ export function LinkCard({ cabinetUrl }: { cabinetUrl: null | string }) {
     }
 
     const showLink = !config.baseSettings.hideGetLinkButton
-    if (!showLink && !cabinetUrl) return null
+
+    // Also opened from the TV hint in ConnectSection, so it must stay mounted
+    // even when the card itself is hidden.
+    const qrModal = (
+        <Modal
+            centered
+            classNames={{
+                content: classes.modalContent,
+                header: classes.modalHeader,
+                title: classes.modalTitle,
+                close: classes.modalClose
+            }}
+            closeButtonProps={{ 'aria-label': t('close') }}
+            onClose={() => setQrOpen(false)}
+            opened={qrOpen}
+            radius="lg"
+            title={t('qrTitle')}
+            transitionProps={{ duration: 0 }}
+        >
+            {qrOpen && qrSrc && <img alt={subscriptionUrl} className={classes.qr} src={qrSrc} />}
+            <p className={classes.qrText}>{t('qrText')}</p>
+        </Modal>
+    )
+
+    if (!showLink && !cabinetUrl) return qrModal
 
     return (
         <section aria-label={t('linkCaption')} className={clsx(classes.card, classes.linkCard)}>
@@ -136,26 +160,7 @@ export function LinkCard({ cabinetUrl }: { cabinetUrl: null | string }) {
                 )
             )}
 
-            <Modal
-                centered
-                classNames={{
-                    content: classes.modalContent,
-                    header: classes.modalHeader,
-                    title: classes.modalTitle,
-                    close: classes.modalClose
-                }}
-                closeButtonProps={{ 'aria-label': t('close') }}
-                onClose={() => setQrOpen(false)}
-                opened={qrOpen}
-                radius="lg"
-                title={t('qrTitle')}
-                transitionProps={{ duration: 0 }}
-            >
-                {qrOpen && qrSrc && (
-                    <img alt={subscriptionUrl} className={classes.qr} src={qrSrc} />
-                )}
-                <p className={classes.qrText}>{t('qrText')}</p>
-            </Modal>
+            {qrModal}
         </section>
     )
 }

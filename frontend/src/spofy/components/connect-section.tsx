@@ -287,10 +287,12 @@ function AppSetup(props: {
     const { install, add } = pickHeroButtons(app)
 
     useLinkTemplates(app.blocks.flatMap((block) => block.buttons.map((button) => button.link)))
-    const format = (button: TButton) =>
+    /** null while the crypto library is still loading for a link that needs it */
+    const formatOrNull = (button: TButton) =>
         button.type === 'external'
             ? button.link
-            : (formatLink(button.link, { username, subscriptionUrl }) ?? '#')
+            : formatLink(button.link, { username, subscriptionUrl })
+    const format = (button: TButton) => formatOrNull(button) ?? '#'
 
     const renderButton = (
         button: TButton,
@@ -317,7 +319,9 @@ function AppSetup(props: {
                 <button
                     className={className}
                     onClick={() => {
-                        clipboard.copy(format(button))
+                        const link = formatOrNull(button)
+                        if (link === null) return // never copy a placeholder
+                        clipboard.copy(link)
                         setCopiedButton(button)
                         vibrate('tap')
                     }}
