@@ -133,8 +133,9 @@ export class SpofyCheckoutController {
             .split(';')
             .map((part) => part.trim())
             .find((part) => part.startsWith('session='));
-        const token = cookie ? decodeURIComponent(cookie.slice('session='.length)) : '';
         try {
+            // decodeURIComponent throws on a malformed cookie: that is «no session», not a 500.
+            const token = cookie ? decodeURIComponent(cookie.slice('session='.length)) : '';
             this.jwtService.verify(token);
         } catch {
             throw new ForbiddenException({ code: 'no_session' });

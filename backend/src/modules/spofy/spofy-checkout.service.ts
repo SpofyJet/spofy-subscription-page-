@@ -14,7 +14,9 @@ const OFFER_TTL_MS = 20_000;
 const ACTIVE_CHECK_EVERY_MS = 10_000;
 const WINDOW_MS = 10 * 60_000;
 const CHECKOUTS_PER_SUBSCRIPTION = 6;
-const CHECKOUTS_PER_IP = 20;
+// Behind the DDoS proxy every visitor of a node shares one source address, so this is a
+// coarse flood guard; the per-subscription limit is the real one.
+const CHECKOUTS_PER_IP = 200;
 const MAX_TRACKED = 5_000;
 
 /** Resolve every hostname to a fixed IP (talk to the bot's origin, bypassing the DDoS proxy). */
@@ -126,11 +128,16 @@ export class SpofyCheckoutService {
             [`ip:${clientIp}`, CHECKOUTS_PER_IP],
         ];
         for (const [key, max] of keys) this.checkLimit(key, max);
+        // Reserve the slots synchronously (no await between check and reserve), so parallel
+        // requests cannot all slip under the limit; give them back if no payment was created.
+        const slots = keys.map(([key]) => [key, this.hit(key)] as const);
         this.offerCache.delete(shortUuid);
-        const result = await this.call('post', `/${encodeURIComponent(shortUuid)}/checkout`, body);
-        // Only created payments count: failed attempts must not lock people out.
-        for (const [key] of keys) this.hit(key);
-        return result;
+        try {
+            return await this.call('post', `/${encodeURIComponent(shortUuid)}/checkout`, body);
+        } catch (error) {
+            for (const [key, stamp] of slots) this.release(key, stamp);
+            throw error;
+        }
     }
 
     public async status(shortUuid: string, method: string, paymentId: string): Promise<unknown> {
@@ -160,11 +167,20 @@ export class SpofyCheckoutService {
         }
     }
 
-    private hit(key: string): void {
+    private hit(key: string): number {
         const recent = this.recent(key);
-        recent.push(Date.now());
+        let stamp = Date.now();
+        while (recent.includes(stamp)) stamp += 0.001;
+        recent.push(stamp);
         this.trim(this.hits);
         this.hits.set(key, recent);
+        return stamp;
+    }
+
+    private release(key: string, stamp: number): void {
+        const recent = this.hits.get(key);
+        const index = recent?.indexOf(stamp) ?? -1;
+        if (recent && index >= 0) recent.splice(index, 1);
     }
 
     private trim(map: Map<string, unknown>): void {

@@ -151,3 +151,44 @@ test('bridgeDetail: string, {code,message}, validation list, junk', () => {
     assert.equal(bridgeDetail(null), null);
     assert.equal(bridgeDetail({ detail: 'x'.repeat(500) })?.length, 200);
 });
+
+import { SpofyCheckoutService } from '../src/modules/spofy/spofy-checkout.service';
+
+const checkoutService = (call: () => Promise<unknown>) => {
+    const service = new SpofyCheckoutService({
+        get: (key: string) =>
+            ({ SPOFY_BOT_API_URL: 'http://bot.invalid', SPOFY_BOT_API_KEY: 'k'.repeat(40) })[key],
+    } as never);
+    (service as unknown as { call: () => Promise<unknown> }).call = call;
+    return service;
+};
+const body = { kind: 'renew', payment_method: 'yookassa', period_days: 30 } as const;
+
+test('checkout limit holds under parallel requests (6 per subscription)', async () => {
+    const service = checkoutService(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        return { ok: true };
+    });
+    const results = await Promise.allSettled(
+        Array.from({ length: 12 }, (_, i) => service.checkout('abcdefgh', body, `10.0.0.${i}`)),
+    );
+    assert.equal(results.filter((r) => r.status === 'fulfilled').length, 6);
+});
+
+test('failed checkouts do not use up the limit', async () => {
+    const service = checkoutService(async () => {
+        throw new Error('bridge down');
+    });
+    for (let i = 0; i < 10; i++) {
+        await assert.rejects(service.checkout('abcdefgh', body, '10.0.0.1'), /bridge down/);
+    }
+    (service as unknown as { call: () => Promise<unknown> }).call = async () => ({ ok: true });
+    await assert.doesNotReject(service.checkout('abcdefgh', body, '10.0.0.1'));
+});
+
+test('many visitors behind one proxy address are not blocked by the per-IP limit', async () => {
+    const service = checkoutService(async () => ({ ok: true }));
+    for (let i = 0; i < 30; i++) {
+        await service.checkout(`sub${String(i).padStart(6, '0')}`, body, '193.23.208.15');
+    }
+});
