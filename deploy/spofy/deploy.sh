@@ -16,6 +16,11 @@ CUR_ID=$(docker inspect -f '{{.Image}}' "$NAME")
 if [ "$CUR_ID" = "$NEW_ID" ]; then
     echo "$NEW is already running"; exit 0
 fi
+# Keep the old container's log: the funnel statistics (funnel.sh) live in it.
+mkdir -p "$DIR/logs"
+docker logs "$NAME" 2>&1 | sed 's/\x1b\[[0-9;]*m//g' > "$DIR/logs/subpage-$(date +%Y%m%d_%H%M%S).log" || true
+find "$DIR/logs" -name 'subpage-*.log' -mtime +60 -delete 2>/dev/null || true
+
 docker tag "$CUR_ID" spofy-subpage:prev
 echo "tagged running image $CUR_ID as spofy-subpage:prev"
 

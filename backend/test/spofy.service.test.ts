@@ -192,3 +192,43 @@ test('many visitors behind one proxy address are not blocked by the per-IP limit
         await service.checkout(`sub${String(i).padStart(6, '0')}`, body, '193.23.208.15');
     }
 });
+
+import { renderNotFoundPage } from '../src/modules/spofy/not-found.page';
+import { platformOf } from '../src/modules/spofy/spofy-checkout.service';
+
+test('not-found page: language, links, escaping, no http links', () => {
+    const ru = renderNotFoundPage({
+        acceptLanguage: 'ru-RU,ru;q=0.9',
+        botUrl: 'https://t.me/spofyvpnbot',
+        supportUrl: 'javascript:alert(1)',
+    });
+    assert.match(ru, /Ссылка устарела/);
+    assert.match(ru, /href="https:\/\/t\.me\/spofyvpnbot"/);
+    assert.doesNotMatch(ru, /javascript:/);
+    const en = renderNotFoundPage({ acceptLanguage: 'en-GB', botUrl: null, supportUrl: null });
+    assert.match(en, /out of date/);
+    assert.doesNotMatch(en, /<a /);
+    const tricky = renderNotFoundPage({ botUrl: 'https://x.test/"><script>1</script>', supportUrl: null });
+    assert.doesNotMatch(tricky, /<script>1/);
+});
+
+test('funnel events: allowlist, anonymous line, platform from user agent', () => {
+    const service = checkoutService(async () => ({}));
+    const lines: string[] = [];
+    (service as unknown as { logger: { log: (m: string) => void } }).logger = { log: (m) => lines.push(m) };
+    service.recordEvent('abcdefgh', { e: 'pay_open', t: 'renew', k: 'sbp' }, 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0)');
+    assert.equal(lines.length, 1);
+    const payload = JSON.parse(lines[0].replace('SPOFY_EVENT ', ''));
+    assert.deepEqual(Object.keys(payload).sort(), ['e', 'k', 'p', 's', 't']);
+    assert.equal(payload.p, 'ios');
+    assert.equal(payload.s.length, 10);
+    assert.ok(!lines[0].includes('abcdefgh'));
+    assert.throws(
+        () => service.recordEvent('abcdefgh', { e: 'drop_table' }, ''),
+        (error: unknown) => (error as { getStatus?: () => number }).getStatus?.() === 422,
+    );
+    service.recordEvent('abcdefgh', { e: 'view', t: 'evil', k: '<x>' }, '');
+    assert.deepEqual(JSON.parse(lines[1].replace('SPOFY_EVENT ', '')), { e: 'view', p: 'other', s: payload.s });
+    assert.equal(platformOf('Mozilla/5.0 (Linux; Android 15)'), 'android');
+    assert.equal(platformOf('Mozilla/5.0 (Windows NT 10.0)'), 'desktop');
+});

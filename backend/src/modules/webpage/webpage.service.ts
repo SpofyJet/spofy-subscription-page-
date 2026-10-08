@@ -196,6 +196,14 @@ export class WebpageService implements OnApplicationBootstrap {
             );
 
             if (!subscriptionDataResponse.isOk || !subscriptionDataResponse.response) {
+                // A person with a dead link gets an explanation; any other failure (and every
+                // non-browser request) is still dropped as before.
+                if (subscriptionDataResponse.notFound) {
+                    res.status(404)
+                        .set({ 'cache-control': 'no-store', 'content-type': 'text/html; charset=utf-8' })
+                        .send(this.spofyService.renderNotFound(req.headers['accept-language']));
+                    return;
+                }
                 res.socket?.destroy();
                 return;
             }

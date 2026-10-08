@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { useAppConfig, useCurrentLang } from '@entities/app-config-store'
 import { useSubscription } from '@entities/subscription-info-store'
 
+import { track } from './checkout/api'
 import { useCheckoutStore } from './checkout/checkout-store'
 import { PendingBanner, usePendingPhase } from './checkout/pending'
 import { BypassNotice } from './components/actions'
@@ -38,6 +39,10 @@ export function SpofyMainPage() {
     const hasTrafficLimit = toNumber(user.trafficLimitBytes) > 0
     const checkout = spofy.checkoutEnabled
     const phase = usePendingPhase()
+    useEffect(() => {
+        // one «page seen» per load; the server also counts it by platform
+        if (checkout) track(user.shortUuid, 'view')
+    }, [checkout, user.shortUuid])
     const opened = useCheckoutStore((s) => s.opened)
     const offerReady = useCheckoutStore((s) => !!s.offer)
     const [sheetMounted, setSheetMounted] = useState(false)

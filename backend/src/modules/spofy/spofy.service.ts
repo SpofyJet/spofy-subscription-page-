@@ -5,6 +5,8 @@ import { GetUserByShortUuidCommand, GetUserHwidDevicesCommand } from '@remnawave
 import { AxiosService } from '@common/axios';
 import { TypedConfigService } from '@common/config/app-config';
 
+import { renderNotFoundPage } from './not-found.page';
+
 export interface ISpofyPageData {
     renewUrl: string | null;
     trafficUrl: string | null;
@@ -125,6 +127,15 @@ export class SpofyService {
         this.logger.log(
             `Spofy: renew=${!!this.renewUrl} traffic=${!!this.trafficUrl} support=${!!this.supportUrl} cabinet=${!!this.cabinetUrl} bypassOffNotice=${!!this.bypassOffSquadUuid}`,
         );
+    }
+
+    /** HTML for a dead subscription link opened in a browser. */
+    public renderNotFound(acceptLanguage?: string): string {
+        return renderNotFoundPage({
+            acceptLanguage,
+            botUrl: this.renewUrl,
+            supportUrl: this.supportUrl,
+        });
     }
 
     /** Never throws: any failure degrades to "no notice" and the Remnawave username. */

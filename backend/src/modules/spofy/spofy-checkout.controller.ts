@@ -4,6 +4,8 @@ import {
     Controller,
     ForbiddenException,
     Get,
+    Headers,
+    HttpCode,
     NotFoundException,
     Param,
     Post,
@@ -111,6 +113,21 @@ export class SpofyCheckoutController {
             tariff_id: optInt(raw.tariff_id, 1, 1_000_000),
         };
         return this.checkout.checkout(shortUuid, body, clientIp);
+    }
+
+    @Post(':shortUuid/event')
+    @HttpCode(204)
+    async postEvent(
+        @Req() req: Request,
+        @Param('shortUuid') shortUuid: string,
+        @Headers('user-agent') userAgent: string | undefined,
+    ) {
+        this.guard(req, shortUuid);
+        const raw = await readJsonBody(req);
+        if (typeof raw.e !== 'string') {
+            throw new UnprocessableEntityException({ code: 'invalid_body' });
+        }
+        this.checkout.recordEvent(shortUuid, { e: raw.e, k: raw.k, t: raw.t }, userAgent);
     }
 
     @Get(':shortUuid/payments/:method/:paymentId')

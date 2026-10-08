@@ -228,7 +228,9 @@ export class AxiosService implements OnModuleInit {
     public async getSubscriptionInfo(
         clientIp: string,
         shortUuid: string,
-    ): Promise<ICommandResponse<GetSubscriptionInfoByShortUuidCommand.Response>> {
+    ): Promise<
+        ICommandResponse<GetSubscriptionInfoByShortUuidCommand.Response> & { notFound?: boolean }
+    > {
         try {
             const response =
                 await this.axiosInstance.request<GetSubscriptionInfoByShortUuidCommand.Response>({
@@ -246,9 +248,9 @@ export class AxiosService implements OnModuleInit {
         } catch (error) {
             if (error instanceof AxiosError) {
                 this.logger.error('Error in GetSubscriptionInfo Request:', error.message);
-            } else {
-                this.logger.error('Error in GetSubscriptionInfo Request:', error);
+                return { isOk: false, notFound: error.response?.status === 404 };
             }
+            this.logger.error('Error in GetSubscriptionInfo Request:', error);
 
             return { isOk: false };
         }

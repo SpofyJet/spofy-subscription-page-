@@ -167,3 +167,32 @@ export function isApplied(kind: TCheckoutKind, before: ISnapshot, now: ISnapshot
             return now.traffic_limit_gb !== before.traffic_limit_gb
     }
 }
+
+export type TFunnelEvent =
+    | 'pay_back'
+    | 'pay_click'
+    | 'pay_done'
+    | 'pay_open'
+    | 'pay_return'
+    | 'pay_timeout'
+    | 'sheet_open'
+    | 'view'
+
+/** Anonymous funnel counter (one log line on the server). Never blocks or throws. */
+export function track(
+    shortUuid: string,
+    event: TFunnelEvent,
+    extra: { k?: string; t?: string } = {}
+): void {
+    try {
+        void fetch(`${base(shortUuid)}/event`, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ e: event, ...extra }),
+            keepalive: true
+        }).catch(() => undefined)
+    } catch {
+        // analytics must never break the page
+    }
+}

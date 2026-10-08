@@ -35,7 +35,8 @@ import {
     IOffer,
     IPeriodOption,
     isApplied,
-    TCheckoutKind
+    TCheckoutKind,
+    track
 } from '../checkout/api'
 import {
     errorKey,
@@ -49,6 +50,7 @@ import {
 import { useMoney } from '../checkout/money'
 import { perMonthKopeks } from '../checkout/offer-utils'
 import { TPhase } from '../checkout/pending'
+import { markPayOpened } from '../checkout/pending'
 import { formatDate, formatDateNumeric, formatDays, formatPeriod, isIndefinite } from '../format'
 import { TSpofyKey, useSpofyT } from '../i18n'
 import { useQrDataUrl } from '../qr'
@@ -87,6 +89,10 @@ export default function CheckoutSheet({
     useEffect(() => {
         if (opened) loadOffer(shortUuid)
     }, [opened, shortUuid, loadOffer])
+
+    useEffect(() => {
+        if (opened) track(shortUuid, 'sheet_open', { t: tab })
+    }, [opened])
 
     const showPayment = !!pending && pending.shortUuid === shortUuid
     const trial = !!offer && (offer.subscription.is_trial || offer.renewal.length === 0)
@@ -512,6 +518,7 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
         setError(null)
         setErrorDetail(null)
         const kind: TCheckoutKind = tab === 'renew' ? (tariffMode ? 'tariff' : 'renew') : tab
+        track(subscription.user.shortUuid, 'pay_click', { t: tab, k: methodKind(method) })
         try {
             const result = await checkoutApi.checkout(subscription.user.shortUuid, {
                 kind,
@@ -1101,7 +1108,18 @@ function PaymentStep({ pending, phase }: { pending: IPendingPayment; phase: TPha
                         classes.coPayBtn
                     )}
                     href={result.payment_url}
-                    onClick={() => vibrate('tap')}
+                    onClick={() => {
+                        vibrate('tap')
+                        markPayOpened(result.payment_id)
+                        track(pending.shortUuid, 'pay_open', {
+                            t:
+                                pending.kind === 'devices'
+                                    ? 'devices'
+                                    : pending.kind === 'traffic'
+                                      ? 'traffic'
+                                      : 'renew'
+                        })
+                    }}
                     rel="noopener noreferrer"
                     target="_blank"
                 >
@@ -1124,7 +1142,10 @@ function PaymentStep({ pending, phase }: { pending: IPendingPayment; phase: TPha
                 )}
                 <button
                     className={clsx(classes.btn, classes.btnGhost, classes.btnSmall)}
-                    onClick={() => setPending(null)}
+                    onClick={() => {
+                        track(pending.shortUuid, 'pay_back')
+                        setPending(null)
+                    }}
                     type="button"
                 >
                     <IconArrowLeft aria-hidden size={18} />

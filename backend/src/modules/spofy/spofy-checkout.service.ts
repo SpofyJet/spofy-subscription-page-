@@ -1,6 +1,7 @@
 import type { LookupFunction } from 'node:net';
 
 import axios, { AxiosError, AxiosInstance } from 'axios';
+import { createHash } from 'node:crypto';
 import http from 'node:http';
 import https from 'node:https';
 
@@ -30,6 +31,29 @@ function pinnedLookup(ip: string): LookupFunction {
         if (options && options.all) callback(null, [{ address: ip, family }]);
         else callback(null, ip, family);
     }) as unknown as LookupFunction;
+}
+
+/** Funnel events the page may report (anything else is rejected). */
+export const FUNNEL_EVENTS = new Set([
+    'view',
+    'sheet_open',
+    'pay_click',
+    'pay_open',
+    'pay_return',
+    'pay_done',
+    'pay_back',
+    'pay_timeout',
+]);
+const FUNNEL_TABS = new Set(['renew', 'devices', 'traffic']);
+const FUNNEL_KINDS = new Set(['card', 'sbp', 'crypto', 'stars', 'other']);
+const EVENTS_PER_SUBSCRIPTION = 200;
+
+export function platformOf(userAgent: string | undefined): string {
+    const ua = userAgent ?? '';
+    if (/iPhone|iPad|iPod/i.test(ua)) return 'ios';
+    if (/Android/i.test(ua)) return 'android';
+    if (/Windows|Macintosh|Linux|X11/i.test(ua)) return 'desktop';
+    return 'other';
 }
 
 export interface ICheckoutBody {
@@ -138,6 +162,29 @@ export class SpofyCheckoutService {
             for (const [key, stamp] of slots) this.release(key, stamp);
             throw error;
         }
+    }
+
+    /**
+     * One log line per funnel event: `SPOFY_EVENT {"e":"pay_open","p":"ios","t":"renew","k":"sbp","s":"3fa9c1d2e4"}`.
+     * `s` is a short hash of the subscription (counting people without storing who).
+     */
+    public recordEvent(
+        shortUuid: string,
+        body: { e: string; k?: unknown; t?: unknown },
+        userAgent: string | undefined,
+    ): void {
+        if (!FUNNEL_EVENTS.has(body.e)) throw new HttpException({ code: 'invalid_body' }, 422);
+        const key = `ev:${shortUuid}`;
+        if (this.recent(key).length >= EVENTS_PER_SUBSCRIPTION) return;
+        this.hit(key);
+        const payload: Record<string, string> = {
+            e: body.e,
+            p: platformOf(userAgent),
+            s: createHash('sha256').update(shortUuid).digest('hex').slice(0, 10),
+        };
+        if (typeof body.t === 'string' && FUNNEL_TABS.has(body.t)) payload.t = body.t;
+        if (typeof body.k === 'string' && FUNNEL_KINDS.has(body.k)) payload.k = body.k;
+        this.logger.log(`SPOFY_EVENT ${JSON.stringify(payload)}`);
     }
 
     public async status(shortUuid: string, method: string, paymentId: string): Promise<unknown> {
