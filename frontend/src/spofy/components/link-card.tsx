@@ -21,6 +21,16 @@ import { useQrDataUrl } from '../qr'
 import { useQrStore } from '../qr-store'
 import classes from '../spofy.module.css'
 
+/** «…cw6JXrffn0»: only the part that tells one link from another (the host is the same for everyone). */
+const shortLink = (url: string) => {
+    try {
+        const id = new URL(url).pathname.split('/').filter(Boolean).at(-1) ?? ''
+        return id.length > 12 ? `…${id.slice(-12)}` : id || url
+    } catch {
+        return url.replace(/^https?:\/\//, '')
+    }
+}
+
 const hostOf = (url: string) => {
     try {
         return new URL(url).host
@@ -87,7 +97,7 @@ export function LinkCard({ cabinetUrl }: { cabinetUrl: null | string }) {
                     >
                         <span className={classes.linkCaption}>{t('linkCaption')}</span>
                         <span className={classes.linkText} title={subscriptionUrl}>
-                            {subscriptionUrl.replace(/^https?:\/\//, '')}
+                            {shortLink(subscriptionUrl)}
                         </span>
                     </button>
                     <button

@@ -95,7 +95,7 @@ export function TopBar(props: {
                         target="_blank"
                     >
                         <IconLifebuoy aria-hidden size={18} stroke={1.8} />
-                        {t('help')}
+                        <span className={classes.pillLabel}>{t('help')}</span>
                     </a>
                 )}
             </div>
