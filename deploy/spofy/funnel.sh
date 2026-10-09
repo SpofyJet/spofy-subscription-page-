@@ -13,10 +13,11 @@ python3 - "$TMP" <<'PY'
 import re, sys, json, collections
 events = collections.defaultdict(lambda: collections.defaultdict(set))   # platform -> step -> people
 created = collections.defaultdict(set)
-since = None
+seen_events = False   # payments from before the events existed are not comparable
 for line in open(sys.argv[1], errors='replace'):
     m = re.search(r'SPOFY_EVENT (\{.*\})', line)
     if m:
+        seen_events = True
         try: d = json.loads(m.group(1))
         except ValueError: continue
         events[d.get('p', 'other')][d['e']].add(d['s'])
@@ -24,7 +25,7 @@ for line in open(sys.argv[1], errors='replace'):
         continue
     # server-side count of created payments: "POST /spofy-api/<uuid>/checkout ... 201"
     m = re.search(r'"POST /spofy-api/([A-Za-z0-9_-]+)/checkout [^"]*" 201', line)
-    if m:
+    if m and seen_events:
         import hashlib
         s = hashlib.sha256(m.group(1).encode()).hexdigest()[:10]
         created['all'].add(s)

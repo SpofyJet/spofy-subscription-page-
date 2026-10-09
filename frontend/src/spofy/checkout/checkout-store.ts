@@ -76,9 +76,11 @@ export const errorKey = (error: unknown, phase: 'checkout' | 'offer' = 'checkout
     if (error.code === 'bridge_error' && error.status === 404) return 'coErrNotInBot'
     if (error.status === 409 || error.code === 'checkout_disabled') return 'coErrDisabled'
     if (phase === 'offer') return 'coErrLoad'
+    const detail = (error.detail ?? '').toLowerCase()
+    // «Failed to create Platega payment»: one provider is down, the bot itself works.
+    if (/failed to create .*payment/.test(detail)) return 'coErrMethodDown'
     if (error.code === 'bot_unavailable' || error.code === 'network' || error.status >= 500)
         return 'coErrBot'
-    const detail = (error.detail ?? '').toLowerCase()
     if (detail.includes('payment method')) return 'coErrMethod'
     if (detail.includes('exceeds')) return 'coErrLimit'
     if (detail.includes('restricted')) return 'coErrRestricted'

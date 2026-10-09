@@ -18,6 +18,8 @@ export function perMonthKopeks(option: IPeriodOption): number {
 
 /** Cheapest paid traffic package (smallest price), for «Вернуть обходы — купить N ГБ». */
 export function cheapestTraffic(offer: IOffer | null): IOffer['traffic'][number] | null {
+    // A trial subscription cannot buy traffic (the bot refuses): never offer it.
+    if (offer?.subscription.is_trial) return null
     const packages = (offer?.traffic ?? []).filter((p) => p.gb > 0 && p.price_kopeks > 0)
     return packages.reduce<IOffer['traffic'][number] | null>(
         (best, p) => (!best || p.price_kopeks < best.price_kopeks ? p : best),

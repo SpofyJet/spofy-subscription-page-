@@ -364,7 +364,9 @@ function DevicesTile(props: {
     const offer = useCheckoutStore((s) => s.offer)
     // Before the offer arrives we assume devices can be bought; hide once the bot says no.
     const sellable =
-        !dormant && (!offer || (!!offer.devices.available && (offer.devices.can_add ?? 1) > 0))
+        !dormant &&
+        !offer?.subscription.is_trial &&
+        (!offer || (!!offer.devices.available && (offer.devices.can_add ?? 1) > 0))
     const limit = devicesLimit ?? offer?.devices.current_device_limit ?? null
     const full = devicesUsed !== null && limit !== null && devicesUsed >= limit
 
@@ -424,7 +426,8 @@ function TrafficTile({
     const limit = toNumber(user.trafficLimitBytes)
     const unlimited = limit <= 0
     // Optimistic until the offer arrives; the note and the button have the same size.
-    const sellable = !dormant && (offer ? offer.traffic.length > 0 : true)
+    const sellable =
+        !dormant && !offer?.subscription.is_trial && (offer ? offer.traffic.length > 0 : true)
     const action: ITileAction | null =
         onBuy && sellable
             ? {

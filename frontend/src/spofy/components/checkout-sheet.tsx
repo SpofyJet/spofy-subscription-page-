@@ -345,8 +345,8 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
     const tabs = (
         [
             ['renew', isTrial || !canRenew ? 'coTabTariff' : 'coTabRenew', canRenew || canTariff],
-            ['devices', 'coTabDevices', canDevices],
-            ['traffic', 'coTabTraffic', canTraffic]
+            ['devices', 'coTabDevices', canDevices && !isTrial],
+            ['traffic', 'coTabTraffic', canTraffic && !isTrial]
         ] as [TCheckoutTab, TSpofyKey, boolean][]
     ).filter(([, , ok]) => ok)
 
@@ -542,6 +542,8 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
             })
         } catch (err) {
             const key = errorKey(err)
+            // One provider failed: show the other methods so the next tap can be a different one.
+            if (key === 'coErrMethodDown') setAllMethods(true)
             setError(key)
             setErrorDetail(
                 err instanceof CheckoutError && !KNOWN_ERROR_KEYS.includes(key) ? err.detail : null

@@ -214,6 +214,8 @@ const ru = {
     coErrNotInBot: 'Для этой подписки оплата на странице недоступна — продлите её в боте.',
     coErrLoad: 'Не удалось загрузить варианты оплаты. Попробуйте ещё раз или оформите в боте.',
     coErrMethod: 'Этот способ оплаты сейчас недоступен — выберите другой.',
+    coErrMethodDown:
+        'Этот способ оплаты сейчас не отвечает — выберите другой, например СБП или криптовалюту.',
     coErrLimit: 'Сумма больше лимита этого способа оплаты — выберите другой.',
     coErrRestricted: 'Покупки для этого аккаунта ограничены — напишите в поддержку.'
 }
@@ -412,6 +414,7 @@ const en: TDict = {
         'Payments on this page are not available for this subscription — renew it in the bot.',
     coErrLoad: "Couldn't load payment options. Try again or use the bot.",
     coErrMethod: 'This payment method is unavailable right now — choose another.',
+    coErrMethodDown: 'This payment method is not responding right now — please choose another one.',
     coErrLimit: "The amount is above this method's limit — choose another.",
     coErrRestricted: 'Purchases are restricted for this account — contact support.'
 }
@@ -611,6 +614,7 @@ const fr: TDict = {
         "Le paiement sur cette page n'est pas disponible pour cet abonnement — passez par le bot.",
     coErrLoad: 'Impossible de charger les options de paiement. Réessayez ou passez par le bot.',
     coErrMethod: 'Ce moyen de paiement est indisponible — choisissez-en un autre.',
+    coErrMethodDown: 'Ce moyen de paiement ne répond pas pour le moment — choisissez-en un autre.',
     coErrLimit: 'Montant supérieur à la limite de ce moyen — choisissez-en un autre.',
     coErrRestricted: 'Les achats sont restreints pour ce compte — contactez le support.'
 }
