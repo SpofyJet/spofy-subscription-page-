@@ -653,52 +653,59 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
 
             {tab === 'renew' && tariffMode && tariff && (
                 <>
-                    <div
-                        aria-label={t('coTabTariff')}
-                        className={classes.coTariffs}
-                        role="radiogroup"
-                    >
-                        {offer.tariffs.map((x) => {
-                            const active = x.id === tariff.id
-                            const about = (x.description ?? '').trim()
-                            return (
-                                <div className={classes.coTariff} data-active={active} key={x.id}>
-                                    <button
-                                        aria-checked={active}
-                                        className={classes.coTariffHead}
-                                        onClick={() => {
-                                            vibrate('tap')
-                                            setTariffId(x.id)
-                                            setTariffPeriod(
-                                                (
-                                                    x.periods.find((p) => p.is_highlighted) ??
-                                                    x.periods[0]
-                                                )?.period_days ?? null
-                                            )
-                                        }}
-                                        role="radio"
-                                        type="button"
+                    {/* Nothing to choose from with a single tariff: no card, straight to the periods. */}
+                    {offer.tariffs.length > 1 && (
+                        <div
+                            aria-label={t('coTabTariff')}
+                            className={classes.coTariffs}
+                            role="radiogroup"
+                        >
+                            {offer.tariffs.map((x) => {
+                                const active = x.id === tariff.id
+                                const about = (x.description ?? '').trim()
+                                return (
+                                    <div
+                                        className={classes.coTariff}
+                                        data-active={active}
+                                        key={x.id}
                                     >
-                                        <span className={classes.coTariffText}>
-                                            <span className={classes.coRowTitle}>{x.name}</span>
-                                        </span>
-                                        <span aria-hidden className={classes.coRadio} />
-                                    </button>
-                                    {about && (
-                                        <div
-                                            aria-hidden={!active}
-                                            className={classes.coTariffBody}
-                                            data-open={active}
+                                        <button
+                                            aria-checked={active}
+                                            className={classes.coTariffHead}
+                                            onClick={() => {
+                                                vibrate('tap')
+                                                setTariffId(x.id)
+                                                setTariffPeriod(
+                                                    (
+                                                        x.periods.find((p) => p.is_highlighted) ??
+                                                        x.periods[0]
+                                                    )?.period_days ?? null
+                                                )
+                                            }}
+                                            role="radio"
+                                            type="button"
                                         >
-                                            <div className={classes.coTariffBodyInner}>
-                                                <p className={classes.coTariffAbout}>{about}</p>
+                                            <span className={classes.coTariffText}>
+                                                <span className={classes.coRowTitle}>{x.name}</span>
+                                            </span>
+                                            <span aria-hidden className={classes.coRadio} />
+                                        </button>
+                                        {about && (
+                                            <div
+                                                aria-hidden={!active}
+                                                className={classes.coTariffBody}
+                                                data-open={active}
+                                            >
+                                                <div className={classes.coTariffBodyInner}>
+                                                    <p className={classes.coTariffAbout}>{about}</p>
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )
-                        })}
-                    </div>
+                                        )}
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
                     {periodGrid(tariff.periods, tariffPeriod, setTariffPeriod)}
                 </>
             )}
