@@ -3079,3 +3079,9 @@
     color: var(--sp-text-2);
     font-weight: 700;
 }
+
+/* a tile with nothing to buy keeps its content in the middle instead of an empty lower half */
+.statTilePlain {
+    justify-content: center;
+    padding-bottom: 12px;
+}

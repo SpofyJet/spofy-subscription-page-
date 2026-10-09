@@ -277,13 +277,17 @@ function Tile(props: {
     icon: React.ReactNode
     label: string
     hue?: string
-    /** shown in place of the button when there is nothing to buy */
-    note?: null | string
     tone?: 'error' | 'ok' | 'warning'
 }) {
     const { action } = props
     return (
-        <div className={clsx(classes.statTile, props.tone && classes[`statTile_${props.tone}`])}>
+        <div
+            className={clsx(
+                classes.statTile,
+                props.tone && classes[`statTile_${props.tone}`],
+                !action && classes.statTilePlain
+            )}
+        >
             <span
                 aria-hidden
                 className={classes.statTileIcon}
@@ -311,7 +315,6 @@ function Tile(props: {
                         {action.label}
                     </a>
                 ) : null)}
-            {!action && props.note && <span className={classes.tileNote}>{props.note}</span>}
         </div>
     )
 }
@@ -385,7 +388,6 @@ function DevicesTile(props: {
             hue="#8b5cf6"
             icon={<IconDevices size={16} stroke={2} />}
             label={t('devices')}
-            note={limit === null ? t('devicesNoLimit') : null}
             tone={full ? 'warning' : undefined}
         >
             {devicesUsed !== null && limit !== null ? (
@@ -425,7 +427,7 @@ function TrafficTile({
     const used = toNumber(user.trafficUsedBytes)
     const limit = toNumber(user.trafficLimitBytes)
     const unlimited = limit <= 0
-    // Optimistic until the offer arrives; the note and the button have the same size.
+    // Optimistic until the offer arrives; hidden once the bot says there is nothing to sell.
     const sellable =
         !dormant && !offer?.subscription.is_trial && (offer ? offer.traffic.length > 0 : true)
     const action: ITileAction | null =
@@ -450,7 +452,6 @@ function TrafficTile({
                 hue="#0ea5b7"
                 icon={<IconArrowsUpDown size={16} stroke={2} />}
                 label={t('traffic')}
-                note={dormant ? null : t('devicesNoLimit')}
             >
                 <span className={clsx(classes.glowSoft, classes.glow_accent)}>∞</span>
                 <span className={clsx(classes.statTileUnit, classes.num)}>
