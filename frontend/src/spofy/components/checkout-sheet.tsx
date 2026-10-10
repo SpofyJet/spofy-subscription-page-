@@ -321,7 +321,11 @@ function methodKind(m: IOffer['payment_methods'][number]): TMethodKind {
 }
 
 /** Methods shown up front: the first card/SBP one and Heleket (crypto). The rest sit behind «Другой способ». */
-function primaryMethods(methods: IOffer['payment_methods']): string[] {
+function primaryMethods(all: IOffer['payment_methods']): string[] {
+    // A method that just failed to create payments is not offered up front (it stays under
+    // «Другой способ оплаты», marked). If everything is down, offer everything.
+    const live = all.filter((m) => !m.down)
+    const methods = live.length ? live : all
     const card = methods.find((m) => methodKind(m) === 'card' || methodKind(m) === 'sbp')
     const crypto =
         methods.find((m) => m.id.toLowerCase().includes('heleket')) ??
@@ -541,9 +545,18 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                 summary: summary()
             })
         } catch (err) {
-            const key = errorKey(err)
-            // One provider failed: show the other methods so the next tap can be a different one.
-            if (key === 'coErrMethodDown') setAllMethods(true)
+            let key = errorKey(err)
+            if (key === 'coErrMethodDown') {
+                // One provider failed: choose another one for the person, so the next tap pays.
+                const others = offer.payment_methods.filter((m) => m.id !== method.id && !m.down)
+                const next = others.find((m) => primary.includes(m.id)) ?? others[0]
+                setAllMethods(true)
+                if (next) {
+                    setMethodId(next.id)
+                    setOptionId(next.options?.[0]?.id ?? null)
+                    key = 'coErrMethodSwitched'
+                }
+            }
             setError(key)
             setErrorDetail(
                 err instanceof CheckoutError && !KNOWN_ERROR_KEYS.includes(key) ? err.detail : null
@@ -908,6 +921,14 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                                 })
                             })}
                     </div>
+                    {offer.payment_methods
+                        .filter((m) => m.down && primary.every((id) => id !== m.id))
+                        .slice(0, 1)
+                        .map((m) => (
+                            <p className={classes.coHint} key={`down-${m.id}`}>
+                                {t('coMethodDownNote', { name: choiceLabel(m.name) })}
+                            </p>
+                        ))}
                     {allMethods && (
                         <div className={classes.coList} role="radiogroup">
                             {offer.payment_methods
@@ -935,9 +956,11 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                                                 <span className={classes.coRowTitle}>
                                                     {plain(m.name)}
                                                 </span>
-                                                {plain(m.description) && (
+                                                {(m.down || plain(m.description)) && (
                                                     <span className={classes.coRowMeta}>
-                                                        {plain(m.description)}
+                                                        {m.down
+                                                            ? t('coDownShort')
+                                                            : plain(m.description)}
                                                     </span>
                                                 )}
                                             </span>

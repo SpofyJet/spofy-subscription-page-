@@ -19,6 +19,9 @@ const CHECKOUTS_PER_SUBSCRIPTION = 6;
 // coarse flood guard; the per-subscription limit is the real one.
 const CHECKOUTS_PER_IP = 200;
 const MAX_TRACKED = 5_000;
+/** A payment method that failed this many times within the window is shown as down. */
+const METHOD_DOWN_FAILURES = 2;
+const METHOD_DOWN_WINDOW_MS = 10 * 60_000;
 
 /** Resolve every hostname to a fixed IP (talk to the bot's origin, bypassing the DDoS proxy). */
 function pinnedLookup(ip: string): LookupFunction {
@@ -96,6 +99,7 @@ export class SpofyCheckoutService {
     private readonly offerCache = new Map<string, { value: unknown; expiresAt: number }>();
     private readonly hits = new Map<string, number[]>();
     private readonly lastActiveCheck = new Map<string, number>();
+    private readonly methodFailures = new Map<string, number[]>();
 
     constructor(private readonly configService: TypedConfigService) {
         const url = this.configService.get('SPOFY_BOT_API_URL')?.trim();
@@ -134,12 +138,44 @@ export class SpofyCheckoutService {
     public async offer(shortUuid: string): Promise<unknown> {
         const now = Date.now();
         const cached = this.offerCache.get(shortUuid);
-        if (cached && cached.expiresAt > now) return cached.value;
+        if (cached && cached.expiresAt > now) return this.withMethodHealth(cached.value);
 
         const value = await this.call('get', `/${encodeURIComponent(shortUuid)}/offer`);
         this.trim(this.offerCache);
         this.offerCache.set(shortUuid, { value, expiresAt: now + OFFER_TTL_MS });
-        return value;
+        return this.withMethodHealth(value);
+    }
+
+    /** Payment methods the bot could not create a payment with a moment ago (served fresh, not cached). */
+    private downMethods(): Set<string> {
+        const now = Date.now();
+        const down = new Set<string>();
+        for (const [method, times] of this.methodFailures) {
+            const recent = times.filter((t) => now - t < METHOD_DOWN_WINDOW_MS);
+            if (recent.length >= METHOD_DOWN_FAILURES) down.add(method);
+            if (recent.length === 0) this.methodFailures.delete(method);
+            else this.methodFailures.set(method, recent);
+        }
+        return down;
+    }
+
+    private withMethodHealth(value: unknown): unknown {
+        const down = this.downMethods();
+        const offer = value as { payment_methods?: { id?: string }[] } | null;
+        if (down.size === 0 || !offer || !Array.isArray(offer.payment_methods)) return value;
+        return {
+            ...offer,
+            payment_methods: offer.payment_methods.map((m) =>
+                typeof m?.id === 'string' && down.has(m.id) ? { ...m, down: true } : m,
+            ),
+        };
+    }
+
+    public recordMethodFailure(method: string): void {
+        this.trim(this.methodFailures);
+        const list = this.methodFailures.get(method) ?? [];
+        list.push(Date.now());
+        this.methodFailures.set(method, list);
     }
 
     public async checkout(
@@ -157,9 +193,21 @@ export class SpofyCheckoutService {
         const slots = keys.map(([key]) => [key, this.hit(key)] as const);
         this.offerCache.delete(shortUuid);
         try {
-            return await this.call('post', `/${encodeURIComponent(shortUuid)}/checkout`, body);
+            const result = await this.call(
+                'post',
+                `/${encodeURIComponent(shortUuid)}/checkout`,
+                body,
+            );
+            this.methodFailures.delete(body.payment_method);
+            return result;
         } catch (error) {
             for (const [key, stamp] of slots) this.release(key, stamp);
+            const detail =
+                (error as { getResponse?: () => { detail?: unknown } })?.getResponse?.()?.detail ?? '';
+            // «Failed to create Platega payment»: that provider is failing, not the customer's input.
+            if (typeof detail === 'string' && /failed to create .*payment/i.test(detail)) {
+                this.recordMethodFailure(body.payment_method);
+            }
             throw error;
         }
     }

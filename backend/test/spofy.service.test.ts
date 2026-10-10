@@ -232,3 +232,42 @@ test('funnel events: allowlist, anonymous line, platform from user agent', () =>
     assert.equal(platformOf('Mozilla/5.0 (Linux; Android 15)'), 'android');
     assert.equal(platformOf('Mozilla/5.0 (Windows NT 10.0)'), 'desktop');
 });
+
+test('a payment method that failed twice is flagged down; success clears it', async () => {
+    let mode: 'fail' | 'ok' = 'fail';
+    const service = new SpofyCheckoutService({
+        get: (key: string) =>
+            ({ SPOFY_BOT_API_URL: 'http://bot.invalid', SPOFY_BOT_API_KEY: 'k'.repeat(40) })[key],
+    } as never);
+    const offer = { payment_methods: [{ id: 'platega' }, { id: 'heleket' }] };
+    (service as unknown as { call: (m: string, path: string) => Promise<unknown> }).call = async (
+        method,
+    ) => {
+        if (method === 'get') return offer;
+        if (mode === 'fail') {
+            const { HttpException } = await import('@nestjs/common');
+            throw new HttpException(
+                { code: 'bridge_error', status: 500, detail: 'Failed to create Platega payment' },
+                502,
+            );
+        }
+        return { ok: true };
+    };
+    const pay = (id: string) =>
+        service.checkout(`sub${id}0000`, { kind: 'renew', payment_method: 'platega', period_days: 30 }, '1.1.1.1');
+
+    const flag = async () =>
+        ((await service.offer('subxxxxxx')) as { payment_methods: { id: string; down?: boolean }[] })
+            .payment_methods;
+
+    assert.equal((await flag()).find((m) => m.id === 'platega')?.down, undefined);
+    await assert.rejects(pay('a'));
+    assert.equal((await flag()).find((m) => m.id === 'platega')?.down, undefined, 'one failure is not enough');
+    await assert.rejects(pay('b'));
+    const methods = await flag();
+    assert.equal(methods.find((m) => m.id === 'platega')?.down, true);
+    assert.equal(methods.find((m) => m.id === 'heleket')?.down, undefined);
+    mode = 'ok';
+    await pay('c');
+    assert.equal((await flag()).find((m) => m.id === 'platega')?.down, undefined, 'a success clears it');
+});

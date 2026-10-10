@@ -215,6 +215,10 @@ const ru = {
     coErrMethod: 'Этот способ оплаты сейчас недоступен — выберите другой.',
     coErrMethodDown:
         'Этот способ оплаты сейчас не отвечает — выберите другой, например СБП или криптовалюту.',
+    coErrMethodSwitched:
+        'Этот способ сейчас не отвечает. Выбрали другой — нажмите «Оплатить» ещё раз.',
+    coMethodDownNote: '{name} сейчас не отвечает — выберите другой способ.',
+    coDownShort: 'сейчас не отвечает',
     coErrLimit: 'Сумма больше лимита этого способа оплаты — выберите другой.',
     coErrRestricted: 'Покупки для этого аккаунта ограничены — напишите в поддержку.'
 }
@@ -413,6 +417,10 @@ const en: TDict = {
     coErrLoad: "Couldn't load payment options. Try again or use the bot.",
     coErrMethod: 'This payment method is unavailable right now — choose another.',
     coErrMethodDown: 'This payment method is not responding right now — please choose another one.',
+    coErrMethodSwitched:
+        'This method is not responding right now. We picked another one — tap «Pay» again.',
+    coMethodDownNote: '{name} is not responding right now — please choose another method.',
+    coDownShort: 'not responding right now',
     coErrLimit: "The amount is above this method's limit — choose another.",
     coErrRestricted: 'Purchases are restricted for this account — contact support.'
 }
@@ -612,6 +620,10 @@ const fr: TDict = {
     coErrLoad: 'Impossible de charger les options de paiement. Réessayez ou passez par le bot.',
     coErrMethod: 'Ce moyen de paiement est indisponible — choisissez-en un autre.',
     coErrMethodDown: 'Ce moyen de paiement ne répond pas pour le moment — choisissez-en un autre.',
+    coErrMethodSwitched:
+        'Ce moyen ne répond pas pour le moment. Nous en avons choisi un autre — appuyez à nouveau sur « Payer ».',
+    coMethodDownNote: '{name} ne répond pas pour le moment — choisissez un autre moyen.',
+    coDownShort: 'ne répond pas',
     coErrLimit: 'Montant supérieur à la limite de ce moyen — choisissez-en un autre.',
     coErrRestricted: 'Les achats sont restreints pour ce compte — contactez le support.'
 }

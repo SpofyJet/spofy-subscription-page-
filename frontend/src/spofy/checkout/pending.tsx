@@ -8,7 +8,7 @@ import { useSubscription } from '@entities/subscription-info-store'
 
 import { useSpofyT } from '../i18n'
 import classes from '../spofy.module.css'
-import { checkoutApi, isApplied, track } from './api'
+import { checkoutApi, isApplied, trackOnce } from './api'
 import { useCheckoutStore } from './checkout-store'
 import { useMoney } from './money'
 
@@ -59,7 +59,7 @@ export function usePendingPhase(): TPhase | null {
             window.clearTimeout(timer)
             if (stopped || running) return
             if (Date.now() - pending.createdAt > GIVE_UP_MS) {
-                track(pending.shortUuid, 'pay_timeout')
+                trackOnce(pending.shortUuid, 'pay_timeout', pending.result.payment_id)
                 setPhase('timeout')
                 return
             }
@@ -73,7 +73,7 @@ export function usePendingPhase(): TPhase | null {
                 if (isApplied(pending.kind, pending.result.before, status.subscription)) {
                     vibrate('success')
                     setLatest(status.subscription)
-                    track(pending.shortUuid, 'pay_done')
+                    trackOnce(pending.shortUuid, 'pay_done', pending.result.payment_id)
                     setPhase('done')
                     return
                 }
@@ -92,7 +92,7 @@ export function usePendingPhase(): TPhase | null {
             if (document.visibilityState !== 'visible') return
             if (!announcedReturn && wasPayOpened(pending.result.payment_id)) {
                 announcedReturn = true
-                track(pending.shortUuid, 'pay_return')
+                trackOnce(pending.shortUuid, 'pay_return', pending.result.payment_id)
             }
             void tick()
         }

@@ -40,6 +40,8 @@ export interface IOffer {
     disabled_reason: null | string
     payment_methods: {
         description: null | string
+        /** the page's own health flag: this method just failed to create payments */
+        down?: boolean
         id: string
         max_amount_kopeks: number
         min_amount_kopeks: number
@@ -177,6 +179,23 @@ export type TFunnelEvent =
     | 'pay_timeout'
     | 'sheet_open'
     | 'view'
+
+/** Same, but once per browser session for a key (e.g. a payment id): reloads must not recount. */
+export function trackOnce(
+    shortUuid: string,
+    event: TFunnelEvent,
+    key: string,
+    extra: { k?: string; t?: string } = {}
+): void {
+    const mark = `spofy.ev.${event}.${key}`
+    try {
+        if (sessionStorage.getItem(mark)) return
+        sessionStorage.setItem(mark, '1')
+    } catch {
+        // storage unavailable: count it (a rare duplicate beats a missing event)
+    }
+    track(shortUuid, event, extra)
+}
 
 /** Anonymous funnel counter (one log line on the server). Never blocks or throws. */
 export function track(
