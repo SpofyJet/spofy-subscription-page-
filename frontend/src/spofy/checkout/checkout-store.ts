@@ -32,11 +32,30 @@ const KEY = 'spofy.subpage.pending'
 const METHOD_KEY = 'spofy.subpage.method'
 const TTL_MS = 30 * 60_000
 
+/** A stored entry must look like a payment we created — a corrupt one is dropped, not polled. */
+function isPendingPayment(pending: unknown): pending is IPendingPayment {
+    if (!pending || typeof pending !== 'object') return false
+    const p = pending as IPendingPayment
+    return (
+        typeof p.createdAt === 'number' &&
+        typeof p.shortUuid === 'string' &&
+        (p.kind === 'devices' || p.kind === 'renew' || p.kind === 'tariff' || p.kind === 'traffic') &&
+        !!p.result &&
+        typeof p.result === 'object' &&
+        typeof p.result.payment_id === 'string' &&
+        typeof p.result.method === 'string'
+    )
+}
+
 function loadPending(): IPendingPayment | null {
     try {
         const raw = localStorage.getItem(KEY)
         if (!raw) return null
-        const pending = JSON.parse(raw) as IPendingPayment
+        const pending = JSON.parse(raw) as unknown
+        if (!isPendingPayment(pending)) {
+            localStorage.removeItem(KEY)
+            return null
+        }
         return Date.now() - pending.createdAt < TTL_MS ? pending : null
     } catch {
         return null

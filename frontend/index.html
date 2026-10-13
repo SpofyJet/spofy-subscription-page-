@@ -26,6 +26,11 @@
             }
         </style>
 
+        <!-- metaTitle/metaDescription come raw from the panel config. The production build turns
+             the tags above into the ESCAPED EJS interpolation (see vite.config.ts), and the
+             backend renders that artifact per request — so a quote in the config can never
+             break out of the attribute. Keep the raw source tags: the build's EJS pass would
+             mangle escaped ones. -->
         <meta name="description" content="<%- metaDescription %>" />
         <title><%- metaTitle %></title>
     </head>

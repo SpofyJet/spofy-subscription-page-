@@ -1100,6 +1100,26 @@ function PaymentStep({ pending, phase }: { pending: IPendingPayment; phase: TPha
         )
     }
 
+    if (phase === 'expired') {
+        // The page session died mid-poll; a reload gets a fresh cookie and keeps watching
+        // the same payment (the pending entry survives).
+        return (
+            <div className={clsx(classes.coStack, classes.coSuccess)} role="status">
+                <span aria-hidden className={classes.coSuccessIcon}>
+                    <IconAlertCircle size={34} stroke={2.5} />
+                </span>
+                <strong className={classes.coSuccessTitle}>{t('coSessionExpired')}</strong>
+                <button
+                    className={clsx(classes.btn, classes.btnPrimary, classes.coPayBtn)}
+                    onClick={() => window.location.reload()}
+                    type="button"
+                >
+                    {t('coReload')}
+                </button>
+            </div>
+        )
+    }
+
     const steps: { key: TSpofyKey; state: 'active' | 'done' | 'todo' }[] = [
         { key: 'coStepCreated', state: 'done' },
         { key: 'coStepPay', state: paid ? 'done' : 'active' },

@@ -8,7 +8,7 @@ import { useSubscription } from '@entities/subscription-info-store'
 
 import { useSpofyT } from '../i18n'
 import classes from '../spofy.module.css'
-import { checkoutApi, isApplied, trackOnce } from './api'
+import { CheckoutError, checkoutApi, isApplied, trackOnce } from './api'
 import { useCheckoutStore } from './checkout-store'
 import { useMoney } from './money'
 
@@ -36,7 +36,7 @@ function wasPayOpened(paymentId: string): boolean {
 
 /* ───────────── payment status watcher (runs while a payment is pending) ───────────── */
 
-export type TPhase = 'done' | 'paid' | 'timeout' | 'waiting'
+export type TPhase = 'done' | 'expired' | 'paid' | 'timeout' | 'waiting'
 
 export function usePendingPhase(): TPhase | null {
     const pending = useCheckoutStore((s) => s.pending)
@@ -78,7 +78,13 @@ export function usePendingPhase(): TPhase | null {
                     return
                 }
                 if (status.is_paid) setPhase('paid')
-            } catch {
+            } catch (error) {
+                // The page session is gone (cookie expired): polling cannot recover by itself —
+                // stop and ask for a reload; a fresh session keeps watching the same payment.
+                if (error instanceof CheckoutError && error.code === 'no_session') {
+                    setPhase('expired')
+                    return
+                }
                 // transient: keep polling
             } finally {
                 running = false
@@ -124,6 +130,7 @@ export function PendingBanner({ phase }: { phase: TPhase | null }) {
         return null
 
     const done = phase === 'done'
+    const expired = phase === 'expired'
     return (
         <button
             className={clsx(classes.pendingBanner, done && classes.coStatusDone)}
@@ -138,7 +145,9 @@ export function PendingBanner({ phase }: { phase: TPhase | null }) {
             <span className={classes.pendingText}>
                 {done
                     ? t('coDone')
-                    : t('coPendingBanner', { price: money(pending.result.amount_kopeks) })}
+                    : expired
+                      ? t('coSessionExpired')
+                      : t('coPendingBanner', { price: money(pending.result.amount_kopeks) })}
             </span>
             <span className={classes.pendingOpen}>{t('coPendingOpen')}</span>
         </button>

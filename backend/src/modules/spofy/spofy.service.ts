@@ -183,13 +183,17 @@ export class SpofyService {
 
             const user = response.data?.response;
             const squads = user?.activeInternalSquads ?? [];
+            // The devices lookup needs user.id: start it the moment the id is known instead
+            // of serializing it behind the rest of the facts assembly (both calls can take
+            // up to the timeout, so a chained await would add it to TTFB twice over).
+            const devicesUsed = user ? this.countDevices(user) : Promise.resolve(null);
 
             value = {
                 bypassDisabled: this.bypassOffSquadUuid
                     ? squads.some((squad) => squad.uuid === this.bypassOffSquadUuid)
                     : false,
                 displayName: user ? deriveDisplayName(user) : null,
-                devicesUsed: user ? await this.countDevices(user) : null,
+                devicesUsed: await devicesUsed,
                 devicesLimit:
                     typeof user?.hwidDeviceLimit === 'number' && user.hwidDeviceLimit > 0
                         ? user.hwidDeviceLimit

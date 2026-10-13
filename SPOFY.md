@@ -103,6 +103,11 @@ deploy/spofy/rollback.sh                        # runs spofy-subpage:prev, waits
 ```
 Caddy is not touched (it keeps `encode zstd gzip`).
 
+## Ops notes
+- Keep `SUBSCRIPTION_PAGE_INSTANCES=1`. PM2 cluster mode would split the in-memory caches,
+  rate limits and method-down flags across workers (JWT sessions would still work, but every
+  limit becomes per-worker — 6 checkouts/10 min turns into 6 per worker).
+
 **Turn on the bypass notice** (after the panel/bot task creates the marker squad): set
 `SPOFY_BYPASS_OFF_SQUAD_UUID=<uuid>` in `.env`, then `cd /opt/remnawave/subscription && docker compose up -d`.
 

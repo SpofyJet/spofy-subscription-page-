@@ -15,6 +15,11 @@ export default defineConfig({
         webfontDownload(undefined, {}),
         ViteEjsPlugin((viteConfig) => {
             if (process.env.NODE_ENV === 'production') {
+                // These literal strings BECOME the runtime template tags in the built
+                // index.html: the backend EJS-renders the artifact on every request. They
+                // must keep the escaped interpolation (`<%=`) for panel-provided meta
+                // values — switching them to raw `<%-` would open an attribute-breakout
+                // XSS, and switching the source tags to `<%=` breaks this very build.
                 return {
                     root: viteConfig.root,
                     panelData: '<%- panelData %>',
