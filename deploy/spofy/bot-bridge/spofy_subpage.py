@@ -41,9 +41,16 @@ from sqlalchemy.orm import selectinload
 
 from app.config import settings
 from app.database.crud.tariff import get_tariff_by_id, get_tariffs_for_user
+from app.database.crud.user import get_user_by_id
 from app.database.models import Subscription, SubscriptionStatus, User, UserStatus
 from app.services.pricing_engine import pricing_engine
-from app.services.spofy_subpage_service import SUBPAGE_SOURCE, bind_cart_to_payment, tag_current_cart_as_subpage
+from app.services.spofy_subpage_service import (
+    SUBPAGE_SOURCE,
+    bind_cart_to_payment,
+    checkout_fingerprint,
+    checkout_serializer,
+    tag_current_cart_as_subpage,
+)
 from app.services.user_cart_service import user_cart_service
 
 from ..dependencies import get_cabinet_db
@@ -102,7 +109,13 @@ async def resolve_owner(db: AsyncSession, short_uuid: str) -> tuple[User, Subscr
     if not subscription or not subscription.user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Subscription not found')
 
-    user = subscription.user
+    # The same loader as the cabinet's get_current_cabinet_user: promo groups, subscriptions
+    # and tariffs eager-loaded. With only selectinload(Subscription.user) the pricing engine's
+    # user.get_primary_promo_group() lazy-loaded promo_group inside async code →
+    # sqlalchemy MissingGreenlet → 500 on offer for a multi-tariff subscription.
+    user = await get_user_by_id(db, subscription.user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Subscription not found')
     if getattr(user, 'status', None) in {UserStatus.BLOCKED.value, UserStatus.DELETED.value}:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Account unavailable')
     return user, subscription
@@ -127,7 +140,9 @@ async def _soft(coro: Any, default: Any, part: str = 'offer part') -> Any:
     try:
         return await coro
     except HTTPException as error:
-        logger.debug('spofy subpage: offer part unavailable', part=part, status=error.status_code, detail=str(error.detail))
+        logger.debug(
+            'spofy subpage: offer part unavailable', part=part, status=error.status_code, detail=str(error.detail)
+        )
         return default
     except Exception:
         # Any other error in a cabinet helper (e.g. a multi-tariff edge case) used to turn the
@@ -138,7 +153,7 @@ async def _soft(coro: Any, default: Any, part: str = 'offer part') -> Any:
 
 def _bridge_failure(error: Exception, where: str) -> HTTPException:
     """Unexpected error → 502 with the error type (the caller holds the key; no internals leak to users)."""
-    logger.exception('spofy subpage: bridge failure', where=where)
+    logger.error('spofy subpage: bridge failure', where=where, exc_info=error)
     return HTTPException(status.HTTP_502_BAD_GATEWAY, f'bridge failure in {where}: {type(error).__name__}')
 
 
@@ -174,9 +189,7 @@ async def tariff_offers(db: AsyncSession, user: User, subscription: Subscription
                 {
                     'period_days': period_days,
                     'price_kopeks': price.final_total,
-                    'original_price_kopeks': price.original_total
-                    if price.original_total > price.final_total
-                    else None,
+                    'original_price_kopeks': price.original_total if price.original_total > price.final_total else None,
                     'is_highlighted': tariff.highlight_period_days == period_days,
                 }
             )
@@ -419,6 +432,42 @@ async def _checkout(short_uuid: str, body: CheckoutRequest, db: AsyncSession) ->
     restriction = _restricted(user)
     if restriction:
         raise HTTPException(status.HTTP_403_FORBIDDEN, restriction)
+
+    # Serialize per user: the bot keeps one «current cart» slot per user, so two parallel
+    # checkouts (two tabs) must not interleave into the slot. The same cart + method replays
+    # the same payment; a different cart while one is in flight gets 409 instead of
+    # overwriting the slot mid-checkout (that mismatch is what hung money on the balance).
+    fingerprint = checkout_fingerprint(short_uuid, body.model_dump())
+    decision, event = await checkout_serializer.begin(user.id, fingerprint)
+    if decision == 'busy':
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            'Another purchase is already being prepared for this account — finish or cancel it first',
+        )
+    if decision == 'wait':
+        assert event is not None  # 'wait' always returns the in-flight checkout's event
+        await event.wait()
+        replayed = checkout_serializer.replay(user.id, fingerprint)
+        if replayed is not None:
+            return replayed
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            'That checkout is still being prepared — please try again in a moment',
+        )
+    try:
+        replayed = checkout_serializer.replay(user.id, fingerprint)
+        if replayed is not None:
+            return replayed
+        result = await _checkout_payment(user, subscription, body, db)
+        checkout_serializer.remember(user.id, fingerprint, result)
+        return result
+    finally:
+        await checkout_serializer.end(user.id)
+
+
+async def _checkout_payment(
+    user: User, subscription: Subscription, body: CheckoutRequest, db: AsyncSession
+) -> dict[str, Any]:
     before = snapshot(subscription)
 
     # 1. price + cart (never touches the balance)
@@ -470,9 +519,7 @@ async def _checkout(short_uuid: str, body: CheckoutRequest, db: AsyncSession) ->
     await bind_cart_to_payment(user.id, price_kopeks=price, requested_kopeks=amount)
 
     topup = await create_topup(
-        request=TopUpRequest(
-            amount_kopeks=amount, payment_method=method.id, payment_option=body.payment_option
-        ),
+        request=TopUpRequest(amount_kopeks=amount, payment_method=method.id, payment_option=body.payment_option),
         user=user,
         db=db,
     )

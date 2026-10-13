@@ -1,0 +1,296 @@
+From 45f5061a3009f4bf16adb3dce84bc868d9cecdf4 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 12 Oct 2026 00:00:00 +0000
+Subject: [PATCH] fix(spofy-subpage): serialize checkout per user
+
+The bot keeps one «current cart» slot per user, so two parallel checkout
+POSTs (two tabs) overwrote each other's cart and bind_cart_to_payment:
+the first payment stopped matching its cart (is_funded_by_payment) and
+the money hung on the balance without a purchase.
+
+Checkout is now serialized per user (asyncio, one slot per user id):
+* the first request claims the slot and runs the whole critical section
+  to completion — clear slot, save cart, create payment, bind cart;
+* a parallel request with the SAME cart + method waits for the first one
+  and replays the same payment (idempotency anchor = payment_id, replay
+  window 30 minutes), so two tabs never create two payments for the one
+  cart;
+* a parallel request with a DIFFERENT cart gets 409 right away — letting
+  it wait and then overwrite the slot mid-checkout is exactly the broken
+  state this prevents; it can be retried once the first payment exists.
+
+Applies on top of the current bot main (patches 0001-0004 are already
+merged there).
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+---
+ app/cabinet/routes/spofy_subpage.py   |  44 ++++++++
+ app/services/spofy_subpage_service.py | 100 ++++++++++++++++++++
+ tests/cabinet/test_spofy_subpage.py   |  60 ++++++++++++
+ 3 files changed, 203 insertions(+), 1 deletion(-)
+
+diff --git a/app/cabinet/routes/spofy_subpage.py b/app/cabinet/routes/spofy_subpage.py
+index 02a379b..006ce77 100644
+--- a/app/cabinet/routes/spofy_subpage.py
++++ b/app/cabinet/routes/spofy_subpage.py
+@@ -44,7 +44,13 @@ from app.database.crud.tariff import get_tariff_by_id, get_tariffs_for_user
+ from app.database.crud.user import get_user_by_id
+ from app.database.models import Subscription, SubscriptionStatus, User, UserStatus
+ from app.services.pricing_engine import pricing_engine
+-from app.services.spofy_subpage_service import SUBPAGE_SOURCE, bind_cart_to_payment, tag_current_cart_as_subpage
++from app.services.spofy_subpage_service import (
++    SUBPAGE_SOURCE,
++    bind_cart_to_payment,
++    checkout_fingerprint,
++    checkout_serializer,
++    tag_current_cart_as_subpage,
++)
+ from app.services.user_cart_service import user_cart_service
+ 
+ from ..dependencies import get_cabinet_db
+@@ -426,6 +432,42 @@ async def _checkout(short_uuid: str, body: CheckoutRequest, db: AsyncSession) ->
+     restriction = _restricted(user)
+     if restriction:
+         raise HTTPException(status.HTTP_403_FORBIDDEN, restriction)
++
++    # Serialize per user: the bot keeps one «current cart» slot per user, so two parallel
++    # checkouts (two tabs) must not interleave into the slot. The same cart + method replays
++    # the same payment; a different cart while one is in flight gets 409 instead of
++    # overwriting the slot mid-checkout (that mismatch is what hung money on the balance).
++    fingerprint = checkout_fingerprint(short_uuid, body.model_dump())
++    decision, event = await checkout_serializer.begin(user.id, fingerprint)
++    if decision == 'busy':
++        raise HTTPException(
++            status.HTTP_409_CONFLICT,
++            'Another purchase is already being prepared for this account — finish or cancel it first',
++        )
++    if decision == 'wait':
++        assert event is not None  # 'wait' always returns the in-flight checkout's event
++        await event.wait()
++        replayed = checkout_serializer.replay(user.id, fingerprint)
++        if replayed is not None:
++            return replayed
++        raise HTTPException(
++            status.HTTP_409_CONFLICT,
++            'That checkout is still being prepared — please try again in a moment',
++        )
++    try:
++        replayed = checkout_serializer.replay(user.id, fingerprint)
++        if replayed is not None:
++            return replayed
++        result = await _checkout_payment(user, subscription, body, db)
++        checkout_serializer.remember(user.id, fingerprint, result)
++        return result
++    finally:
++        await checkout_serializer.end(user.id)
++
++
++async def _checkout_payment(
++    user: User, subscription: Subscription, body: CheckoutRequest, db: AsyncSession
++) -> dict[str, Any]:
+     before = snapshot(subscription)
+ 
+     # 1. price + cart (never touches the balance)
+diff --git a/app/services/spofy_subpage_service.py b/app/services/spofy_subpage_service.py
+index 0f9d6ea..232bce8 100644
+--- a/app/services/spofy_subpage_service.py
++++ b/app/services/spofy_subpage_service.py
+@@ -9,6 +9,10 @@ auto-purchase.
+ 
+ from __future__ import annotations
+ 
++import asyncio
++import hashlib
++import json
++import time
+ from typing import Any
+ 
+ import structlog
+@@ -25,6 +29,102 @@ logger = structlog.get_logger(__name__)
+ 
+ SUBPAGE_SOURCE = 'spofy_subpage'
+ 
++# A checkout replay window: while the payment link is still plausibly pending (the page itself
++# keeps a pending payment for 30 minutes), an identical checkout request returns the same
++# payment instead of creating a second one.
++CHECKOUT_REPLAY_TTL_S = 30 * 60
++_SLOTS_MAX = 5_000
++_RECENT_MAX = 5_000
++
++
++def checkout_fingerprint(short_uuid: str, payload: dict[str, Any]) -> str:
++    """Idempotency key of one checkout attempt: same subscription + same cart + same method."""
++    raw = json.dumps({'short_uuid': short_uuid, 'payload': payload}, sort_keys=True, separators=(',', ':'))
++    return hashlib.sha256(raw.encode()).hexdigest()
++
++
++class _CheckoutSlot:
++    __slots__ = ('done', 'inflight')
++
++    def __init__(self) -> None:
++        self.inflight: str | None = None
++        self.done = asyncio.Event()
++
++
++class CheckoutSerializer:
++    """One checkout at a time per user, with replay of the payment just created.
++
++    The bot keeps a single «current cart» slot per user: two parallel checkouts would
++    overwrite each other's cart and ``bind_cart_to_payment``, and the first payment would
++    stop matching its cart (the money would hang on the balance). So:
++
++    * the first request for a user claims the slot and runs the checkout to completion
++      (clear slot → save cart → create payment → bind cart to payment);
++    * a parallel request with the SAME fingerprint waits for the first one and replays its
++      payment — the person gets the same payment link in both tabs, never a second payment
++      for the one cart;
++    * a parallel request with a DIFFERENT cart gets 'busy' right away — letting it wait and
++      then overwrite the slot mid-flight is exactly the broken state this class prevents;
++    * after the checkout finished, an identical retry within CHECKOUT_REPLAY_TTL_S replays
++      the same payment (idempotency anchor = the payment_id of the remembered result).
++    """
++
++    def __init__(self) -> None:
++        self._guard = asyncio.Lock()
++        self._slots: dict[int, _CheckoutSlot] = {}
++        self._recent: dict[int, tuple[float, str, dict[str, Any]]] = {}
++
++    async def begin(self, user_id: int, fingerprint: str) -> tuple[str, asyncio.Event | None]:
++        """'locked' — the slot is ours until ``end``; 'wait' — the same checkout is in flight,
++        await the returned event, then ``replay``; 'busy' — a different checkout is in flight."""
++        async with self._guard:
++            if len(self._slots) >= _SLOTS_MAX:
++                for stale_id, stale in list(self._slots.items()):
++                    if stale.inflight is None:
++                        del self._slots[stale_id]
++            slot = self._slots.get(user_id)
++            if slot is None:
++                slot = _CheckoutSlot()
++                self._slots[user_id] = slot
++            if slot.inflight is not None:
++                if slot.inflight == fingerprint:
++                    return 'wait', slot.done
++                return 'busy', None
++            slot.inflight = fingerprint
++            slot.done = asyncio.Event()
++            return 'locked', None
++
++    async def end(self, user_id: int) -> None:
++        async with self._guard:
++            slot = self._slots.get(user_id)
++            if slot is None:
++                return
++            # Wake the same-fingerprint waiters BEFORE releasing the claim: they replay the
++            # remembered payment, and a fresh checkout may start right after.
++            slot.done.set()
++            slot.inflight = None
++
++    def remember(self, user_id: int, fingerprint: str, result: dict[str, Any]) -> None:
++        if len(self._recent) >= _RECENT_MAX:
++            now = time.monotonic()
++            for key, (expires_at, _, _) in list(self._recent.items()):
++                if expires_at <= now:
++                    del self._recent[key]
++        self._recent[user_id] = (time.monotonic() + CHECKOUT_REPLAY_TTL_S, fingerprint, result)
++
++    def replay(self, user_id: int, fingerprint: str) -> dict[str, Any] | None:
++        """The remembered result of an identical checkout, if it is still within the replay window."""
++        entry = self._recent.get(user_id)
++        if entry is None:
++            return None
++        expires_at, saved, result = entry
++        if expires_at <= time.monotonic() or saved != fingerprint:
++            return None
++        return result
++
++
++checkout_serializer = CheckoutSerializer()
++
+ # The payment may be credited a hair differently from what was requested (provider rounding,
+ # crypto rates); beyond this the purchase is NOT completed (the money stays on the balance).
+ FUNDING_TOLERANCE = 0.02
+diff --git a/tests/cabinet/test_spofy_subpage.py b/tests/cabinet/test_spofy_subpage.py
+index 9124287..97383ee 100644
+--- a/tests/cabinet/test_spofy_subpage.py
++++ b/tests/cabinet/test_spofy_subpage.py
+@@ -14,6 +14,7 @@ a minimal FastAPI app for the key check only.
+ 
+ from __future__ import annotations
+ 
++import asyncio
+ from datetime import UTC, datetime, timedelta
+ from types import SimpleNamespace
+ from unittest.mock import AsyncMock
+@@ -262,6 +263,58 @@ async def test_traffic_package_must_exist(monkeypatch, auto_on, owner, topup):
+     assert topup.await_args.kwargs['request'].amount_kopeks == 10000  # 99 ₽ raised to the 100 ₽ minimum
+ 
+ 
++async def test_concurrent_same_checkout_replays_one_payment(monkeypatch, auto_on, owner, topup):
++    # Two tabs buying the same thing at the same time must share ONE payment: the second
++    # checkout waits for the first and replays its payment instead of overwriting the single
++    # cart slot (the overwrite used to unmatch the first payment — money hung on the balance).
++    monkeypatch.setattr(bridge, 'save_renewal_cart', AsyncMock(return_value=19900))
++    bound: list[str] = []
++
++    async def slow_bind(user_id: int, **kwargs: object) -> bool:
++        bound.append('bind')
++        await asyncio.sleep(0.05)
++        return True
++
++    monkeypatch.setattr(bridge, 'bind_cart_to_payment', slow_bind)
++    body = bridge.CheckoutRequest(kind='renew', period_days=30, payment_method='yookassa')
++
++    first, second = await asyncio.gather(
++        bridge.checkout('abcdefgh', body, db=None),
++        bridge.checkout('abcdefgh', body, db=None),
++    )
++
++    assert bound == ['bind']  # cart bound exactly once: no interleaved second checkout
++    assert topup.await_count == 1  # ...and exactly one payment created
++    assert second == first  # the second tab got the same payment, not a new one
++    assert second['payment_id'] == '17'
++
++
++async def test_concurrent_different_checkout_gets_409(monkeypatch, auto_on, owner, topup):
++    # A DIFFERENT cart while a checkout is in flight must not wait and overwrite the slot —
++    # it fails fast with 409 and can be retried once the first payment is created.
++    monkeypatch.setattr(bridge, 'save_renewal_cart', AsyncMock(return_value=19900))
++
++    async def slow_topup(**kwargs: object) -> object:
++        await asyncio.sleep(0.05)
++        return SimpleNamespace(
++            payment_url='https://pay.example/x', payment_id='17', qr_payload=None, expires_at=None
++        )
++
++    monkeypatch.setattr(bridge, 'create_topup', slow_topup)
++    first = asyncio.create_task(
++        bridge.checkout(
++            'abcdefgh', bridge.CheckoutRequest(kind='renew', period_days=30, payment_method='yookassa'), db=None
++        )
++    )
++    await asyncio.sleep(0)  # let the first checkout claim the slot
++    with pytest.raises(HTTPException) as error:
++        await bridge.checkout(
++            'abcdefgh', bridge.CheckoutRequest(kind='renew', period_days=90, payment_method='yookassa'), db=None
++        )
++    assert error.value.status_code == 409
++    assert (await first)['payment_id'] == '17'
++
++
+ # ───────────── carts ─────────────
+ 
+ 
+@@ -404,6 +457,13 @@ async def test_unexpected_checkout_error_is_a_502_with_its_type(monkeypatch, aut
+ from app.services import spofy_subpage_service as completion
+ 
+ 
++@pytest.fixture(autouse=True)
++def fresh_checkout_serializer(monkeypatch):
++    # Successful checkouts are remembered for replay; every test gets an empty serializer
++    # so one test's remembered payment cannot be replayed into the next one.
++    monkeypatch.setattr(bridge, 'checkout_serializer', completion.CheckoutSerializer())
++
++
+ BOUND = {'source': 'spofy_subpage', 'spofy_price_kopeks': 49900, 'spofy_requested_kopeks': 49900}
+ 
+ 

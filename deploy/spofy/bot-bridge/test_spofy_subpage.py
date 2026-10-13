@@ -14,6 +14,7 @@ a minimal FastAPI app for the key check only.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -23,7 +24,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 from app.cabinet.routes import spofy_subpage as bridge
-from app.config import settings
+from app.config import Settings, settings
 
 
 KEY = 'k' * 40
@@ -108,7 +109,9 @@ def owner(monkeypatch):
 @pytest.fixture
 def topup(monkeypatch):
     mock = AsyncMock(
-        return_value=SimpleNamespace(payment_url='https://pay.example/x', payment_id='17', qr_payload=None, expires_at=None)
+        return_value=SimpleNamespace(
+            payment_url='https://pay.example/x', payment_id='17', qr_payload=None, expires_at=None
+        )
     )
     monkeypatch.setattr(bridge, 'create_topup', mock)
     monkeypatch.setattr(bridge, 'get_payment_methods', AsyncMock(return_value=[_method()]))
@@ -235,9 +238,7 @@ async def test_devices_checkout_saves_cabinet_cart(monkeypatch, auto_on, owner, 
 
 
 async def test_devices_unavailable(monkeypatch, auto_on, owner, topup):
-    monkeypatch.setattr(
-        bridge, 'get_device_price', AsyncMock(return_value={'available': False, 'reason': 'max'})
-    )
+    monkeypatch.setattr(bridge, 'get_device_price', AsyncMock(return_value={'available': False, 'reason': 'max'}))
     body = bridge.CheckoutRequest(kind='devices', devices=1, payment_method='yookassa')
     with pytest.raises(HTTPException) as error:
         await bridge.checkout('abcdefgh', body, db=None)
@@ -260,6 +261,58 @@ async def test_traffic_package_must_exist(monkeypatch, auto_on, owner, topup):
     )
     assert save.await_args.kwargs['request'].gb == 50
     assert topup.await_args.kwargs['request'].amount_kopeks == 10000  # 99 ₽ raised to the 100 ₽ minimum
+
+
+async def test_concurrent_same_checkout_replays_one_payment(monkeypatch, auto_on, owner, topup):
+    # Two tabs buying the same thing at the same time must share ONE payment: the second
+    # checkout waits for the first and replays its payment instead of overwriting the single
+    # cart slot (the overwrite used to unmatch the first payment — money hung on the balance).
+    monkeypatch.setattr(bridge, 'save_renewal_cart', AsyncMock(return_value=19900))
+    bound: list[str] = []
+
+    async def slow_bind(user_id: int, **kwargs: object) -> bool:
+        bound.append('bind')
+        await asyncio.sleep(0.05)
+        return True
+
+    monkeypatch.setattr(bridge, 'bind_cart_to_payment', slow_bind)
+    body = bridge.CheckoutRequest(kind='renew', period_days=30, payment_method='yookassa')
+
+    first, second = await asyncio.gather(
+        bridge.checkout('abcdefgh', body, db=None),
+        bridge.checkout('abcdefgh', body, db=None),
+    )
+
+    assert bound == ['bind']  # cart bound exactly once: no interleaved second checkout
+    assert topup.await_count == 1  # ...and exactly one payment created
+    assert second == first  # the second tab got the same payment, not a new one
+    assert second['payment_id'] == '17'
+
+
+async def test_concurrent_different_checkout_gets_409(monkeypatch, auto_on, owner, topup):
+    # A DIFFERENT cart while a checkout is in flight must not wait and overwrite the slot —
+    # it fails fast with 409 and can be retried once the first payment is created.
+    monkeypatch.setattr(bridge, 'save_renewal_cart', AsyncMock(return_value=19900))
+
+    async def slow_topup(**kwargs: object) -> object:
+        await asyncio.sleep(0.05)
+        return SimpleNamespace(
+            payment_url='https://pay.example/x', payment_id='17', qr_payload=None, expires_at=None
+        )
+
+    monkeypatch.setattr(bridge, 'create_topup', slow_topup)
+    first = asyncio.create_task(
+        bridge.checkout(
+            'abcdefgh', bridge.CheckoutRequest(kind='renew', period_days=30, payment_method='yookassa'), db=None
+        )
+    )
+    await asyncio.sleep(0)  # let the first checkout claim the slot
+    with pytest.raises(HTTPException) as error:
+        await bridge.checkout(
+            'abcdefgh', bridge.CheckoutRequest(kind='renew', period_days=90, payment_method='yookassa'), db=None
+        )
+    assert error.value.status_code == 409
+    assert (await first)['payment_id'] == '17'
 
 
 # ───────────── carts ─────────────
@@ -298,8 +351,8 @@ async def test_renewal_cart_rejects_trial_and_unknown_period(monkeypatch):
 async def test_tariff_cart_for_trial_user(monkeypatch):
     user, sub = _user(), _subscription(is_trial=True, tariff=None, device_limit=1)
     tariff = _tariff()
-    monkeypatch.setattr(settings, 'is_tariffs_mode', lambda: True)
-    monkeypatch.setattr(settings, 'is_multi_tariff_enabled', lambda: False)
+    monkeypatch.setattr(Settings, 'is_tariffs_mode', lambda self: True)
+    monkeypatch.setattr(Settings, 'is_multi_tariff_enabled', lambda self: False)
     monkeypatch.setattr(bridge, 'get_tariff_by_id', AsyncMock(return_value=tariff))
     monkeypatch.setattr(
         bridge.pricing_engine, 'calculate_tariff_purchase_price', AsyncMock(return_value=_pricing(19900))
@@ -314,11 +367,11 @@ async def test_tariff_cart_for_trial_user(monkeypatch):
 
 
 async def test_tariff_cart_refuses_daily_and_multi_tariff(monkeypatch):
-    monkeypatch.setattr(settings, 'is_tariffs_mode', lambda: True)
-    monkeypatch.setattr(settings, 'is_multi_tariff_enabled', lambda: True)
+    monkeypatch.setattr(Settings, 'is_tariffs_mode', lambda self: True)
+    monkeypatch.setattr(Settings, 'is_multi_tariff_enabled', lambda self: True)
     with pytest.raises(HTTPException):
         await bridge.save_tariff_cart(None, _user(), _subscription(), 7, 30)
-    monkeypatch.setattr(settings, 'is_multi_tariff_enabled', lambda: False)
+    monkeypatch.setattr(Settings, 'is_multi_tariff_enabled', lambda self: False)
     monkeypatch.setattr(bridge, 'get_tariff_by_id', AsyncMock(return_value=_tariff(is_daily=True)))
     with pytest.raises(HTTPException):
         await bridge.save_tariff_cart(None, _user(), _subscription(), 7, 30)
@@ -401,7 +454,14 @@ async def test_unexpected_checkout_error_is_a_502_with_its_type(monkeypatch, aut
 
 # ───────────── completion after top-up (app/services/spofy_subpage_service.py) ─────────────
 
-from app.services import spofy_subpage_service as completion  # noqa: E402
+from app.services import spofy_subpage_service as completion
+
+
+@pytest.fixture(autouse=True)
+def fresh_checkout_serializer(monkeypatch):
+    # Successful checkouts are remembered for replay; every test gets an empty serializer
+    # so one test's remembered payment cannot be replayed into the next one.
+    monkeypatch.setattr(bridge, 'checkout_serializer', completion.CheckoutSerializer())
 
 
 BOUND = {'source': 'spofy_subpage', 'spofy_price_kopeks': 49900, 'spofy_requested_kopeks': 49900}

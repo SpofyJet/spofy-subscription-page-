@@ -21,7 +21,7 @@
 | `app/services/spofy_subpage_service.py` | новый: завершение покупок со страницы после оплаты |
 | `app/cabinet/routes/__init__.py` | +2 строки: подключение API |
 | `app/services/payment/common.py` | +5 строк: после оплаты вызвать завершение покупок со страницы |
-| `tests/cabinet/test_spofy_subpage.py` | новый: 23 теста |
+| `tests/cabinet/test_spofy_subpage.py` | новый: 40 тестов |
 
 ---
 
@@ -58,7 +58,7 @@ docker run --rm -v "$PWD":/src -w /src ghcr.io/astral-sh/uv:python3.14-trixie-sl
   sh -c 'uv sync --frozen --all-groups -q && uv run pytest tests/cabinet/test_spofy_subpage.py -q'
 rm -rf .venv
 ```
-Должно быть `23 passed`. Если нет — не продолжайте, пришлите вывод.
+Должно быть `40 passed`. Если нет — не продолжайте, пришлите вывод.
 
 ### 5. Ключ
 ```bash
@@ -103,6 +103,43 @@ SPOFY_BOT_API_IP=<IP_БОТА>
 SPOFY_BOT_API_KEY=<тот же KEY>
 ```
 затем выкладка новой версии страницы и живая проверка платежа.
+
+---
+
+## Обновления модуля
+
+### 0005 — сериализация checkout по пользователю
+У бота одна «текущая корзина» на пользователя: два параллельных checkout (две вкладки) перезаписывали
+друг друга, и первый платёж переставал совпадать с корзиной — деньги висели на балансе без покупки.
+Теперь checkout одного пользователя выполняется строго по очереди: повтор того же запроса (та же корзина
+и способ оплаты, окно 30 минут) возвращает тот же платёж, а параллельная другая покупка получает 409
+и может быть повторена после создания первого платежа.
+
+Патч собран против актуального `main` бота (патчи 0001–0004 уже влиты в `main`, ветка
+`spofy/subpage-bridge` больше не нужна). Собран и проверен на `main @30c4d0f3`; если `main` ушёл
+вперёд и `git apply --check` ругается на контекст — пришлите `git log -1 --oneline`, пересоберу.
+
+Применение на сервере бота:
+```bash
+cd /opt/remnawave-bedolaga-telegram-bot
+git status                      # не должно быть своих незакоммиченных правок
+git log -1 --oneline            # запомните коммит — к нему откатываться
+curl -fsSLo /root/spofy-subpage-0005.patch \
+  https://raw.githubusercontent.com/SpofyJet/spofy-subscription-page-/spofy/redesign/deploy/spofy/bot-bridge/0005-spofy-subpage-serialize-checkout.patch
+git apply --check /root/spofy-subpage-0005.patch && echo "патч подходит"
+git -c user.name=spofy -c user.email=spofy@localhost am /root/spofy-subpage-0005.patch
+docker run --rm -v "$PWD":/src -w /src ghcr.io/astral-sh/uv:python3.14-trixie-slim \
+  sh -c 'uv sync --frozen --all-groups -q && uv run pytest tests/cabinet/test_spofy_subpage.py -q'
+rm -rf .venv
+```
+Должно быть `40 passed`. Если нет — не выкатывайте, пришлите вывод.
+
+Дальше:
+```bash
+docker compose up -d --build bot
+docker compose logs --tail 50 bot                 # без ошибок при старте
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/cabinet/spofy-subpage/abcdefgh/offer   # 401 = модуль на месте
+```
 
 ---
 
