@@ -1780,6 +1780,11 @@
     box-shadow: 0 6px 18px -8px rgba(43, 99, 245, 0.9);
 }
 
+.coTab[aria-disabled='true'] {
+    opacity: 0.45;
+    cursor: default;
+}
+
 /* period / traffic cards */
 .coGrid {
     display: grid;

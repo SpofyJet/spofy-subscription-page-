@@ -346,15 +346,19 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
     const canDevices = !!offer.devices.available && (offer.devices.can_add ?? 1) > 0
     const canTraffic = offer.traffic.length > 0
 
+    // A trial user cannot buy traffic yet (the bot rejects it with 400) — the tab stays
+    // visible but disabled and points at the tariff choice, instead of looking like a dead end.
     const tabs = (
         [
-            ['renew', isTrial || !canRenew ? 'coTabTariff' : 'coTabRenew', canRenew || canTariff],
-            ['devices', 'coTabDevices', canDevices && !isTrial],
-            ['traffic', 'coTabTraffic', canTraffic && !isTrial]
-        ] as [TCheckoutTab, TSpofyKey, boolean][]
+            ['renew', isTrial || !canRenew ? 'coTabTariff' : 'coTabRenew', canRenew || canTariff, false],
+            ['devices', 'coTabDevices', canDevices && !isTrial, false],
+            ['traffic', 'coTabTraffic', canTraffic || (isTrial && canTariff), isTrial]
+        ] as [TCheckoutTab, TSpofyKey, boolean, boolean][]
     ).filter(([, , ok]) => ok)
 
-    const tab = tabs.some(([key]) => key === wantedTab) ? wantedTab : (tabs[0]?.[0] ?? 'renew')
+    const tab = tabs.some(([key, , , disabled]) => key === wantedTab && !disabled)
+        ? wantedTab
+        : (tabs.find(([, , , disabled]) => !disabled)?.[0] ?? 'renew')
     useEffect(() => {
         if (tab !== wantedTab) setTab(tab)
     }, [tab, wantedTab, setTab])
@@ -400,6 +404,9 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
             ? preset.trafficGb
             : (offer.traffic[0]?.gb ?? null)
     )
+    // Set when the trial user taps the disabled «Трафик» tab: the sheet jumps to the tariff
+    // choice and explains why traffic is not for sale yet.
+    const [trafficHint, setTrafficHint] = useState(false)
     const primary = primaryMethods(offer.payment_methods)
     // Default: card / SBP. A method remembered from an earlier payment wins only if it is one of
     // the two up-front choices.
@@ -639,16 +646,23 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
         <div className={classes.coStack}>
             {tabs.length > 1 && (
                 <div aria-label={t('coRenewTitle')} className={classes.coTabs} role="tablist">
-                    {tabs.map(([key, label]) => {
+                    {tabs.map(([key, label, , disabled]) => {
                         const TabIcon = TAB_ICON[key]
                         return (
                             <button
+                                aria-disabled={disabled || undefined}
                                 aria-selected={key === tab}
                                 className={classes.coTab}
                                 key={key}
                                 style={{ '--tone': TAB_TONE[key] } as React.CSSProperties}
                                 onClick={() => {
-                                    setTab(key)
+                                    if (disabled) {
+                                        // Traffic unlocks with a tariff: point the person there.
+                                        setTab('renew')
+                                        setTrafficHint(true)
+                                    } else {
+                                        setTab(key)
+                                    }
                                     setError(null)
                                 }}
                                 role="tab"
@@ -660,6 +674,10 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                         )
                     })}
                 </div>
+            )}
+
+            {tab === 'renew' && tariffMode && trafficHint && (
+                <p className={classes.coHint}>{t('coTrafficTrialHint')}</p>
             )}
 
             {tab === 'renew' && !tariffMode && periodGrid(offer.renewal, period, setPeriod)}
@@ -687,6 +705,7 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                                             className={classes.coTariffHead}
                                             onClick={() => {
                                                 vibrate('tap')
+                                                setTrafficHint(false)
                                                 setTariffId(x.id)
                                                 setTariffPeriod(
                                                     (
@@ -719,7 +738,10 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                             })}
                         </div>
                     )}
-                    {periodGrid(tariff.periods, tariffPeriod, setTariffPeriod)}
+                    {periodGrid(tariff.periods, tariffPeriod, (days) => {
+                        setTrafficHint(false)
+                        setTariffPeriod(days)
+                    })}
                 </>
             )}
 

@@ -162,6 +162,7 @@ const ru = {
     coUpsell: '{period} — {price}/мес, выгода\u00A0{saving}',
     coUpsellCta: 'Выбрать',
     coTrafficWhat: 'Трафик нужен для серверов «💸 Обход». Обычные серверы работают без лимита.',
+    coTrafficTrialHint: 'Докупка трафика появится после выбора тарифа — выберите его ниже.',
     coPerGb: '{price} за ГБ',
     coBestGb: 'Выгоднее',
     coRenewTitle: 'Продление подписки',
@@ -365,6 +366,7 @@ const en: TDict = {
     coUpsell: '{period} — {price}/mo, save\u00A0{saving}',
     coUpsellCta: 'Choose',
     coTrafficWhat: 'Traffic is used by the «💸 Bypass» servers. Regular servers have no limit.',
+    coTrafficTrialHint: 'Extra traffic unlocks after you choose a plan — pick one below.',
     coPerGb: '{price} per GB',
     coBestGb: 'Best value',
     coRenewTitle: 'Renew subscription',
@@ -566,6 +568,7 @@ const fr: TDict = {
     coUpsellCta: 'Choisir',
     coTrafficWhat:
         'Le trafic sert aux serveurs « 💸 Contournement ». Les serveurs normaux sont illimités.',
+    coTrafficTrialHint: "Le trafic supplémentaire sera disponible après le choix d'une offre — choisissez-la ci-dessous.",
     coPerGb: '{price} le Go',
     coBestGb: 'Meilleur prix',
     coRenewTitle: "Prolonger l'abonnement",
