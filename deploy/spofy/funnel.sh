@@ -23,11 +23,14 @@ for line in open(sys.argv[1], errors='replace'):
         events[d.get('p', 'other')][d['e']].add(d['s'])
         events['all'][d['e']].add(d['s'])
         continue
-    # server-side count of created payments: "POST /spofy-api/<uuid>/checkout ... 201"
+    # server-side count of created payments: "POST /spofy-api/<uuid>/checkout ... 201".
+    # Since the access-log masking the segment looks like "sub_<sha256[:10]>" — the same hash
+    # as in SPOFY_EVENT lines; older archived logs still carry the raw UUID (hash it here).
     m = re.search(r'"POST /spofy-api/([A-Za-z0-9_-]+)/checkout [^"]*" 201', line)
     if m and seen_events:
         import hashlib
-        s = hashlib.sha256(m.group(1).encode()).hexdigest()[:10]
+        segment = m.group(1)
+        s = segment[4:] if segment.startswith('sub_') and len(segment) == 14 else hashlib.sha256(segment.encode()).hexdigest()[:10]
         created['all'].add(s)
 steps = ['view', 'sheet_open', 'pay_click', 'pay_open', 'pay_return', 'pay_done', 'pay_back', 'pay_timeout']
 names = {'view': 'открыли страницу', 'sheet_open': 'открыли меню', 'pay_click': 'нажали «Оплатить»', 'pay_open': 'открыли оплату',

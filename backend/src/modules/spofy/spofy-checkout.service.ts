@@ -97,8 +97,12 @@ export class SpofyCheckoutService {
     private readonly http: AxiosInstance | null;
     private readonly allowlist: Set<string> | null;
     private readonly offerCache = new Map<string, { value: unknown; expiresAt: number }>();
-    private readonly hits = new Map<string, number[]>();
-    private readonly lastActiveCheck = new Map<string, number>();
+    /** Rate-limit stamps (`sub:<uuid>`, `ip:<addr>`) — separate from event stamps so a flood
+     * of /event posts can never wipe the checkout limits. */
+    private readonly rateHits = new Map<string, number[]>();
+    /** Funnel-event stamps per subscription (`ev:<uuid>`). */
+    private readonly eventHits = new Map<string, number[]>();
+    private readonly lastActiveCheck = new Map<string, { expiresAt: number }>();
     private readonly methodFailures = new Map<string, number[]>();
 
     constructor(private readonly configService: TypedConfigService) {
@@ -141,7 +145,7 @@ export class SpofyCheckoutService {
         if (cached && cached.expiresAt > now) return this.withMethodHealth(cached.value);
 
         const value = await this.call('get', `/${encodeURIComponent(shortUuid)}/offer`);
-        this.trim(this.offerCache);
+        this.trimCache(this.offerCache);
         this.offerCache.set(shortUuid, { value, expiresAt: now + OFFER_TTL_MS });
         return this.withMethodHealth(value);
     }
@@ -172,7 +176,7 @@ export class SpofyCheckoutService {
     }
 
     public recordMethodFailure(method: string): void {
-        this.trim(this.methodFailures);
+        this.trimStamps(this.methodFailures, METHOD_DOWN_WINDOW_MS);
         const list = this.methodFailures.get(method) ?? [];
         list.push(Date.now());
         this.methodFailures.set(method, list);
@@ -190,7 +194,7 @@ export class SpofyCheckoutService {
         for (const [key, max] of keys) this.checkLimit(key, max);
         // Reserve the slots synchronously (no await between check and reserve), so parallel
         // requests cannot all slip under the limit; give them back if no payment was created.
-        const slots = keys.map(([key]) => [key, this.hit(key)] as const);
+        const slots = keys.map(([key]) => [key, this.hit(this.rateHits, key)] as const);
         this.offerCache.delete(shortUuid);
         try {
             const result = await this.call(
@@ -201,11 +205,18 @@ export class SpofyCheckoutService {
             this.methodFailures.delete(body.payment_method);
             return result;
         } catch (error) {
-            for (const [key, stamp] of slots) this.release(key, stamp);
-            const detail =
-                (error as { getResponse?: () => { detail?: unknown } })?.getResponse?.()?.detail ?? '';
-            // «Failed to create Platega payment»: that provider is failing, not the customer's input.
-            if (typeof detail === 'string' && /failed to create .*payment/i.test(detail)) {
+            for (const [key, stamp] of slots) this.release(this.rateHits, key, stamp);
+            const response = (
+                error as { getResponse?: () => { detail?: unknown; status?: number } }
+            )?.getResponse?.();
+            const detail = response?.detail ?? '';
+            // «Failed to create Platega payment» / «Platega is temporarily unavailable»: that
+            // provider is failing, not the customer's input — any bridge 503 means the same.
+            if (
+                (typeof detail === 'string' &&
+                    /failed to create .*payment|temporarily unavailable/i.test(detail)) ||
+                response?.status === 503
+            ) {
                 this.recordMethodFailure(body.payment_method);
             }
             throw error;
@@ -223,8 +234,8 @@ export class SpofyCheckoutService {
     ): void {
         if (!FUNNEL_EVENTS.has(body.e)) throw new HttpException({ code: 'invalid_body' }, 422);
         const key = `ev:${shortUuid}`;
-        if (this.recent(key).length >= EVENTS_PER_SUBSCRIPTION) return;
-        this.hit(key);
+        if (this.recent(this.eventHits, key).length >= EVENTS_PER_SUBSCRIPTION) return;
+        this.hit(this.eventHits, key);
         const payload: Record<string, string> = {
             e: body.e,
             p: platformOf(userAgent),
@@ -238,10 +249,11 @@ export class SpofyCheckoutService {
     public async status(shortUuid: string, method: string, paymentId: string): Promise<unknown> {
         const key = `${shortUuid}:${method}:${paymentId}`;
         const now = Date.now();
-        const active = now - (this.lastActiveCheck.get(key) ?? 0) >= ACTIVE_CHECK_EVERY_MS;
+        const last = this.lastActiveCheck.get(key);
+        const active = !last || last.expiresAt <= now;
         if (active) {
-            this.trim(this.lastActiveCheck);
-            this.lastActiveCheck.set(key, now);
+            this.trimCache(this.lastActiveCheck);
+            this.lastActiveCheck.set(key, { expiresAt: now + ACTIVE_CHECK_EVERY_MS });
         }
         return this.call(
             'get',
@@ -251,34 +263,62 @@ export class SpofyCheckoutService {
         );
     }
 
-    private recent(key: string): number[] {
+    private recent(map: Map<string, number[]>, key: string): number[] {
         const now = Date.now();
-        return (this.hits.get(key) ?? []).filter((t) => now - t < WINDOW_MS);
+        return (map.get(key) ?? []).filter((t) => now - t < WINDOW_MS);
     }
 
     private checkLimit(key: string, max: number): void {
-        if (this.recent(key).length >= max) {
+        if (this.recent(this.rateHits, key).length >= max) {
             throw new HttpException({ code: 'rate_limited' }, HttpStatus.TOO_MANY_REQUESTS);
         }
     }
 
-    private hit(key: string): number {
-        const recent = this.recent(key);
+    private hit(map: Map<string, number[]>, key: string): number {
+        const recent = this.recent(map, key);
         let stamp = Date.now();
         while (recent.includes(stamp)) stamp += 0.001;
         recent.push(stamp);
-        this.trim(this.hits);
-        this.hits.set(key, recent);
+        this.trimStamps(map, WINDOW_MS);
+        map.set(key, recent);
         return stamp;
     }
 
-    private release(key: string, stamp: number): void {
-        const recent = this.hits.get(key);
+    private release(map: Map<string, number[]>, key: string, stamp: number): void {
+        const recent = map.get(key);
         const index = recent?.indexOf(stamp) ?? -1;
         if (recent && index >= 0) recent.splice(index, 1);
     }
 
-    private trim(map: Map<string, unknown>): void {
+    /**
+     * Bound a stamps map (rate limits, funnel events, method failures) without ever clearing
+     * it: first drop entries whose stamps all expired, then the oldest tenth if it is still
+     * over the bound. A map.clear() here would let one flood reset every limit at once.
+     */
+    private trimStamps(map: Map<string, number[]>, windowMs: number): void {
+        if (map.size < MAX_TRACKED) return;
+        const now = Date.now();
+        for (const [key, stamps] of map) {
+            const fresh = stamps.filter((t) => now - t < windowMs);
+            if (fresh.length === 0) map.delete(key);
+            else if (fresh.length !== stamps.length) map.set(key, fresh);
+        }
+        if (map.size < MAX_TRACKED) return;
+        const oldestFirst = [...map.keys()].sort(
+            (a, b) => (map.get(a)?.[0] ?? 0) - (map.get(b)?.[0] ?? 0),
+        );
+        for (const key of oldestFirst.slice(0, Math.ceil(oldestFirst.length / 10))) {
+            map.delete(key);
+        }
+    }
+
+    /** Bound a TTL cache the way pruneCache does: drop expired entries, clear only as the last resort. */
+    private trimCache(map: Map<string, { expiresAt: number }>): void {
+        if (map.size < MAX_TRACKED) return;
+        const now = Date.now();
+        for (const [key, entry] of map) {
+            if (entry.expiresAt <= now) map.delete(key);
+        }
         if (map.size >= MAX_TRACKED) map.clear();
     }
 

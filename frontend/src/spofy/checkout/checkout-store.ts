@@ -77,8 +77,8 @@ export const errorKey = (error: unknown, phase: 'checkout' | 'offer' = 'checkout
     if (error.status === 409 || error.code === 'checkout_disabled') return 'coErrDisabled'
     if (phase === 'offer') return 'coErrLoad'
     const detail = (error.detail ?? '').toLowerCase()
-    // «Failed to create Platega payment»: one provider is down, the bot itself works.
-    if (/failed to create .*payment/.test(detail)) return 'coErrMethodDown'
+    // «Failed to create Platega payment» / «temporarily unavailable»: one provider is down, the bot works.
+    if (/failed to create .*payment|temporarily unavailable/.test(detail)) return 'coErrMethodDown'
     if (error.code === 'bot_unavailable' || error.code === 'network' || error.status >= 500)
         return 'coErrBot'
     if (detail.includes('payment method')) return 'coErrMethod'

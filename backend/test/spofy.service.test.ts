@@ -271,3 +271,47 @@ test('a payment method that failed twice is flagged down; success clears it', as
     await pay('c');
     assert.equal((await flag()).find((m) => m.id === 'platega')?.down, undefined, 'a success clears it');
 });
+
+const demoteService = (detail: string, status: number) => {
+    const service = new SpofyCheckoutService({
+        get: (key: string) =>
+            ({ SPOFY_BOT_API_URL: 'http://bot.invalid', SPOFY_BOT_API_KEY: 'k'.repeat(40) })[key],
+    } as never);
+    const offer = { payment_methods: [{ id: 'platega' }, { id: 'heleket' }] };
+    (service as unknown as { call: (m: string) => Promise<unknown> }).call = async (method: string) => {
+        if (method === 'get') return offer;
+        const { HttpException } = await import('@nestjs/common');
+        throw new HttpException({ code: 'bridge_error', status, detail }, 502);
+    };
+    return service;
+};
+
+test('bridge 503 «temporarily unavailable» demotes the method, not just «failed to create payment»', async () => {
+    const service = demoteService(
+        'Platega is temporarily unavailable, please choose another payment method',
+        503,
+    );
+    const pay = (id: string) =>
+        service.checkout(`sub${id}0000`, { kind: 'renew', payment_method: 'platega', period_days: 30 }, '1.1.1.1');
+    const flag = async () =>
+        ((await service.offer('subxxxxxx')) as { payment_methods: { id: string; down?: boolean }[] })
+            .payment_methods;
+
+    await assert.rejects(pay('a'));
+    assert.equal((await flag()).find((m) => m.id === 'platega')?.down, undefined, 'one failure is not enough');
+    await assert.rejects(pay('b'));
+    assert.equal((await flag()).find((m) => m.id === 'platega')?.down, true);
+});
+
+test('a flood of funnel events does not wipe the checkout rate limits', async () => {
+    const service = checkoutService(async () => ({ ok: true }));
+    // Anyone can post /event (the session cookie is handed to every visitor): enough distinct
+    // subscriptions used to trip trim() → map.clear() and reset ALL limits at once.
+    for (let i = 0; i < 6000; i++) {
+        service.recordEvent(`ev${String(i).padStart(6, '0')}`, { e: 'view' }, '');
+    }
+    const results = await Promise.allSettled(
+        Array.from({ length: 8 }, (_, i) => service.checkout('abcdefgh', body, `10.0.0.${i}`)),
+    );
+    assert.equal(results.filter((r) => r.status === 'fulfilled').length, 6);
+});

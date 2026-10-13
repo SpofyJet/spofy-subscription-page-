@@ -5,6 +5,7 @@ import { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { utilities as nestWinstonModuleUtilities, WinstonModule } from 'nest-winston';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import sirv from 'sirv';
 import { createLogger } from 'winston';
@@ -41,6 +42,27 @@ import { AppModule } from './app.module';
 // };
 
 const instanceId = process.env.INSTANCE_ID || '0';
+
+// UUID-shaped path segments are the page credential, so access logs must not carry them
+// verbatim. Mask them with the same short sha256 the SPOFY_EVENT lines use — funnel.sh then
+// correlates «POST /spofy-api/sub_…/checkout 201» with the event hashes without extra work.
+const UUID_SEGMENT = /^[A-Za-z0-9_-]{10,64}$/;
+
+function maskAccessUrl(url: string): string {
+    const mark = url.indexOf('?');
+    const path = mark === -1 ? url : url.slice(0, mark);
+    const masked = path
+        .split('/')
+        .map((segment) =>
+            UUID_SEGMENT.test(segment)
+                ? `sub_${createHash('sha256').update(segment).digest('hex').slice(0, 10)}`
+                : segment,
+        )
+        .join('/');
+    return mark === -1 ? masked : masked + url.slice(mark);
+}
+
+morgan.token('masked-url', (req) => maskAccessUrl(((req as Request).originalUrl ?? req.url) || ''));
 
 const logger = createLogger({
     transports: [new winston.transports.Console()],
@@ -109,7 +131,7 @@ async function bootstrap(): Promise<void> {
 
     app.use(
         morgan(
-            ':remote-addr - ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"',
+            ':remote-addr - ":method :masked-url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"',
             {
                 skip: (req) => req?.url?.startsWith('/assets') ?? false,
             },
