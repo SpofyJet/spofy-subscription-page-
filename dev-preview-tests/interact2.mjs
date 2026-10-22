@@ -97,7 +97,7 @@ async function fresh(path, opts = {}, setup) {
 {
     let r = await fresh('expired')
     check('expired: title «VPN выключен»', await r.page.getByRole('heading', { name: 'VPN выключен' }).isVisible())
-    check('expired: price says «при оплате за 1 год»', await r.page.getByText('при оплате за 1 год').isVisible())
+    check('expired: button says «720 ₽ · 3 месяца · 240 ₽/мес» (вариант Б)', (await r.page.getByText('3 месяца · 240 ₽/мес').isVisible()) && (await r.page.getByRole('button', { name: /Продлить.*720/ }).count()) === 1)
     check('expired: no traffic offer', (await r.page.getByText(/Докупить|ГБ за/).count()) === 0)
     await r.page.close()
     r = await fresh('expiring')
@@ -105,7 +105,7 @@ async function fresh(path, opts = {}, setup) {
     await r.page.close()
     r = await fresh('trial')
     check('trial: no «Докупить» / «Добавить»', (await r.page.getByText(/Докупить/).count()) === 0 && (await r.page.getByRole('button', { name: 'Добавить' }).count()) === 0)
-    check('trial: CTA price is the «С обходами» plan (150 ₽/мес)', await r.page.getByText('от 150 ₽/мес').isVisible())
+    check('trial: CTA price is the «С обходами» plan for 3 months (720 ₽ · 240 ₽/мес)', (await r.page.getByText('3 месяца · 240 ₽/мес').isVisible()) && (await r.page.getByText('от 150 ₽/мес').count()) === 0)
     await r.page.getByRole('button', { name: /Выбрать тариф/ }).click()
     await r.page.waitForTimeout(900)
     check('trial sheet offers «С обходами» first', await r.page.getByRole('dialog').getByText(/С обходами/).first().isVisible())

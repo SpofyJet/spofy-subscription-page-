@@ -125,15 +125,17 @@ export function StatusCard({ model }: { model: IPageModel }) {
                       ? t('stExpiringPitch')
                       : null
 
-    /* ── prices: «от 150 ₽/мес» + «при оплате за 1 год» ── */
-    const from =
-        model.renewFrom !== null
-            ? t('ctaFromMonth', { price: money(model.renewFrom.perMonth) })
-            : null
-    const fromNote =
-        model.renewFrom !== null && model.renewFrom.periodDays > 31
-            ? t('ctaForPeriod', { period: formatPeriod(model.renewFrom.periodDays, lang) })
-            : null
+    /* ── price on «Продлить»: the period the window opens on — «720 ₽» + «3 месяца · 240 ₽/мес» ── */
+    const pick = model.renewFrom
+    const from = pick ? money(pick.price) : null
+    const fromNote = pick
+        ? pick.perMonth !== null
+            ? t('ctaPickNote', {
+                  period: formatPeriod(pick.periodDays, lang),
+                  price: money(pick.perMonth)
+              })
+            : formatPeriod(pick.periodDays, lang)
+        : null
     const trafficFrom = model.trafficFrom
         ? t('ctaFrom', { price: money(model.trafficFrom.price_kopeks) })
         : null

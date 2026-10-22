@@ -73,6 +73,24 @@ export function defaultPeriod(options: IPeriodOption[]): IPeriodOption | undefin
 }
 
 /**
+ * The price on «Продлить» / «Выбрать тариф»: exactly the period the window opens on
+ * (owner's choice Б, 23.10.2026) — «720 ₽» and «3 месяца · 240 ₽/мес», so what the button
+ * promises is what the person sees after tapping it.
+ */
+export function preselectedPrice(
+    options: IPeriodOption[]
+): null | { periodDays: number; perMonth: null | number; price: number } {
+    const option = defaultPeriod(options)
+    if (!option || option.price_kopeks <= 0) return null
+    const monthly = !isForeverDays(option.period_days) && monthsOf(option.period_days) >= 2
+    return {
+        periodDays: option.period_days,
+        perMonth: monthly ? perMonthKopeks(option) : null,
+        price: option.price_kopeks
+    }
+}
+
+/**
  * The plan offered to a trial user first: the one with «Обход» servers (owner's decision
  * 23.10.2026), else the bot's first plan.
  */

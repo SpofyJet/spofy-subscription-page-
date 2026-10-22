@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 import { useSubscription } from '@entities/subscription-info-store'
 
 import { TCheckoutTab, ICheckoutPreset, useCheckoutStore } from './checkout/checkout-store'
-import { cheapestPerMonth, cheapestTraffic, offeredTariff } from './checkout/offer-utils'
+import { cheapestTraffic, offeredTariff, preselectedPrice } from './checkout/offer-utils'
 import { getSubscriptionState, isIndefinite, toNumber, TSpofyState } from './format'
 import { useSpofyData } from './spofy-store'
 
@@ -41,7 +41,8 @@ export interface IPageModel {
     traffic: IAction | null
     /** cheapest monthly price (kopeks) of a renewal or, for a trial, of the offered plan,
      *  and the period that gives it («при оплате за 1 год») */
-    renewFrom: null | { periodDays: number; perMonth: number }
+    /** the price on «Продлить»: the period the window opens on (owner's choice Б) */
+    renewFrom: null | { periodDays: number; perMonth: null | number; price: number }
     /** purchases open the sheet on this page; false → they open the bot */
     inPage: boolean
     /** no device has ever been connected (panel's HWID count is 0) */
@@ -135,8 +136,8 @@ export function usePageModel(): IPageModel {
     let renewFrom: IPageModel['renewFrom'] = null
     if (inPage && offer) {
         renewFrom = trial
-            ? cheapestPerMonth(offeredTariff(offer.tariffs)?.periods ?? [])
-            : cheapestPerMonth(offer.renewal)
+            ? preselectedPrice(offeredTariff(offer.tariffs)?.periods ?? [])
+            : preselectedPrice(offer.renewal)
     }
 
     return {

@@ -218,7 +218,7 @@ const ru = {
     ctaConnect: 'Подключить устройство',
     rowPaidTill: 'Оплачено до',
     inBot: 'в боте',
-    ctaForPeriod: 'при оплате за {period}',
+    ctaPickNote: '{period} · {price}/мес',
     coGoPay: 'Перейти к оплате {price}',
     coDoneSub: 'Оплата прошла',
     stInBotNote:
@@ -563,7 +563,7 @@ const en: TDict = {
     ctaConnect: 'Connect a device',
     rowPaidTill: 'Paid until',
     inBot: 'in the bot',
-    ctaForPeriod: 'when paying for {period}',
+    ctaPickNote: '{period} · {price}/mo',
     coGoPay: 'Go to payment {price}',
     coDoneSub: 'Payment received',
     stInBotNote:
@@ -895,7 +895,7 @@ const fr: TDict = {
     ctaConnect: 'Connecter un appareil',
     rowPaidTill: "Payé jusqu'au",
     inBot: 'dans le bot',
-    ctaForPeriod: 'en payant pour {period}',
+    ctaPickNote: '{period} · {price}/mois',
     coGoPay: 'Aller au paiement {price}',
     coDoneSub: 'Paiement reçu',
     stInBotNote:
