@@ -247,8 +247,13 @@ export class AxiosService implements OnModuleInit {
             };
         } catch (error) {
             if (error instanceof AxiosError) {
+                // 404 means a dead/unknown link: the caller renders an explanatory
+                // page, so it is an expected outcome rather than an error.
+                if (error.response?.status === 404) {
+                    return { isOk: false, notFound: true };
+                }
                 this.logger.error('Error in GetSubscriptionInfo Request:', error.message);
-                return { isOk: false, notFound: error.response?.status === 404 };
+                return { isOk: false };
             }
             this.logger.error('Error in GetSubscriptionInfo Request:', error);
 
@@ -280,6 +285,35 @@ export class AxiosService implements OnModuleInit {
         }
     }
 
+    private static readonly RETRYABLE_DELAY_MS = 300;
+
+    /**
+     * One retry for transient panel failures (timeout, unreachable host, reset).
+     * HTTP error statuses are never retried — the caller maps them to a response.
+     */
+    private async requestWithRetry<T>(config: Parameters<AxiosInstance['request']>[0]) {
+        for (let attempt = 0; ; attempt++) {
+            try {
+                return await this.axiosInstance.request<T>(config);
+            } catch (error) {
+                const transient =
+                    error instanceof AxiosError &&
+                    error.response === undefined &&
+                    (error.code === 'ECONNABORTED' ||
+                        error.code === 'EHOSTUNREACH' ||
+                        error.code === 'ECONNREFUSED' ||
+                        error.code === 'ECONNRESET');
+                if (attempt === 0 && transient) {
+                    await new Promise((resolve) =>
+                        setTimeout(resolve, AxiosService.RETRYABLE_DELAY_MS),
+                    );
+                    continue;
+                }
+                throw error;
+            }
+        }
+    }
+
     public async getSubscription(
         clientIp: string,
         shortUuid: string,
@@ -297,7 +331,7 @@ export class AxiosService implements OnModuleInit {
                 basePath += '/' + encodeURIComponent(clientType);
             }
 
-            const response = await this.axiosInstance.request<Buffer>({
+            const response = await this.requestWithRetry<Buffer>({
                 method: 'GET',
                 url: basePath,
                 responseType: 'arraybuffer',

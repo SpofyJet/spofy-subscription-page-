@@ -200,9 +200,19 @@ export class SpofyService {
                         : null,
             };
         } catch (error) {
-            this.logger.warn(
-                `User lookup failed, rendering with defaults: ${error instanceof Error ? error.message : error}`,
-            );
+            // 404 means the user was deleted; rendering defaults is the intended path.
+            const notFound =
+                typeof error === 'object' &&
+                error !== null &&
+                'response' in error &&
+                (error as { response?: { status?: number } }).response?.status === 404;
+            if (notFound) {
+                this.logger.debug(`User not found, rendering with defaults: ${shortUuid}`);
+            } else {
+                this.logger.warn(
+                    `User lookup failed, rendering with defaults: ${error instanceof Error ? error.message : error}`,
+                );
+            }
             value = NO_FACTS;
             ttl = CACHE_ERROR_TTL_MS;
         }
