@@ -14,8 +14,19 @@ export const COUNTER_DAYS = 7
 
 const intlLocale = (lang: TSubscriptionPageLanguageCode) => (lang === 'en' ? 'en-GB' : lang)
 
+/**
+ * The bot writes «навсегда» as a very long period (ULTIMA: 2222 дня, owner 23.10.2026).
+ * Anything over five years is «навсегда»: no price per month, no saving, nothing to renew.
+ */
+export const FOREVER_DAYS = 1826
+export const isForeverDays = (days: number) => days >= FOREVER_DAYS
+
+/** More than two years paid ahead only happens with a «навсегда» plan: nothing to renew. */
+const FOREVER_AHEAD_MS = 731 * 86_400_000
+
 export function isIndefinite(expiresAt: Date | string): boolean {
-    return new Date(expiresAt).getFullYear() >= 2099
+    const end = new Date(expiresAt)
+    return end.getFullYear() >= 2099 || end.getTime() - Date.now() > FOREVER_AHEAD_MS
 }
 
 export function getSubscriptionState(user: TSpofyUser, now = Date.now()): TSpofyState {
@@ -86,6 +97,7 @@ export const countOf = (n: number, lang: TSubscriptionPageLanguageCode, unit: TP
 
 /** 30 → «1 месяц», 90 → «3 месяца», 365 → «1 год», 14 → «14 дней» */
 export function formatPeriod(days: number, lang: TSubscriptionPageLanguageCode): string {
+    if (isForeverDays(days)) return translate(lang, 'periodForever')
     const years = Math.round(days / 365)
     if (years >= 1 && (days === years * 360 || Math.abs(days - years * 365) <= years)) {
         return `${years} ${plural(years, lang, 'year')}`
@@ -95,7 +107,7 @@ export function formatPeriod(days: number, lang: TSubscriptionPageLanguageCode):
         return `${months} ${plural(months, lang, 'month')}`
     }
     const plain = `${days} ${plural(days, lang, 'day')}`
-    // multi-year plans that are not whole years: «2222 дня (≈ 6 лет)»
+    // multi-year plans that are not whole years: «1000 дней (≈ 3 года)»
     return days > 730 ? `${plain} (≈\u00A0${years}\u00A0${plural(years, lang, 'year')})` : plain
 }
 

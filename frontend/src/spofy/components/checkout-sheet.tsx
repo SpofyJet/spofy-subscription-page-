@@ -64,6 +64,7 @@ import {
     formatDayMonth,
     formatDays,
     formatPeriod,
+    isForeverDays,
     isIndefinite,
     toNumber
 } from '../format'
@@ -136,7 +137,11 @@ export default function CheckoutSheet({
             (!isIndefinite(subscription.user.expiresAt) &&
                 new Date(subscription.user.expiresAt).getTime() <= Date.now()))
     const subtitle = showPayment
-        ? t('coSub')
+        ? phase === 'done'
+            ? t('coDoneSub')
+            : phase === 'paid'
+              ? t('coPaid')
+              : t('coSub')
         : expired
           ? t('coSubExpired')
           : ending
@@ -477,6 +482,8 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
     const monthly = periodOptions.find((o) => o.period_days === 30)
     const savingOf = (o: IPeriodOption | undefined) => {
         if (!o) return 0
+        // «навсегда» is not compared with paying monthly: that «saving» would be made up
+        if (isForeverDays(o.period_days)) return 0
         if (monthly && o.period_days > 31) {
             return wholeRubles(
                 Math.max(0, monthly.price_kopeks * monthsOf(o.period_days) - o.price_kopeks)
@@ -533,7 +540,12 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
     const summary = (): string => {
         if (tab === 'devices') return t('coSummaryDevices', { n: countOf(devices, lang, 'device') })
         if (tab === 'traffic') return t('coSummaryTraffic', { gb: trafficLabel(trafficGb ?? 0) })
-        const p = formatPeriod(selectedPeriod?.period_days ?? 0, lang)
+        const days = selectedPeriod?.period_days ?? 0
+        const p = formatPeriod(days, lang)
+        if (isForeverDays(days)) {
+            const name = tariffMode && tariff ? tariff.name : offer.subscription.tariff_name
+            return name ? t('coSummaryForever', { name }) : t('periodForever')
+        }
         return tariffMode && tariff
             ? t('coSummaryTariff', { name: tariff.name, period: p })
             : t('coSummaryRenew', { period: p })
@@ -601,9 +613,10 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
             tab = window.open('', '_blank')
             if (tab) {
                 tab.opener = null
-                tab.document.title = 'Spofy VPN'
-                tab.document.body.style.cssText = 'font:16px system-ui,sans-serif;padding:24px'
-                tab.document.body.textContent = t('coOpening')
+                tab.document.write(
+                    `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Spofy VPN</title><p style="font:17px system-ui,sans-serif;padding:32px 24px;color:#5b6475">${t('coOpening')}</p>`
+                )
+                tab.document.close()
             }
         } catch {
             tab = null
@@ -674,25 +687,31 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                                         </span>
                                     )}
                                 </span>
-                                {option.period_days >= 28 && (
-                                    <span className={clsx(classes.optMeta, classes.num)}>
-                                        {/* the bot adds days: «3 месяца» are 90 of them */}
-                                        <span>{countOf(option.period_days, lang, 'day')}</span>
-                                        {months >= 2 && (
-                                            <span>
-                                                {t('perMonthShort', {
-                                                    price: money(perMonthKopeks(option))
-                                                })}
-                                            </span>
-                                        )}
-                                        {optionSaving > 0 ? (
-                                            <span className={classes.saving}>
-                                                {t('coRowSaving', { saving: money(optionSaving) })}
-                                            </span>
-                                        ) : discount > 0 ? (
-                                            <span className={classes.saving}>−{discount}%</span>
-                                        ) : null}
-                                    </span>
+                                {isForeverDays(option.period_days) ? (
+                                    <span className={classes.optMeta}>{t('coForeverMeta')}</span>
+                                ) : (
+                                    option.period_days >= 28 && (
+                                        <span className={clsx(classes.optMeta, classes.num)}>
+                                            {/* the bot adds days: «3 месяца» are 90 of them */}
+                                            <span>{countOf(option.period_days, lang, 'day')}</span>
+                                            {months >= 2 && (
+                                                <span>
+                                                    {t('perMonthShort', {
+                                                        price: money(perMonthKopeks(option))
+                                                    })}
+                                                </span>
+                                            )}
+                                            {optionSaving > 0 ? (
+                                                <span className={classes.saving}>
+                                                    {t('coRowSaving', {
+                                                        saving: money(optionSaving)
+                                                    })}
+                                                </span>
+                                            ) : discount > 0 ? (
+                                                <span className={classes.saving}>−{discount}%</span>
+                                            ) : null}
+                                        </span>
+                                    )
                                 )}
                             </span>
                             <span className={clsx(classes.optPrice, classes.num)}>
@@ -930,11 +949,15 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                         >
                             {offer.tariffs.map((x) => {
                                 const about = (x.description ?? '').trim()
-                                // a plan sold only for years at a time shows its real price, not «per month»
-                                const yearOrLess = x.periods.some((p) => p.period_days <= 366)
-                                const xFrom = yearOrLess
-                                    ? minPerMonth(x.periods)
-                                    : Math.min(...x.periods.map((p) => p.price_kopeks))
+                                // a plan paid by the month shows «от N ₽/мес»; a «навсегда» plan
+                                // (ULTIMA) has no monthly price — its one price and «навсегда»
+                                const xFrom = minPerMonth(x.periods)
+                                const forever = x.periods.filter(
+                                    (p) => p.price_kopeks > 0 && isForeverDays(p.period_days)
+                                )
+                                const xForever = forever.length
+                                    ? Math.min(...forever.map((p) => p.price_kopeks))
+                                    : null
                                 return (
                                     <button
                                         aria-checked={x.id === tariff.id}
@@ -962,15 +985,22 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                                                 <span className={classes.optMeta}>{about}</span>
                                             )}
                                         </span>
-                                        {xFrom !== null && (
+                                        {xFrom !== null ? (
                                             <span className={clsx(classes.optPrice, classes.num)}>
                                                 <span className={classes.optFrom}>
-                                                    {yearOrLess
-                                                        ? t('ctaFromMonth', { price: money(xFrom) })
-                                                        : money(xFrom)}
+                                                    {t('ctaFromMonth', { price: money(xFrom) })}
                                                 </span>
                                             </span>
-                                        )}
+                                        ) : xForever !== null ? (
+                                            <span className={clsx(classes.optPrice, classes.num)}>
+                                                <span className={classes.optFrom}>
+                                                    <span className={classes.optFromTotal}>
+                                                        {money(xForever)}
+                                                    </span>
+                                                    {t('priceForever')}
+                                                </span>
+                                            </span>
+                                        ) : null}
                                     </button>
                                 )
                             })}

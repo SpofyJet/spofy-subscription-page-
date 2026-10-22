@@ -7,7 +7,6 @@ import {
     TSubscriptionPagePlatformKey
 } from '@remnawave/subscription-page-types'
 import {
-    IconBrandTelegram,
     IconCheck,
     IconChevronDown,
     IconCopy,
@@ -98,8 +97,9 @@ export function ConnectSection({
     collapsed: startCollapsed,
     detected
 }: {
-    /** the guide waits behind one row: the subscription has ended, or a device is already connected */
-    collapsed: 'connected' | 'ended' | null
+    /** the guide waits behind one row: the subscription has ended, a device is already connected,
+     *  or every device slot is taken */
+    collapsed: 'connected' | 'ended' | 'full' | null
     detected: TSubscriptionPagePlatformKey | undefined
 }) {
     const config = useAppConfig()
@@ -181,7 +181,7 @@ export function ConnectSection({
                             {startCollapsed === 'connected' ? t('cnMoreTitle') : t('cnTitle')}
                         </span>
                         <span className={classes.sectionLead}>
-                            {startCollapsed === 'connected' ? t('cnMoreLead') : t('cnLeadExpired')}
+                            {startCollapsed === 'ended' ? t('cnLeadExpired') : t('cnMoreLead')}
                         </span>
                     </span>
                     <IconChevronDown
@@ -244,8 +244,6 @@ export function ConnectSection({
                     value={app.name}
                 />
             )}
-
-            {inTelegram() && <TelegramNote />}
 
             <div aria-hidden className={classes.stepsAnchor} ref={stepsAnchor} />
             <Steps
@@ -384,7 +382,17 @@ function Steps(props: {
         timer.current = window.setTimeout(() => {
             document.removeEventListener('visibilitychange', away)
             window.removeEventListener('blur', away)
-            if (!left && document.visibilityState === 'visible') setNotOpened(index)
+            if (!left && document.visibilityState === 'visible') {
+                setNotOpened(index)
+                // bring the hint into view — it appears below the button
+                window.setTimeout(
+                    () =>
+                        document
+                            .getElementById(`sp-not-opened-${index}`)
+                            ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }),
+                    50
+                )
+            }
         }, 1_600)
     }
 
@@ -510,8 +518,8 @@ function Steps(props: {
                                         </span>
                                     )}
                                 </h3>
-                                {/* only the step the person is on is explained in full */}
-                                {state === 'current' && (
+                                {/* a finished step folds to its title; the rest stay explained */}
+                                {state !== 'done' && (
                                     <p
                                         className={classes.stepText}
                                         dangerouslySetInnerHTML={{
@@ -528,7 +536,11 @@ function Steps(props: {
                                     <p className={classes.stepNote}>{t('moreCopyHint')}</p>
                                 )}
                                 {notOpened === index && (
-                                    <div className={classes.notOpened} role="status">
+                                    <div
+                                        className={classes.notOpened}
+                                        id={`sp-not-opened-${index}`}
+                                        role="status"
+                                    >
                                         <IconInfoCircle aria-hidden size={19} stroke={2} />
                                         <div>
                                             <strong>{t('cnNotOpened')}</strong>
@@ -570,45 +582,5 @@ function Steps(props: {
                 })}
             </ol>
         </>
-    )
-}
-
-/** Telegram's own in-app browser (Android adds «Telegram» to the user agent; iOS injects a proxy). */
-function inTelegram(): boolean {
-    const w = window as unknown as Record<string, unknown>
-    return (
-        /Telegram/i.test(navigator.userAgent) ||
-        'TelegramWebviewProxy' in w ||
-        'TelegramWebview' in w
-    )
-}
-
-/** Inside Telegram a deep link may do nothing: say how to reach a real browser, and offer the address. */
-function TelegramNote() {
-    const { t } = useSpofyT()
-    const clipboard = useClipboard({ timeout: 2_500 })
-    return (
-        <div className={classes.tgNote} role="note">
-            <IconBrandTelegram aria-hidden className={classes.tgNoteIcon} size={22} stroke={1.8} />
-            <div className={classes.tgNoteBody}>
-                <strong>{t('tgTitle')}</strong>
-                <p>{t('tgText')}</p>
-                <button
-                    className={clsx(classes.btn, classes.btnSecondary, classes.btnSmall)}
-                    onClick={() => {
-                        clipboard.copy(window.location.href)
-                        vibrate('tap')
-                    }}
-                    type="button"
-                >
-                    {clipboard.copied ? (
-                        <IconCheck aria-hidden size={18} stroke={2.4} />
-                    ) : (
-                        <IconCopy aria-hidden size={18} stroke={2} />
-                    )}
-                    <span aria-live="polite">{clipboard.copied ? t('tgCopied') : t('tgCopy')}</span>
-                </button>
-            </div>
-        </div>
     )
 }

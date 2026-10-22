@@ -66,6 +66,10 @@ export function SpofyMainPage() {
     // A device is already connected: the guide waits behind one row («ещё одно устройство»).
     // A newcomer (0 devices, or the panel does not count them) gets it open.
     const connected = (spofy.devicesUsed ?? 0) > 0
+    const full =
+        spofy.devicesUsed !== null &&
+        spofy.devicesLimit !== null &&
+        spofy.devicesUsed >= spofy.devicesLimit
 
     return (
         <>
@@ -81,9 +85,9 @@ export function SpofyMainPage() {
                 {checkout && <PendingBanner phase={phase} />}
 
                 <ConnectSection
-                    collapsed={ended ? 'ended' : connected ? 'connected' : null}
+                    collapsed={ended ? 'ended' : full ? 'full' : connected ? 'connected' : null}
                     detected={detected}
-                    key={ended ? 'ended' : connected ? 'connected' : 'open'}
+                    key={ended ? 'ended' : full ? 'full' : connected ? 'connected' : 'open'}
                 />
 
                 <MoreCard cabinetUrl={spofy.cabinetUrl} />

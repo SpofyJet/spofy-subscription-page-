@@ -377,6 +377,10 @@ export function StatusCard({ model }: { model: IPageModel }) {
                 </ul>
             )}
 
+            {!model.inPage && showRows && (model.renew || model.devices || model.traffic) && (
+                <p className={classes.statusNote}>{t('stInBotNote')}</p>
+            )}
+
             {actions && <div className={classes.statusActions}>{actions}</div>}
         </section>
     )

@@ -11,6 +11,8 @@ export function endOf(scenario: string, now = Date.now()): number {
     if (scenario === 'expired') return now - 3 * DAY
     if (scenario === 'expiring') return now + 2 * DAY + 3600_000
     if (scenario === 'trial') return now + 2 * DAY + 5 * 3600_000
+    // ULTIMA «навсегда»: the bot writes it as 2222 days
+    if (scenario === 'ultima') return now + 2222 * DAY
     return now + 24 * DAY + 3 * 3600_000
 }
 
@@ -298,6 +300,7 @@ export type TScenario =
     | 'nocheckout'
     | 'nodevices'
     | 'trial'
+    | 'ultima'
     | 'unlimited'
 
 export const SCENARIOS: TScenario[] = [
@@ -311,6 +314,7 @@ export const SCENARIOS: TScenario[] = [
     'devicesfull',
     'nodevices',
     'unlimited',
+    'ultima',
     'nocheckout'
 ]
 
@@ -395,6 +399,14 @@ export function panelPayload(scenario: TScenario, shortUuid: string) {
             })
             Object.assign(spofy, { devicesLimit: 5, devicesUsed: 1 })
             break
+        case 'ultima':
+            Object.assign(user, {
+                daysLeft: 2222,
+                trafficLimitBytes: '0',
+                trafficUsedBytes: String(Math.round(140.2 * GB))
+            })
+            Object.assign(spofy, { devicesLimit: 5, devicesUsed: 2 })
+            break
         case 'nocheckout':
             Object.assign(spofy, { checkoutEnabled: false })
             break
@@ -472,19 +484,27 @@ export function offer(scenario: TScenario) {
         disabled_reason: null,
         restriction: null,
         subscription: {
-            device_limit: trial ? 1 : 3,
+            device_limit: trial ? 1 : scenario === 'ultima' ? 5 : 3,
             end_date: new Date(end).toISOString(),
             is_trial: trial,
             status: scenario === 'expired' ? 'expired' : trial ? 'trial' : 'active',
             tariff_id: trial ? null : 1,
             tariff_name: trial
                 ? null
-                : scenario === 'unlimited'
-                  ? '⭐️ Стандартный'
-                  : '🏴‍☠️ С обходами',
-            traffic_limit_gb: trial || scenario === 'unlimited' ? 0 : 100
+                : scenario === 'ultima'
+                  ? '👑 ULTIMA'
+                  : scenario === 'unlimited'
+                    ? '⭐️ Стандартный'
+                    : '🏴‍☠️ С обходами',
+            traffic_limit_gb: trial || scenario === 'unlimited' || scenario === 'ultima' ? 0 : 100
         },
-        renewal: trial ? [] : scenario === 'unlimited' ? STANDARD : BYPASS,
+        renewal: trial
+            ? []
+            : scenario === 'ultima'
+              ? ULTIMA
+              : scenario === 'unlimited'
+                ? STANDARD
+                : BYPASS,
         tariffs: trial
             ? [
                   {
@@ -518,7 +538,7 @@ export function offer(scenario: TScenario) {
             : {
                   available: true,
                   can_add: 5,
-                  current_device_limit: 3,
+                  current_device_limit: scenario === 'ultima' ? 5 : 3,
                   base_device_price_kopeks: 9_900,
                   days_left: 24,
                   quotes: [1, 2, 3, 4, 5].map((n) => ({
@@ -526,7 +546,7 @@ export function offer(scenario: TScenario) {
                       total_price_kopeks: n * 7_900
                   }))
               },
-        traffic: trial || scenario === 'unlimited' ? [] : TRAFFIC_PACKS,
+        traffic: trial || scenario === 'unlimited' || scenario === 'ultima' ? [] : TRAFFIC_PACKS,
         payment_methods: methods
     }
 }

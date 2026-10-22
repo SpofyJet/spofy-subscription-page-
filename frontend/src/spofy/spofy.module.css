@@ -421,6 +421,7 @@
 }
 
 .pillCompact {
+    min-width: 44px;
     padding: 0 12px;
     font-size: 13px;
 }
@@ -1340,6 +1341,8 @@
 
 .sheetContent:global(.mantine-Drawer-content) {
     border-radius: 24px 24px 0 0 !important;
+    /* as tall as what is inside, never the whole screen with an empty bottom */
+    height: auto !important;
     max-height: 92dvh;
 }
 
@@ -1717,10 +1720,19 @@
 }
 
 .optFrom {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
     color: var(--sp-text-2);
     font-size: 13px;
     font-weight: 700;
     white-space: nowrap;
+}
+
+.optFromTotal {
+    color: var(--sp-text);
+    font-size: 14px;
+    font-weight: 800;
 }
 
 /* devices */
@@ -2126,39 +2138,6 @@
     color: var(--sp-text-2);
     font-size: 13px;
     font-weight: 600;
-}
-
-/* inside Telegram: how to reach a real browser */
-.tgNote {
-    display: flex;
-    gap: 10px;
-    padding: 12px;
-    border-radius: 14px;
-    background: rgba(34, 158, 217, 0.12);
-    border: 1px solid rgba(34, 158, 217, 0.35);
-}
-
-.tgNoteIcon {
-    color: #229ed9;
-    margin-top: 1px;
-}
-
-.tgNoteBody {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-    min-width: 0;
-    font-size: 14px;
-}
-
-.tgNoteBody p {
-    margin: 0;
-    color: var(--sp-text-2);
-}
-
-.tgNoteBody strong {
-    font-weight: 800;
 }
 
 /* under the guide's copy button: the link is a personal key */

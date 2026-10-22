@@ -1,3 +1,4 @@
+import { isForeverDays } from '../format'
 import { IOffer, IPeriodOption } from './api'
 
 /** Discount in percent from the bot's numbers (explicit percent, else original vs final price). */
@@ -46,7 +47,8 @@ export function minPerMonth(options: IPeriodOption[]): null | number {
 export function cheapestPerMonth(
     options: IPeriodOption[]
 ): null | { periodDays: number; perMonth: number } {
-    const paid = options.filter((o) => o.price_kopeks > 0)
+    // «навсегда» (ULTIMA) has no price per month at all
+    const paid = options.filter((o) => o.price_kopeks > 0 && !isForeverDays(o.period_days))
     const upToYear = paid.filter((o) => o.period_days <= 366)
     let best: null | { periodDays: number; perMonth: number } = null
     for (const o of upToYear.length ? upToYear : paid) {
