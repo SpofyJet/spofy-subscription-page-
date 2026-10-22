@@ -3,7 +3,7 @@
  *
  *   npx vite --config dev-preview/vite.preview.config.ts
  *   open http://localhost:3334/active/demo7Kx2pQ9mZ4aB   (active | trial | expiring | expired |
- *                                                         limited | bypass | unlimited | nocheckout)
+ *     limited | bypass | lowtraffic | devicesfull | nodevices | unlimited | nocheckout | invalid)
  *
  * Dev-only: not used by `npm run start:build` and not copied into the Docker image.
  */
@@ -12,6 +12,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { fileURLToPath } from 'node:url'
 import { defineConfig, mergeConfig, type Plugin } from 'vite'
 
+import { renderNotFoundPage } from '../../backend/src/modules/spofy/not-found.page'
 import baseConfig from '../vite.config'
 import { appConfig, offer, panelPayload, SCENARIOS, type TScenario } from './mock-data'
 
@@ -35,6 +36,8 @@ const readBody = (req: IncomingMessage) =>
 
 /** payment id → polls seen, so the stand can show «paid → done» */
 const polls = new Map<string, number>()
+/** payment id → what was bought, so «Оплачено до …» matches the purchase */
+const bought = new Map<string, { days?: number; devices?: number; gb?: number; kind: string }>()
 
 function previewPlugin(): Plugin {
     return {
@@ -43,6 +46,18 @@ function previewPlugin(): Plugin {
             server.middlewares.use(async (req, res, next) => {
                 const url = req.url ?? '/'
                 if (url.startsWith('/assets/.app-config-v2.json')) return json(res, appConfig)
+                // /invalid/<anything> — what the backend answers for a link that no longer exists
+                if (/^\/invalid(\/|$)/.test(url) && !url.includes('spofy-api')) {
+                    res.statusCode = 404
+                    res.setHeader('content-type', 'text/html; charset=utf-8')
+                    return res.end(
+                        renderNotFoundPage({
+                            acceptLanguage: req.headers['accept-language'],
+                            botUrl: 'https://t.me/spofyvpnbot',
+                            supportUrl: 'https://t.me/spofysup'
+                        })
+                    )
+                }
 
                 const api = url.match(/\/spofy-api\/([^/?]+)\/([^?]*)/)
                 if (!api) return next()
@@ -68,12 +83,19 @@ function previewPlugin(): Plugin {
                               : body.kind === 'traffic'
                                 ? o.traffic.find((p) => p.gb === body.traffic_gb)?.price_kopeks
                                 : body.devices * 7_900
+                    const paymentId = `pay_${Date.now()}`
+                    bought.set(paymentId, {
+                        kind: body.kind,
+                        days: body.period_days,
+                        devices: body.devices,
+                        gb: body.traffic_gb
+                    })
                     return json(res, {
                         amount_kopeks: price ?? 14_900,
                         price_kopeks: price ?? 14_900,
                         before: o.subscription,
                         method: body.payment_method,
-                        payment_id: `pay_${Date.now()}`,
+                        payment_id: paymentId,
                         payment_url: 'https://example.com/pay',
                         qr_payload: null
                     })
@@ -85,6 +107,10 @@ function previewPlugin(): Plugin {
                     const o = offer(scenario)
                     const paid = n >= 3
                     const applied = n >= 4
+                    const what = bought.get(id)
+                    const base = o.subscription.end_date
+                        ? Math.max(Date.parse(o.subscription.end_date), Date.now())
+                        : Date.now()
                     return json(res, {
                         is_paid: paid,
                         status_text: null,
@@ -92,10 +118,16 @@ function previewPlugin(): Plugin {
                             ? {
                                   ...o.subscription,
                                   is_trial: false,
-                                  tariff_id: 1,
-                                  device_limit: o.subscription.device_limit + 5,
-                                  traffic_limit_gb: o.subscription.traffic_limit_gb + 50,
-                                  end_date: new Date(Date.now() + 120 * 86_400_000).toISOString()
+                                  tariff_id: what?.kind === 'tariff' ? 2 : 1,
+                                  device_limit: o.subscription.device_limit + (what?.devices ?? 0),
+                                  traffic_limit_gb:
+                                      o.subscription.traffic_limit_gb + (what?.gb ?? 0),
+                                  end_date: what?.days
+                                      ? new Date(
+                                            (what.kind === 'tariff' ? Date.now() : base) +
+                                                what.days * 86_400_000
+                                        ).toISOString()
+                                      : o.subscription.end_date
                               }
                             : o.subscription
                     })

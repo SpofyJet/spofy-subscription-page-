@@ -8,10 +8,9 @@ import { useCheckoutStore } from './checkout/checkout-store'
 import { PendingBanner, usePendingPhase } from './checkout/pending'
 import { ConnectSection } from './components/connect-section'
 import { Header } from './components/header'
-import { MoreCard } from './components/more-card'
+import { MoreCard, SupportButton } from './components/more-card'
 import { StatusCard } from './components/status-card'
 import { detectPlatform } from './format'
-import { useSpofyT } from './i18n'
 import { usePageModel } from './page-model'
 import { useSpofyData } from './spofy-store'
 import classes from './spofy.module.css'
@@ -24,14 +23,13 @@ const CheckoutSheet = lazy(loadSheet)
  * Page order follows what the person came for:
  *   1. Is my VPN on? — the status card, with one main action for the situation.
  *   2. How do I connect? — the open, step-by-step guide.
- *   3. Everything else — another device, the link, the cabinet, support.
+ *   3. Everything else — another device, the link, the cabinet; support once, at the very bottom.
  */
 export function SpofyMainPage() {
     const config = useAppConfig()
     const subscription = useSubscription()
     const spofy = useSpofyData()
     const lang = useCurrentLang()
-    const { t } = useSpofyT()
     const model = usePageModel()
 
     useEffect(() => {
@@ -65,7 +63,9 @@ export function SpofyMainPage() {
     }, [checkout, offerReady])
 
     const ended = model.view === 'expired' || model.view === 'disabled'
-    const name = spofy.displayName ?? user.username
+    // A device is already connected: the guide waits behind one row («ещё одно устройство»).
+    // A newcomer (0 devices, or the panel does not count them) gets it open.
+    const connected = (spofy.devicesUsed ?? 0) > 0
 
     return (
         <>
@@ -73,26 +73,30 @@ export function SpofyMainPage() {
                 <div className={classes.backdropAurora} />
             </div>
             <div className={classes.page}>
-                <Header supportUrl={supportUrl} />
+                {/* the Telegram nickname from the panel's user description, never the technical id */}
+                <Header account={spofy.displayName} />
 
-                <StatusCard model={model} supportUrl={supportUrl} />
+                <StatusCard model={model} />
 
                 {checkout && <PendingBanner phase={phase} />}
 
                 <ConnectSection
-                    collapsed={ended}
+                    collapsed={ended ? 'ended' : connected ? 'connected' : null}
                     detected={detected}
-                    key={ended ? 'ended' : 'live'}
-                    supportUrl={supportUrl}
+                    key={ended ? 'ended' : connected ? 'connected' : 'open'}
                 />
 
-                <MoreCard cabinetUrl={spofy.cabinetUrl} supportUrl={supportUrl} />
+                <MoreCard cabinetUrl={spofy.cabinetUrl} />
 
-                <p className={classes.footer}>{t('stAccount', { name })}</p>
+                <SupportButton supportUrl={supportUrl} />
 
                 {checkout && sheetMounted && (
                     <Suspense fallback={null}>
-                        <CheckoutSheet phase={phase} renewUrl={spofy.renewUrl} />
+                        <CheckoutSheet
+                            phase={phase}
+                            renewUrl={spofy.renewUrl}
+                            supportUrl={supportUrl}
+                        />
                     </Suspense>
                 )}
             </div>

@@ -1,4 +1,4 @@
-import { IconHelpCircle } from '@tabler/icons-react'
+import { IconExternalLink, IconHelpCircle } from '@tabler/icons-react'
 import clsx from 'clsx'
 
 import { vibrate } from '@shared/utils/vibrate'
@@ -17,10 +17,14 @@ export function ActionButton(props: {
     icon?: React.ReactNode
     label: string
     price?: null | string
+    /** a second, smaller line under the price: «при оплате за 1 год» */
+    priceNote?: null | string
+    /** the button leaves the page (the bot): show the «opens elsewhere» mark */
+    external?: boolean
     /** primary = the screen's one main action (glowing); solid = main action inside a callout */
     variant: 'ghost' | 'primary' | 'secondary' | 'soft' | 'solid'
 }) {
-    const { action, icon, label, price, variant } = props
+    const { action, icon, label, price, priceNote, variant } = props
     const className = clsx(
         classes.btn,
         variant === 'primary' && clsx(classes.btnPrimary, classes.btnGlow),
@@ -37,7 +41,15 @@ export function ActionButton(props: {
                 {icon}
                 {label}
             </span>
-            {price && <span className={clsx(classes.btnPrice, classes.num)}>{price}</span>}
+            {price && (
+                <span className={clsx(classes.btnPrice, classes.num)}>
+                    {price}
+                    {priceNote && <span className={classes.btnPriceNote}>{priceNote}</span>}
+                </span>
+            )}
+            {props.external && action.href && (
+                <IconExternalLink aria-hidden className={classes.btnTrail} size={16} stroke={2} />
+            )}
         </>
     )
     if (action.onClick) {

@@ -1,7 +1,9 @@
 # Spofy fork of remnawave/subscription-page
 
-> **v5 (22.10.2026)** — calmer page with three distinct states, open step-by-step guide, two-step
-> purchase sheet, only Happ and INCY. What changed and why: [`SPOFY-v5.md`](SPOFY-v5.md) (in Russian).
+> **v6 (23.10.2026)** — fixes after an independent audit and the owner's decisions: «VPN работает»
+> wording, renew/add/buy as equal row buttons, one support button at the bottom, nickname in the header,
+> Telegram in-app note, one-tap payment page, «Уже оплатили?» help. See [`SPOFY-v6.md`](SPOFY-v6.md);
+> v5 (calmer page, three states, guide, two-step sheet, only Happ and INCY): [`SPOFY-v5.md`](SPOFY-v5.md).
 > Local preview of every state without a panel: `frontend/dev-preview/`.
 
 Branded subscription page for `sub.spofyltd.ru`, forked from upstream tag **8.0.0**

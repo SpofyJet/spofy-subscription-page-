@@ -7,6 +7,7 @@ import {
     TSubscriptionPagePlatformKey
 } from '@remnawave/subscription-page-types'
 import {
+    IconBrandTelegram,
     IconCheck,
     IconChevronDown,
     IconCopy,
@@ -29,6 +30,7 @@ import { getAppLogo, isAllowedApp } from '../app-logos'
 import { countOf, PLATFORM_ORDER } from '../format'
 import { useSpofyT } from '../i18n'
 import { formatLink, useLinkTemplates } from '../link-template'
+import { CONNECT_ID } from '../page-model'
 import { prefs } from '../prefs'
 import { useQrStore } from '../qr-store'
 import classes from '../spofy.module.css'
@@ -94,19 +96,17 @@ function useDoneSteps(key: string) {
  */
 export function ConnectSection({
     collapsed: startCollapsed,
-    detected,
-    supportUrl
+    detected
 }: {
-    /** the subscription has ended: the guide waits behind one row */
-    collapsed: boolean
+    /** the guide waits behind one row: the subscription has ended, or a device is already connected */
+    collapsed: 'connected' | 'ended' | null
     detected: TSubscriptionPagePlatformKey | undefined
-    supportUrl: null | string
 }) {
     const config = useAppConfig()
     const subscription = useSubscription()
     const { t, lang } = useSpofyT()
     const headingId = useId()
-    const [collapsed, setCollapsed] = useState(startCollapsed)
+    const [collapsed, setCollapsed] = useState(startCollapsed !== null)
     const stepsAnchor = useRef<HTMLDivElement>(null)
     const showSteps = () => {
         vibrate('selection')
@@ -165,7 +165,11 @@ export function ConnectSection({
 
     if (collapsed) {
         return (
-            <section aria-labelledby={headingId} className={clsx(classes.card, classes.connect)}>
+            <section
+                aria-labelledby={headingId}
+                className={clsx(classes.card, classes.connect)}
+                id={CONNECT_ID}
+            >
                 <button
                     aria-expanded={false}
                     className={classes.collapsedRow}
@@ -174,9 +178,11 @@ export function ConnectSection({
                 >
                     <span className={classes.collapsedText}>
                         <span className={classes.sectionTitle} id={headingId}>
-                            {t('cnTitle')}
+                            {startCollapsed === 'connected' ? t('cnMoreTitle') : t('cnTitle')}
                         </span>
-                        <span className={classes.sectionLead}>{t('cnLeadExpired')}</span>
+                        <span className={classes.sectionLead}>
+                            {startCollapsed === 'connected' ? t('cnMoreLead') : t('cnLeadExpired')}
+                        </span>
                     </span>
                     <IconChevronDown
                         aria-hidden
@@ -190,7 +196,11 @@ export function ConnectSection({
     }
 
     return (
-        <section aria-labelledby={headingId} className={clsx(classes.card, classes.connect)}>
+        <section
+            aria-labelledby={headingId}
+            className={clsx(classes.card, classes.connect)}
+            id={CONNECT_ID}
+        >
             <div className={classes.sectionHead}>
                 <h2 className={classes.sectionTitle} id={headingId}>
                     {t('cnTitle')}
@@ -235,6 +245,8 @@ export function ConnectSection({
                 />
             )}
 
+            {inTelegram() && <TelegramNote />}
+
             <div aria-hidden className={classes.stepsAnchor} ref={stepsAnchor} />
             <Steps
                 app={app}
@@ -244,15 +256,6 @@ export function ConnectSection({
                 subscriptionUrl={subscriptionUrl}
                 username={subscription.user.username}
             />
-
-            {supportUrl && (
-                <p className={classes.helpLine}>
-                    {t('cnHelp')}{' '}
-                    <a href={supportUrl} rel="noopener noreferrer" target="_blank">
-                        {t('writeSupport')}
-                    </a>
-                </p>
-            )}
         </section>
     )
 }
@@ -268,6 +271,21 @@ function ChipGroup(props: {
 }) {
     const { items, label, onReselect, onSelect, value } = props
     const refs = useRef(new Map<string, HTMLButtonElement | null>())
+    const row = useRef<HTMLDivElement>(null)
+    // «there is more to the right»: a fade on the edge until the row is scrolled to the end
+    const [more, setMore] = useState(false)
+    useEffect(() => {
+        const el = row.current
+        if (!el) return
+        const check = () => setMore(el.scrollLeft + el.clientWidth < el.scrollWidth - 4)
+        check()
+        el.addEventListener('scroll', check, { passive: true })
+        window.addEventListener('resize', check)
+        return () => {
+            el.removeEventListener('scroll', check)
+            window.removeEventListener('resize', check)
+        }
+    }, [items.length])
     const onKeys = (event: React.KeyboardEvent) => {
         const delta = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key]
         if (!delta) return
@@ -289,7 +307,14 @@ function ChipGroup(props: {
     }, [value])
 
     return (
-        <div aria-label={label} className={classes.chips} onKeyDown={onKeys} role="radiogroup">
+        <div
+            aria-label={label}
+            className={classes.chips}
+            data-more={more || undefined}
+            onKeyDown={onKeys}
+            ref={row}
+            role="radiogroup"
+        >
             {items.map((item) => {
                 const checked = item.key === value
                 return (
@@ -344,12 +369,15 @@ function Steps(props: {
     const current = app.blocks.findIndex((_, index) => !done.includes(index))
     const total = app.blocks.length
 
+    /** The step is ticked off only when the app really opened (the page went to background). */
     const watchDeepLink = (index: number) => {
         window.clearTimeout(timer.current)
         setNotOpened(null)
         let left = false
         const away = () => {
+            if (left) return
             left = true
+            mark(index)
         }
         document.addEventListener('visibilitychange', away, { once: true })
         window.addEventListener('blur', away, { once: true })
@@ -406,7 +434,6 @@ function Steps(props: {
                     key={key}
                     onClick={() => {
                         vibrate('tap')
-                        mark(index)
                         watchDeepLink(index)
                     }}
                     title={text}
@@ -483,16 +510,22 @@ function Steps(props: {
                                         </span>
                                     )}
                                 </h3>
-                                <p
-                                    className={classes.stepText}
-                                    dangerouslySetInnerHTML={{
-                                        __html: localized(block.description, lang)
-                                    }}
-                                />
+                                {/* only the step the person is on is explained in full */}
+                                {state === 'current' && (
+                                    <p
+                                        className={classes.stepText}
+                                        dangerouslySetInnerHTML={{
+                                            __html: localized(block.description, lang)
+                                        }}
+                                    />
+                                )}
                                 {buttons.length > 0 && (
                                     <div className={classes.stepButtons}>
                                         {buttons.map((button, i) => renderButton(button, index, i))}
                                     </div>
+                                )}
+                                {buttons.some((b) => b.type === 'copyButton') && (
+                                    <p className={classes.stepNote}>{t('moreCopyHint')}</p>
                                 )}
                                 {notOpened === index && (
                                     <div className={classes.notOpened} role="status">
@@ -537,5 +570,45 @@ function Steps(props: {
                 })}
             </ol>
         </>
+    )
+}
+
+/** Telegram's own in-app browser (Android adds «Telegram» to the user agent; iOS injects a proxy). */
+function inTelegram(): boolean {
+    const w = window as unknown as Record<string, unknown>
+    return (
+        /Telegram/i.test(navigator.userAgent) ||
+        'TelegramWebviewProxy' in w ||
+        'TelegramWebview' in w
+    )
+}
+
+/** Inside Telegram a deep link may do nothing: say how to reach a real browser, and offer the address. */
+function TelegramNote() {
+    const { t } = useSpofyT()
+    const clipboard = useClipboard({ timeout: 2_500 })
+    return (
+        <div className={classes.tgNote} role="note">
+            <IconBrandTelegram aria-hidden className={classes.tgNoteIcon} size={22} stroke={1.8} />
+            <div className={classes.tgNoteBody}>
+                <strong>{t('tgTitle')}</strong>
+                <p>{t('tgText')}</p>
+                <button
+                    className={clsx(classes.btn, classes.btnSecondary, classes.btnSmall)}
+                    onClick={() => {
+                        clipboard.copy(window.location.href)
+                        vibrate('tap')
+                    }}
+                    type="button"
+                >
+                    {clipboard.copied ? (
+                        <IconCheck aria-hidden size={18} stroke={2.4} />
+                    ) : (
+                        <IconCopy aria-hidden size={18} stroke={2} />
+                    )}
+                    <span aria-live="polite">{clipboard.copied ? t('tgCopied') : t('tgCopy')}</span>
+                </button>
+            </div>
+        </div>
     )
 }

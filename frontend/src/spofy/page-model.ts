@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 import { useSubscription } from '@entities/subscription-info-store'
 
 import { TCheckoutTab, ICheckoutPreset, useCheckoutStore } from './checkout/checkout-store'
-import { cheapestTraffic, minPerMonth } from './checkout/offer-utils'
+import { cheapestPerMonth, cheapestTraffic, offeredTariff } from './checkout/offer-utils'
 import { getSubscriptionState, isIndefinite, toNumber, TSpofyState } from './format'
 import { useSpofyData } from './spofy-store'
 
@@ -17,6 +17,9 @@ import { useSpofyData } from './spofy-store'
  *  - expired / disabled — VPN is off: one action, «renew»
  *  - limited  — panel traffic limit reached: «buy traffic»
  */
+/** id of the connection guide: «Подключить устройство» scrolls there */
+export const CONNECT_ID = 'sp-connect'
+
 export type TView = 'active' | 'disabled' | 'expired' | 'expiring' | 'limited' | 'trial'
 
 /** A purchase entry point: opens the in-page sheet, or links to the bot when that is not available. */
@@ -36,8 +39,13 @@ export interface IPageModel {
     renew: IAction | null
     devices: IAction | null
     traffic: IAction | null
-    /** cheapest monthly price (kopeks) of a renewal or, for a trial, of a plan */
-    renewFrom: null | number
+    /** cheapest monthly price (kopeks) of a renewal or, for a trial, of the offered plan,
+     *  and the period that gives it («при оплате за 1 год») */
+    renewFrom: null | { periodDays: number; perMonth: number }
+    /** purchases open the sheet on this page; false → they open the bot */
+    inPage: boolean
+    /** no device has ever been connected (panel's HWID count is 0) */
+    noDevices: boolean
     /** cheapest traffic package, for «from 59 ₽» */
     trafficFrom: null | { gb: number; price_kopeks: number }
     /** the bot's price for one more device (kopeks) */
@@ -124,11 +132,11 @@ export function usePageModel(): IPageModel {
             : link(spofy.trafficUrl)
         : null
 
-    let renewFrom: null | number = null
+    let renewFrom: IPageModel['renewFrom'] = null
     if (inPage && offer) {
         renewFrom = trial
-            ? minPerMonth(offer.tariffs.flatMap((tariff) => tariff.periods))
-            : minPerMonth(offer.renewal)
+            ? cheapestPerMonth(offeredTariff(offer.tariffs)?.periods ?? [])
+            : cheapestPerMonth(offer.renewal)
     }
 
     return {
@@ -142,6 +150,8 @@ export function usePageModel(): IPageModel {
         devices,
         traffic,
         renewFrom,
+        inPage,
+        noDevices: spofy.devicesUsed === 0,
         trafficFrom: pack,
         deviceFrom:
             inPage && offer

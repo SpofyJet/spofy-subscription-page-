@@ -14,6 +14,7 @@ import {
     IconExternalLink,
     IconLoader2,
     IconLock,
+    IconMessageCircle,
     IconMinus,
     IconPlus,
     IconQrcode,
@@ -47,21 +48,32 @@ import {
     useCheckoutStore
 } from '../checkout/checkout-store'
 import { useMoney } from '../checkout/money'
-import { defaultPeriod, discountOf, minPerMonth, perMonthKopeks } from '../checkout/offer-utils'
+import {
+    defaultPeriod,
+    discountOf,
+    minPerMonth,
+    monthsOf,
+    offeredTariff,
+    perMonthKopeks
+} from '../checkout/offer-utils'
 import { markPayOpened, TPhase } from '../checkout/pending'
 import {
     countOf,
+    formatBytes,
     formatDateNumeric,
     formatDayMonth,
     formatDays,
     formatPeriod,
-    isIndefinite
+    isIndefinite,
+    toNumber
 } from '../format'
 import { TSpofyKey, useSpofyT } from '../i18n'
 import { useQrDataUrl } from '../qr'
+import { useSpofyData } from '../spofy-store'
 import classes from '../spofy.module.css'
 
 const DAY_MS = 86_400_000
+const GIB = 1024 ** 3
 
 /* ───────────── sheet ───────────── */
 
@@ -73,16 +85,19 @@ const TAB_ICON: Record<TCheckoutTab, typeof IconRefresh> = {
 
 export default function CheckoutSheet({
     phase,
-    renewUrl
+    renewUrl,
+    supportUrl
 }: {
     phase: TPhase | null
     renewUrl: null | string
+    supportUrl: null | string
 }) {
     const { opened, close, pending, tab, offer, offerError, loadOffer } = useCheckoutStore()
     const subscription = useSubscription()
     const shortUuid = subscription.user.shortUuid
     const isDesktop = useMediaQuery('(min-width: 48em)')
     const { t, lang } = useSpofyT()
+    const bypassOff = useSpofyData().bypassDisabled
 
     useEffect(() => {
         if (opened) loadOffer(shortUuid)
@@ -132,7 +147,9 @@ export default function CheckoutSheet({
                   tab === 'devices'
                       ? 'coSubDevices'
                       : tab === 'traffic'
-                        ? 'coSubTraffic'
+                        ? bypassOff
+                            ? 'coSubTraffic'
+                            : 'coSubTrafficAdd'
                         : trial
                           ? 'coSubTariff'
                           : isIndefinite(subscription.user.expiresAt)
@@ -162,7 +179,7 @@ export default function CheckoutSheet({
     )
 
     const body = showPayment ? (
-        <PaymentStep pending={pending!} phase={phase} />
+        <PaymentStep pending={pending!} phase={phase} supportUrl={supportUrl} />
     ) : offerError ? (
         <ErrorBox
             errorKey={offerError}
@@ -374,10 +391,10 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
             (preset?.tariffId && offer.tariffs.some((x) => x.id === preset.tariffId)
                 ? preset.tariffId
                 : null) ??
-            offer.tariffs[0]?.id ??
+            offeredTariff(offer.tariffs)?.id ??
             null
     )
-    const tariff = offer.tariffs.find((x) => x.id === tariffId) ?? offer.tariffs[0]
+    const tariff = offer.tariffs.find((x) => x.id === tariffId) ?? offeredTariff(offer.tariffs)
     const [tariffPeriod, setTariffPeriod] = useState<number | null>(
         () =>
             (preset?.periodDays && tariff?.periods.some((p) => p.period_days === preset.periodDays)
@@ -460,26 +477,17 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
     const monthly = periodOptions.find((o) => o.period_days === 30)
     const savingOf = (o: IPeriodOption | undefined) => {
         if (!o) return 0
-        if (monthly && o.period_days > 30) {
+        if (monthly && o.period_days > 31) {
             return wholeRubles(
-                Math.max(
-                    0,
-                    Math.round((monthly.price_kopeks * o.period_days) / 30) - o.price_kopeks
-                )
+                Math.max(0, monthly.price_kopeks * monthsOf(o.period_days) - o.price_kopeks)
             )
         }
         return wholeRubles(
             o.original_price_kopeks ? Math.max(0, o.original_price_kopeks - o.price_kopeks) : 0
         )
     }
-    const cheapestMonth = periodOptions.reduce<IPeriodOption | undefined>(
-        (top, o) => (!top || perMonthKopeks(o) < perMonthKopeks(top) ? o : top),
-        undefined
-    )
-    const bestPeriod =
-        periodOptions.length > 1 && cheapestMonth && savingOf(cheapestMonth) > 0
-            ? cheapestMonth.period_days
-            : null
+    // one badge: «Рекомендуем» on the period the bot stars, else 3 months (owner's decision)
+    const recommended = periodOptions.length > 1 ? defaultPeriod(periodOptions)?.period_days : null
     const saving = tab === 'renew' ? savingOf(selectedPeriod) : 0
 
     const original =
@@ -501,6 +509,14 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
 
     const currentDevices = offer.devices.current_device_limit ?? offer.subscription.device_limit
     const currentGb = offer.subscription.traffic_limit_gb
+    // left to use right now, from the panel (the bot only knows the limit)
+    const panelLimit = toNumber(subscription.user.trafficLimitBytes)
+    const trafficLeftBytes = Math.max(
+        0,
+        (panelLimit > 0 ? panelLimit : currentGb * GIB) -
+            toNumber(subscription.user.trafficUsedBytes)
+    )
+    const limited = subscription.user.userStatus === 'LIMITED'
     // Cheapest gigabyte among sized packages (only when there is something to compare).
     const sized = offer.traffic.filter((p) => p.gb > 0 && p.price_kopeks > 0)
     const perGb = (p: { gb: number; price_kopeks: number }) => p.price_kopeks / p.gb
@@ -515,7 +531,7 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
     const trafficLabel = (gb: number) => (gb === 0 ? t('coUnlimited') : t('coGb', { n: gb }))
 
     const summary = (): string => {
-        if (tab === 'devices') return t('coSummaryDevices', { n: devices })
+        if (tab === 'devices') return t('coSummaryDevices', { n: countOf(devices, lang, 'device') })
         if (tab === 'traffic') return t('coSummaryTraffic', { gb: trafficLabel(trafficGb ?? 0) })
         const p = formatPeriod(selectedPeriod?.period_days ?? 0, lang)
         return tariffMode && tariff
@@ -573,6 +589,48 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
         }
     }
 
+    /**
+     * One tap to the payment page. Browsers let a tap open a tab, but not a later answer from the
+     * server — so the tab is opened right in the tap, the invoice is created as before (`submit`,
+     * unchanged), and then the tab goes to it. Where no tab can be opened (some in-app browsers),
+     * the waiting screen keeps its «Перейти к оплате» button.
+     */
+    const payAndOpen = async () => {
+        let tab: null | Window = null
+        try {
+            tab = window.open('', '_blank')
+            if (tab) {
+                tab.opener = null
+                tab.document.title = 'Spofy VPN'
+                tab.document.body.style.cssText = 'font:16px system-ui,sans-serif;padding:24px'
+                tab.document.body.textContent = t('coOpening')
+            }
+        } catch {
+            tab = null
+        }
+        const before = useCheckoutStore.getState().pending
+        await submit()
+        const created = useCheckoutStore.getState().pending
+        if (!tab) return
+        if (created && created !== before && created.result.payment_url) {
+            try {
+                tab.location.href = created.result.payment_url
+                autoOpened.add(created.result.payment_id)
+                markPayOpened(created.result.payment_id)
+                track(created.shortUuid, 'pay_open', {
+                    t:
+                        created.kind === 'devices' || created.kind === 'traffic'
+                            ? created.kind
+                            : 'renew'
+                })
+            } catch {
+                tab.close()
+            }
+        } else {
+            tab.close()
+        }
+    }
+
     const radio = <span aria-hidden className={classes.optRadio} />
 
     const periodList = (
@@ -584,9 +642,9 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
         return (
             <div aria-label={t('coChoosePeriod')} className={classes.optList} role="radiogroup">
                 {sorted.map((option) => {
-                    const months = option.period_days / 30
+                    const months = monthsOf(option.period_days)
                     const optionSaving = savingOf(option)
-                    const isBest = option.period_days === bestPeriod
+                    const isRecommended = option.period_days === recommended
                     const strike =
                         option.original_price_kopeks &&
                         option.original_price_kopeks > option.price_kopeks
@@ -597,7 +655,7 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                         <button
                             aria-checked={option.period_days === value}
                             className={classes.opt}
-                            data-best={isBest || undefined}
+                            data-recommended={isRecommended || undefined}
                             key={option.period_days}
                             onClick={() => {
                                 vibrate('tap')
@@ -610,19 +668,23 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                             <span className={classes.optMain}>
                                 <span className={classes.optTitle}>
                                     {formatPeriod(option.period_days, lang)}
-                                    {isBest && (
-                                        <span className={classes.badgeBest}>
-                                            {t('coBestValue')}
+                                    {isRecommended && (
+                                        <span className={classes.badgeRecommended}>
+                                            {t('coRecommended')}
                                         </span>
                                     )}
                                 </span>
-                                {months >= 2 && (
+                                {option.period_days >= 28 && (
                                     <span className={clsx(classes.optMeta, classes.num)}>
-                                        <span>
-                                            {t('perMonthShort', {
-                                                price: money(perMonthKopeks(option))
-                                            })}
-                                        </span>
+                                        {/* the bot adds days: «3 месяца» are 90 of them */}
+                                        <span>{countOf(option.period_days, lang, 'day')}</span>
+                                        {months >= 2 && (
+                                            <span>
+                                                {t('perMonthShort', {
+                                                    price: money(perMonthKopeks(option))
+                                                })}
+                                            </span>
+                                        )}
                                         {optionSaving > 0 ? (
                                             <span className={classes.saving}>
                                                 {t('coRowSaving', { saving: money(optionSaving) })}
@@ -813,7 +875,7 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                             classes.coPayBtn
                         )}
                         disabled={busy || price <= 0 || !method}
-                        onClick={submit}
+                        onClick={() => void payAndOpen()}
                         type="button"
                     >
                         <span className={classes.btnLabel}>
@@ -834,31 +896,6 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
     /* ── step 1: what to buy ── */
     return (
         <div className={classes.coStack} ref={top}>
-            {tabs.length > 1 && (
-                <div aria-label={t('coRenewTitle')} className={classes.coTabs} role="tablist">
-                    {tabs.map(([key, label]) => {
-                        const TabIcon = TAB_ICON[key]
-                        return (
-                            <button
-                                aria-selected={key === tab}
-                                className={classes.coTab}
-                                key={key}
-                                onClick={() => {
-                                    vibrate('selection')
-                                    setTab(key)
-                                    setError(null)
-                                }}
-                                role="tab"
-                                type="button"
-                            >
-                                <TabIcon aria-hidden size={16} stroke={2.2} />
-                                {t(label)}
-                            </button>
-                        )
-                    })}
-                </div>
-            )}
-
             {tab === 'renew' && !tariffMode && periodList(offer.renewal, period, setPeriod)}
 
             {tab === 'renew' && tariffMode && tariff && (
@@ -1000,7 +1037,9 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
 
             {tab === 'traffic' && (
                 <>
-                    <p className={classes.coHint}>{t('coTrafficWhat')}</p>
+                    <p className={classes.coHint}>
+                        {limited ? t('coTrafficWhatLimited') : t('coTrafficWhat')}
+                    </p>
                     <div
                         aria-label={t('coTabTraffic')}
                         className={classes.optList}
@@ -1050,14 +1089,14 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                             </button>
                         ))}
                     </div>
-                    {currentGb > 0 && trafficGb !== null && (
+                    {trafficGb !== null && (panelLimit > 0 || currentGb > 0) && (
                         <span className={clsx(classes.coWillBe, classes.num)}>
-                            {t('coTrafficWillBe', {
+                            {/* what the person can actually use afterwards, not the new limit */}
+                            {t('coTrafficAfter', {
                                 gb:
                                     trafficGb === 0
                                         ? t('coUnlimited')
-                                        : t('coGb', { n: currentGb + trafficGb }),
-                                now: t('coGb', { n: currentGb })
+                                        : formatBytes(trafficLeftBytes + trafficGb * GIB, lang)
                             })}
                         </span>
                     )}
@@ -1117,7 +1156,21 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
 
 /* ───────────── step 3: pay and wait ───────────── */
 
-function PaymentStep({ pending, phase }: { pending: IPendingPayment; phase: TPhase | null }) {
+/** Payments whose page this tab opened by itself (so the button only offers to open it again). */
+const autoOpened = new Set<string>()
+
+/** After this long without «оплачено», offer support with the payment number. */
+const STUCK_MS = 75_000
+
+function PaymentStep({
+    pending,
+    phase,
+    supportUrl
+}: {
+    pending: IPendingPayment
+    phase: TPhase | null
+    supportUrl: null | string
+}) {
     const { t, lang } = useSpofyT()
     const money = useMoney()
     const { setPending, close, latest } = useCheckoutStore()
@@ -1127,6 +1180,16 @@ function PaymentStep({ pending, phase }: { pending: IPendingPayment; phase: TPha
 
     const done = phase === 'done'
     const paid = done || phase === 'paid'
+    const opened = autoOpened.has(result.payment_id)
+    const [stuck, setStuck] = useState(() => Date.now() - pending.createdAt > STUCK_MS)
+    useEffect(() => {
+        if (stuck) return
+        const id = window.setTimeout(
+            () => setStuck(true),
+            Math.max(0, pending.createdAt + STUCK_MS - Date.now())
+        )
+        return () => window.clearTimeout(id)
+    }, [pending.createdAt, stuck])
     const rest = result.amount_kopeks - result.price_kopeks
     const end = latest?.end_date ?? null
 
@@ -1230,15 +1293,17 @@ function PaymentStep({ pending, phase }: { pending: IPendingPayment; phase: TPha
                     ? t('coPaid')
                     : phase === 'timeout'
                       ? t('coTimeout')
-                      : t('coPayHint')}
+                      : opened
+                        ? t('coPayOpened')
+                        : t('coPayHint')}
             </p>
 
             {!paid && (
                 <a
                     className={clsx(
                         classes.btn,
-                        classes.btnPrimary,
-                        classes.btnGlow,
+                        // already opened by the tap on «Оплатить»: offered again, but quietly
+                        opened ? classes.btnSecondary : clsx(classes.btnPrimary, classes.btnGlow),
                         classes.coPayBtn
                     )}
                     href={result.payment_url}
@@ -1257,9 +1322,27 @@ function PaymentStep({ pending, phase }: { pending: IPendingPayment; phase: TPha
                     rel="noopener noreferrer"
                     target="_blank"
                 >
-                    {t('coPay', { price: money(result.amount_kopeks) })}
+                    {t('coGoPay', { price: money(result.amount_kopeks) })}
                     <IconExternalLink aria-hidden size={18} />
                 </a>
+            )}
+
+            {stuck && !paid && (
+                <div className={classes.coStuck} role="status">
+                    <strong>{t('coStuck')}</strong>
+                    <p className={classes.num}>{t('coStuckText', { id: result.payment_id })}</p>
+                    {supportUrl && (
+                        <a
+                            className={clsx(classes.btn, classes.btnSecondary, classes.btnSmall)}
+                            href={supportUrl}
+                            rel="noopener noreferrer"
+                            target="_blank"
+                        >
+                            <IconMessageCircle aria-hidden size={18} stroke={2} />
+                            {t('writeSupport')}
+                        </a>
+                    )}
+                </div>
             )}
 
             <div className={classes.coPayRow}>

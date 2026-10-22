@@ -6,6 +6,14 @@
 const GB = 1024 ** 3
 const DAY = 86_400_000
 
+/** Where each subscription ends — the same moment for the panel and the bot, as in production. */
+export function endOf(scenario: string, now = Date.now()): number {
+    if (scenario === 'expired') return now - 3 * DAY
+    if (scenario === 'expiring') return now + 2 * DAY + 3600_000
+    if (scenario === 'trial') return now + 2 * DAY + 5 * 3600_000
+    return now + 24 * DAY + 3 * 3600_000
+}
+
 const icon = (d: string) =>
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
 
@@ -288,6 +296,7 @@ export type TScenario =
     | 'limited'
     | 'lowtraffic'
     | 'nocheckout'
+    | 'nodevices'
     | 'trial'
     | 'unlimited'
 
@@ -300,6 +309,7 @@ export const SCENARIOS: TScenario[] = [
     'bypass',
     'lowtraffic',
     'devicesfull',
+    'nodevices',
     'unlimited',
     'nocheckout'
 ]
@@ -317,7 +327,7 @@ export function panelPayload(scenario: TScenario, shortUuid: string) {
         trafficLimitStrategy: 'MONTH' as string,
         userStatus: 'ACTIVE' as string,
         daysLeft: 24,
-        expiresAt: new Date(now + 24 * DAY + 3 * 3600_000).toISOString(),
+        expiresAt: new Date(endOf(scenario, now)).toISOString(),
         trafficUsedBytes: String(Math.round(23.4 * GB)),
         trafficLimitBytes: String(100 * GB)
     }
@@ -337,7 +347,7 @@ export function panelPayload(scenario: TScenario, shortUuid: string) {
         case 'trial':
             Object.assign(user, {
                 daysLeft: 2,
-                expiresAt: new Date(now + 2 * DAY + 5 * 3600_000).toISOString(),
+                expiresAt: new Date(endOf(scenario, now)).toISOString(),
                 trafficUsedBytes: String(Math.round(1.2 * GB)),
                 trafficLimitBytes: '0'
             })
@@ -346,7 +356,7 @@ export function panelPayload(scenario: TScenario, shortUuid: string) {
         case 'expiring':
             Object.assign(user, {
                 daysLeft: 2,
-                expiresAt: new Date(now + 2 * DAY + 3600_000).toISOString()
+                expiresAt: new Date(endOf(scenario, now)).toISOString()
             })
             break
         case 'expired':
@@ -354,7 +364,7 @@ export function panelPayload(scenario: TScenario, shortUuid: string) {
                 userStatus: 'EXPIRED',
                 isActive: false,
                 daysLeft: 0,
-                expiresAt: new Date(now - 3 * DAY).toISOString()
+                expiresAt: new Date(endOf(scenario, now)).toISOString()
             })
             break
         case 'limited':
@@ -370,6 +380,10 @@ export function panelPayload(scenario: TScenario, shortUuid: string) {
             break
         case 'lowtraffic':
             Object.assign(user, { trafficUsedBytes: String(Math.round(88.6 * GB)) })
+            break
+        case 'nodevices':
+            Object.assign(user, { trafficUsedBytes: '0' })
+            Object.assign(spofy, { devicesUsed: 0, devicesLimit: 3 })
             break
         case 'devicesfull':
             Object.assign(spofy, { devicesUsed: 3, devicesLimit: 3 })
@@ -452,12 +466,7 @@ const TRAFFIC_PACKS = [
 export function offer(scenario: TScenario) {
     const trial = scenario === 'trial'
     const now = Date.now()
-    const end =
-        scenario === 'expired'
-            ? now - 3 * DAY
-            : scenario === 'expiring' || scenario === 'trial'
-              ? now + 2 * DAY
-              : now + 24 * DAY
+    const end = endOf(scenario, now)
     return {
         checkout_enabled: true,
         disabled_reason: null,

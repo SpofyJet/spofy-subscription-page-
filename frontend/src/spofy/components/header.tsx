@@ -2,12 +2,7 @@ import { Menu } from '@mantine/core'
 import { TSubscriptionPageLanguageCode } from '@remnawave/subscription-page-types'
 // deep import: the package entry is CommonJS and pulls in every zod schema
 import { getLanguageInfo } from '@remnawave/subscription-page-types/build/backend/constants'
-import {
-    IconBrandTelegram,
-    IconCheck,
-    IconChevronDown,
-    IconMessageCircle
-} from '@tabler/icons-react'
+import { IconCheck, IconChevronDown, IconUserCircle } from '@tabler/icons-react'
 import clsx from 'clsx'
 
 import { useAppConfig, useAppConfigStoreActions, useCurrentLang } from '@entities/app-config-store'
@@ -19,14 +14,16 @@ import classes from '../spofy.module.css'
 export const isTelegramLink = (url: null | string) =>
     !!url && /^https?:\/\/(t\.me|telegram\.me)\//i.test(url)
 
-/** Brand on the left; language and a labelled «Support» button on the right — no mystery icons. */
-export function Header({ supportUrl }: { supportUrl: null | string }) {
+/**
+ * Brand on the left; on the right whose page this is (the Telegram nickname the bot writes into
+ * the panel's user description) and the language. Support lives in one place — the bottom of the page.
+ */
+export function Header({ account }: { account: null | string }) {
     const config = useAppConfig()
     const currentLang = useCurrentLang()
     const { setLanguage } = useAppConfigStoreActions()
     const { t } = useSpofyT()
     const title = config.brandingSettings.title || 'Spofy VPN'
-    const SupportIcon = isTelegramLink(supportUrl) ? IconBrandTelegram : IconMessageCircle
 
     return (
         <header className={classes.topBar}>
@@ -35,6 +32,12 @@ export function Header({ supportUrl }: { supportUrl: null | string }) {
                 <span className={classes.brandName}>{title}</span>
             </span>
             <div className={classes.topActions}>
+                {account && (
+                    <span className={classes.account} title={t('stAccount', { name: account })}>
+                        <IconUserCircle aria-hidden size={18} stroke={1.9} />
+                        <span className={classes.accountName}>{account}</span>
+                    </span>
+                )}
                 {config.locales.length > 1 && (
                     <LanguageMenu
                         currentLang={currentLang}
@@ -42,17 +45,6 @@ export function Header({ supportUrl }: { supportUrl: null | string }) {
                         locales={config.locales}
                         onChange={setLanguage}
                     />
-                )}
-                {supportUrl && (
-                    <a
-                        className={classes.pill}
-                        href={supportUrl}
-                        rel="noopener noreferrer"
-                        target="_blank"
-                    >
-                        <SupportIcon aria-hidden size={18} stroke={1.9} />
-                        {t('support')}
-                    </a>
                 )}
             </div>
         </header>

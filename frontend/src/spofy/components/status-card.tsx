@@ -1,9 +1,10 @@
 import {
     IconAlertTriangle,
     IconArrowsUpDown,
+    IconCalendarEvent,
     IconDevices,
-    IconMessageCircle,
     IconPlus,
+    IconPlugConnected,
     IconRefresh,
     IconSparkles
 } from '@tabler/icons-react'
@@ -14,22 +15,21 @@ import { useSubscription } from '@entities/subscription-info-store'
 
 import { useCheckoutStore } from '../checkout/checkout-store'
 import { useMoney } from '../checkout/money'
-import { countOf, formatBytes, formatDayMonth, formatTimeLeft, toNumber } from '../format'
+import {
+    countOf,
+    formatBytes,
+    formatDayMonth,
+    formatDays,
+    formatPeriod,
+    formatTimeLeft,
+    toNumber
+} from '../format'
 import { TSpofyKey, useSpofyT } from '../i18n'
-import { IAction, IPageModel, TView } from '../page-model'
+import { CONNECT_ID, IAction, IPageModel, TView } from '../page-model'
 import { useSpofyData } from '../spofy-store'
 import classes from '../spofy.module.css'
 import { StatusShield, TShieldTone } from './status-shield'
 import { ActionButton, HintToggle } from './ui'
-
-const TITLE: Record<TView, TSpofyKey> = {
-    active: 'stActive',
-    expiring: 'stExpiring',
-    trial: 'stTrial',
-    expired: 'stExpired',
-    disabled: 'stDisabled',
-    limited: 'stLimited'
-}
 
 const TONE: Record<TView, TShieldTone> = {
     active: 'ok',
@@ -40,18 +40,16 @@ const TONE: Record<TView, TShieldTone> = {
     limited: 'error'
 }
 
+const scrollToGuide = () =>
+    document.getElementById(CONNECT_ID)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
 /**
- * The subscription at a glance. One card, one main action, wording for the person's situation:
- * the shield shows how much is left, the rows show devices and traffic with their own small
- * «add» buttons, and nothing is offered that cannot help right now.
+ * The subscription at a glance, written for someone who does not know the word «подписка»:
+ * the title says whether the VPN works, the rows say until when and how many devices / how
+ * much traffic — each row with its own small button (Продлить · Добавить · Докупить) — and a
+ * single main button appears only when the situation needs one.
  */
-export function StatusCard({
-    model,
-    supportUrl
-}: {
-    model: IPageModel
-    supportUrl: null | string
-}) {
+export function StatusCard({ model }: { model: IPageModel }) {
     const { user } = useSubscription()
     const spofy = useSpofyData()
     const { t, lang } = useSpofyT()
@@ -61,17 +59,41 @@ export function StatusCard({
     const tone = TONE[view]
     const [now] = useState(() => Date.now())
 
-    /* ── headline ── */
     const date = formatDayMonth(user.expiresAt, lang)
     const daysLeft = Math.max(0, user.daysLeft)
-    let line: string
-    if (view === 'expired' || view === 'disabled') line = t('stExpiredOn', { date })
-    else if (model.indefinite) line = t('stIndefinite')
-    else if (view === 'trial')
-        line = t('stTrialLeft', { left: formatTimeLeft(user.expiresAt, lang) || t('lastDay') })
-    else if (daysLeft === 0) line = t('stEndsToday', { date })
-    else line = t('stLeftUntil', { left: countOf(daysLeft, lang, 'day'), date })
-    if (view === 'limited') line = model.indefinite ? t('stIndefinite') : t('stSubUntil', { date })
+    const left = countOf(daysLeft, lang, 'day')
+    const timeLeft = formatTimeLeft(user.expiresAt, lang) || t('lastDay')
+    const live = view === 'active' || view === 'expiring'
+    const fresh = model.noDevices && (view === 'active' || view === 'trial')
+
+    /* ── title and the line under it: does it work, until when ── */
+    let title: string
+    let line: null | string
+    switch (view) {
+        case 'trial':
+            title = t('stTrialTitle', { left: timeLeft })
+            line = model.indefinite ? null : t('stTrialFreeUntil', { date })
+            break
+        case 'expiring':
+            title = daysLeft === 0 ? t('stExpiringToday') : t('stExpiringIn', { left })
+            line = t('stPaidTill', { date })
+            break
+        case 'expired':
+            title = t('stExpired')
+            line = model.trial ? t('stTrialEndedOn', { date }) : t('stExpiredOn', { date })
+            break
+        case 'disabled':
+            title = t('stDisabled')
+            line = t('stDisabledLine')
+            break
+        case 'limited':
+            title = t('stLimited')
+            line = t('stLimitedLine')
+            break
+        default:
+            title = fresh ? t('stNoDevicesTitle') : t('stActive')
+            line = model.indefinite ? t('stIndefinite') : null
+    }
 
     // Shield «charge»: share of a month left (a trial counts against three days).
     const hoursLeft = Math.max(0, (new Date(user.expiresAt).getTime() - now) / 3_600_000)
@@ -84,8 +106,8 @@ export function StatusCard({
                 ? Math.max(0.1, Math.min(1, hoursLeft / 72))
                 : Math.max(0.08, Math.min(1, daysLeft / 30))
 
-    /* ── note under the headline ── */
-    const hasReset = !!user.trafficLimitStrategy && user.trafficLimitStrategy !== 'NO_RESET'
+    /* ── a sentence for the situation ── */
+    const resetText = resetSentence(user.trafficLimitStrategy, lang, t)
     const note: null | string =
         view === 'expired'
             ? model.trial
@@ -94,26 +116,32 @@ export function StatusCard({
             : view === 'disabled'
               ? t('heroDisabledText')
               : view === 'limited'
-                ? hasReset
-                    ? t('heroLimitedResetText')
-                    : t('heroLimitedText')
-                : view === 'trial'
-                  ? t('stTrialPitch')
-                  : view === 'expiring'
-                    ? t('stExpiringPitch')
-                    : null
+                ? `${model.indefinite ? t('buyTraffic') + '.' : t('stLimitedNote', { date })}${resetText}`
+                : fresh
+                  ? t('stNoDevicesNote')
+                  : view === 'trial'
+                    ? t('stTrialPitch')
+                    : view === 'expiring'
+                      ? t('stExpiringPitch')
+                      : null
 
-    /* ── prices for the buttons ── */
+    /* ── prices: «от 150 ₽/мес» + «при оплате за 1 год» ── */
     const from =
-        model.renewFrom !== null ? t('ctaFromMonth', { price: money(model.renewFrom) }) : null
+        model.renewFrom !== null
+            ? t('ctaFromMonth', { price: money(model.renewFrom.perMonth) })
+            : null
+    const fromNote =
+        model.renewFrom !== null && model.renewFrom.periodDays > 31
+            ? t('ctaForPeriod', { period: formatPeriod(model.renewFrom.periodDays, lang) })
+            : null
     const trafficFrom = model.trafficFrom
         ? t('ctaFrom', { price: money(model.trafficFrom.price_kopeks) })
         : null
     const deviceFrom = model.deviceFrom ? t('ctaFrom', { price: money(model.deviceFrom) }) : null
-    const renewIcon = <IconRefresh aria-hidden size={19} stroke={2.1} />
+    // Without in-page checkout the buttons open the bot: say so, and show where they lead.
+    const bot = (label: string) => (model.inPage ? label : `${label} ${t('inBot')}`)
 
-    /* ── a sales moment: at most one callout, only while the VPN works ── */
-    const live = view === 'active' || view === 'expiring'
+    /* ── a sales moment: at most one callout, only while everything else is fine ── */
     const devicesLimit = spofy.devicesLimit ?? offer?.devices.current_device_limit ?? null
     const devicesFull =
         spofy.devicesUsed !== null && devicesLimit !== null && spofy.devicesUsed >= devicesLimit
@@ -132,134 +160,116 @@ export function StatusCard({
         price: null | string
         text: string
     } = null
-    if (live && restore) {
-        moment = {
-            key: 'bypass',
-            text: t('stBypassOff'),
-            action: restore,
-            label: t('ctaRestore'),
-            price: trafficFrom,
-            icon: (
-                <IconAlertTriangle
-                    aria-hidden
-                    className={classes.calloutIcon}
-                    size={20}
-                    stroke={1.9}
-                />
-            )
-        }
-    } else if (live && model.traffic && trafficShare >= 0.85 && trafficShare < 1) {
-        const left = formatBytes(Math.max(0, trafficLimit - trafficUsed), lang)
-        moment = {
-            key: 'traffic',
-            text: `${t('stTrafficLow', { left })}${resetSentence(user.trafficLimitStrategy, lang, t)}`,
-            action: model.traffic,
-            label: t('buyTraffic'),
-            price: trafficFrom,
-            icon: (
-                <IconArrowsUpDown
-                    aria-hidden
-                    className={classes.calloutIcon}
-                    size={20}
-                    stroke={1.9}
-                />
-            )
-        }
-    } else if (live && model.devices && devicesFull) {
-        moment = {
-            key: 'devices',
-            text:
-                devicesLimit === 1
-                    ? t('stDeviceFullOne')
-                    : t('stDevicesFull', { n: countOf(devicesLimit!, lang, 'device') }),
-            action: model.devices,
-            label: t('ctaAddDevice'),
-            price: deviceFrom,
-            icon: <IconDevices aria-hidden className={classes.calloutIcon} size={20} stroke={1.9} />
+    const calloutIcon = {
+        'aria-hidden': true,
+        className: classes.calloutIcon,
+        size: 20,
+        stroke: 1.9
+    }
+    // Two days before the end only «Продлить» matters; before the first device, only connecting.
+    if (view === 'active' && !fresh) {
+        if (restore) {
+            moment = {
+                key: 'bypass',
+                text: t('stBypassOff'),
+                action: restore,
+                label: bot(t('ctaRestore')),
+                price: model.inPage ? trafficFrom : null,
+                icon: <IconAlertTriangle {...calloutIcon} />
+            }
+        } else if (model.traffic && trafficShare >= 0.85 && trafficShare < 1) {
+            moment = {
+                key: 'traffic',
+                text: `${t('stTrafficLow', { left: formatBytes(Math.max(0, trafficLimit - trafficUsed), lang) })}${resetText}`,
+                action: model.traffic,
+                label: bot(t('buyTraffic')),
+                price: model.inPage ? trafficFrom : null,
+                icon: <IconArrowsUpDown {...calloutIcon} />
+            }
+        } else if (model.devices && devicesFull) {
+            moment = {
+                key: 'devices',
+                text:
+                    devicesLimit === 1
+                        ? t('stDeviceFullOne')
+                        : t('stDevicesFull', { n: countOf(devicesLimit!, lang, 'device') }),
+                action: model.devices,
+                label: bot(t('ctaAddDevice')),
+                price: model.inPage ? deviceFrom : null,
+                icon: <IconDevices {...calloutIcon} />
+            }
         }
     }
 
-    /* ── the one main action for the situation ── */
+    /* ── the one main button, when the situation needs one ── */
+    const external = !model.inPage
+    const connect = (
+        <ActionButton
+            action={{ onClick: scrollToGuide }}
+            icon={<IconPlugConnected aria-hidden size={19} stroke={2} />}
+            label={t('ctaConnect')}
+            variant="primary"
+        />
+    )
     let actions: React.ReactNode = null
-    if (view === 'trial' && model.renew) {
-        actions = (
+    if (view === 'trial') {
+        const plan = model.renew && (
             <ActionButton
                 action={model.renew}
+                external={external}
                 icon={<IconSparkles aria-hidden size={19} stroke={2} />}
-                label={t('ctaChoosePlan')}
+                label={bot(t('ctaChoosePlan'))}
                 price={from}
-                variant="primary"
+                priceNote={fromNote}
+                variant={fresh ? 'secondary' : 'primary'}
             />
         )
-    } else if ((view === 'expired' || view === 'disabled') && model.renew) {
-        actions = (
+        actions = fresh ? (
             <>
-                <ActionButton
-                    action={model.renew}
-                    icon={renewIcon}
-                    label={model.trial ? t('ctaChoosePlan') : t('ctaRenew')}
-                    price={from}
-                    variant="primary"
-                />
-                {view === 'disabled' && supportUrl && (
-                    <ActionButton
-                        action={{ href: supportUrl }}
-                        icon={<IconMessageCircle aria-hidden size={19} stroke={2} />}
-                        label={t('writeSupport')}
-                        variant="secondary"
-                    />
-                )}
+                {connect}
+                {plan}
             </>
+        ) : (
+            plan
         )
-    } else if (view === 'limited') {
-        actions = (
-            <>
-                {model.traffic && (
-                    <ActionButton
-                        action={model.traffic}
-                        icon={<IconPlus aria-hidden size={19} stroke={2.2} />}
-                        label={t('buyTraffic')}
-                        price={trafficFrom}
-                        variant="primary"
-                    />
-                )}
-                {model.renew && !model.indefinite && (
-                    <ActionButton
-                        action={model.renew}
-                        icon={renewIcon}
-                        label={t('ctaRenew')}
-                        price={from}
-                        variant={model.traffic ? 'ghost' : 'primary'}
-                    />
-                )}
-            </>
-        )
-    } else if (view === 'expiring' && model.renew && !model.indefinite) {
+    } else if (fresh) {
+        actions = connect
+    } else if ((view === 'expired' || view === 'disabled' || view === 'expiring') && model.renew) {
         actions = (
             <ActionButton
                 action={model.renew}
-                icon={renewIcon}
-                label={t('ctaRenew')}
+                external={external}
+                icon={<IconRefresh aria-hidden size={19} stroke={2.1} />}
+                label={bot(
+                    model.trial && view === 'expired'
+                        ? t('ctaChoosePlan')
+                        : from
+                          ? t('renewShort') // the price block needs the room
+                          : t('ctaRenew')
+                )}
                 price={from}
+                priceNote={fromNote}
                 variant="primary"
             />
         )
-    } else if (model.renew && !model.indefinite) {
-        // Connected and far from the end: no shop window — renewing early is a quiet link.
+    } else if (view === 'limited' && model.traffic) {
         actions = (
             <ActionButton
-                action={model.renew}
-                icon={renewIcon}
-                label={t('ctaRenewEarly')}
-                price={from}
-                variant="ghost"
+                action={model.traffic}
+                external={external}
+                icon={<IconPlus aria-hidden size={19} stroke={2.2} />}
+                label={bot(t('buyTraffic'))}
+                price={model.inPage ? trafficFrom : null}
+                variant="primary"
             />
         )
     }
 
-    /* ── rows: devices and traffic (not for a subscription that has ended) ── */
+    /* ── rows: until when · devices · traffic, each with its own button ── */
     const showRows = view !== 'expired' && view !== 'disabled'
-    const quietRows = view === 'limited'
+    // the main button above already does it — no second button for the same thing
+    const quiet = view === 'expiring' || fresh
+    const renewRow = view !== 'trial' && !model.indefinite && !quiet ? model.renew : null
 
     return (
         <section
@@ -272,15 +282,9 @@ export function StatusCard({
                 <div className={classes.statusText}>
                     {view === 'trial' && <span className={classes.trialBadge}>{t('stTrial')}</span>}
                     <h1 className={classes.statusTitle} id="sp-status">
-                        {view === 'trial'
-                            ? t('stTrialTitle', {
-                                  left: formatTimeLeft(user.expiresAt, lang) || t('lastDay')
-                              })
-                            : view === 'expired' && model.trial
-                              ? t('stTrialEnded')
-                              : t(TITLE[view])}
+                        {title}
                     </h1>
-                    {view !== 'trial' && (
+                    {line && (
                         <p
                             className={clsx(
                                 classes.statusLine,
@@ -289,11 +293,6 @@ export function StatusCard({
                             )}
                         >
                             {line}
-                        </p>
-                    )}
-                    {view === 'trial' && !model.indefinite && (
-                        <p className={clsx(classes.statusLine, classes.num)}>
-                            {t('untilDate', { date })}
                         </p>
                     )}
                 </div>
@@ -309,10 +308,11 @@ export function StatusCard({
                         <ActionButton
                             action={moment.action}
                             className={classes.btnSmall}
+                            external={external}
                             icon={<IconPlus aria-hidden size={17} stroke={2.2} />}
                             label={moment.label}
                             price={moment.price}
-                            variant={view === 'expiring' ? 'soft' : 'solid'}
+                            variant="solid"
                         />
                     </div>
                 </div>
@@ -320,10 +320,37 @@ export function StatusCard({
 
             {showRows && (
                 <ul className={classes.rows}>
+                    {view !== 'trial' && !model.indefinite && (
+                        <StatRow
+                            action={renewRow}
+                            actionIcon={<IconRefresh aria-hidden size={17} stroke={2.2} />}
+                            actionLabel={t('renewShort')}
+                            external={external}
+                            icon={<IconCalendarEvent size={18} stroke={1.9} />}
+                            label={t('rowPaidTill')}
+                            tone={view === 'expiring' ? 'warning' : undefined}
+                            value={
+                                <>
+                                    {date}
+                                    <span className={classes.rowValueSub}>
+                                        {daysLeft === 0
+                                            ? t('lastDay')
+                                            : t('daysLeftLine', {
+                                                  n: daysLeft,
+                                                  days: formatDays(daysLeft, lang)
+                                              })}
+                                    </span>
+                                </>
+                            }
+                        />
+                    )}
                     {(spofy.devicesUsed !== null || devicesLimit !== null) && (
                         <StatRow
-                            action={quietRows || moment?.key === 'devices' ? null : model.devices}
+                            action={
+                                live && !quiet && moment?.key !== 'devices' ? model.devices : null
+                            }
                             actionLabel={t('rowAdd')}
+                            external={external}
                             hint={t('hintDevices')}
                             icon={<IconDevices size={18} stroke={1.9} />}
                             label={t('rowDevices')}
@@ -340,10 +367,12 @@ export function StatusCard({
                     )}
                     <TrafficRow
                         action={
-                            quietRows || moment?.key === 'traffic' || moment?.key === 'bypass'
-                                ? null
-                                : model.traffic
+                            live && !quiet && moment?.key !== 'traffic' && moment?.key !== 'bypass'
+                                ? model.traffic
+                                : null
                         }
+                        external={external}
+                        limited={view === 'limited'}
                     />
                 </ul>
             )}
@@ -353,7 +382,7 @@ export function StatusCard({
     )
 }
 
-/** «Он обновится 1 ноября.» for a monthly reset; the strategy's own sentence otherwise. */
+/** «Лимит обновится 1 ноября.» for a monthly reset; the strategy's own sentence otherwise. */
 function resetSentence(
     strategy: string | undefined,
     lang: Parameters<typeof formatDayMonth>[1],
@@ -369,9 +398,12 @@ function resetSentence(
 
 function StatRow(props: {
     action: IAction | null
+    actionIcon?: React.ReactNode
     actionLabel: string
     bar?: React.ReactNode
-    hint: string
+    external?: boolean
+    /** a «?» with this explanation; rows that need none have none */
+    hint?: string
     icon: React.ReactNode
     label: string
     tone?: 'error' | 'warning'
@@ -388,11 +420,13 @@ function StatRow(props: {
                 <span className={classes.rowText}>
                     <span className={classes.rowLabel}>
                         {props.label}
-                        <HintToggle
-                            controls={hintId}
-                            onToggle={() => setOpen((v) => !v)}
-                            open={open}
-                        />
+                        {props.hint && (
+                            <HintToggle
+                                controls={hintId}
+                                onToggle={() => setOpen((v) => !v)}
+                                open={open}
+                            />
+                        )}
                     </span>
                     <span className={clsx(classes.rowValue, classes.num)}>{props.value}</span>
                 </span>
@@ -400,21 +434,33 @@ function StatRow(props: {
                     <ActionButton
                         action={props.action}
                         className={classes.rowAction}
-                        icon={<IconPlus aria-hidden size={15} stroke={2.4} />}
+                        external={props.external}
+                        icon={props.actionIcon ?? <IconPlus aria-hidden size={17} stroke={2.4} />}
                         label={props.actionLabel}
                         variant="ghost"
                     />
                 )}
             </div>
             {props.bar}
-            <p className={classes.rowHint} hidden={!open} id={hintId}>
-                {props.hint}
-            </p>
+            {props.hint && (
+                <p className={classes.rowHint} hidden={!open} id={hintId}>
+                    {props.hint}
+                </p>
+            )}
         </li>
     )
 }
 
-function TrafficRow({ action }: { action: IAction | null }) {
+function TrafficRow({
+    action,
+    external,
+    limited
+}: {
+    action: IAction | null
+    external: boolean
+    /** the panel stopped the whole VPN: this is all traffic, not just «Обход» */
+    limited: boolean
+}) {
     const { user } = useSubscription()
     const { t, lang } = useSpofyT()
     const used = toNumber(user.trafficUsedBytes)
@@ -443,11 +489,11 @@ function TrafficRow({ action }: { action: IAction | null }) {
         )
     }
 
-    const total = limit
-    const share = Math.min(1, used / total)
+    const share = Math.min(1, used / limit)
     const level = share >= 0.9 ? 'error' : share >= 0.7 ? 'warning' : undefined
     const percentLeft = Math.max(0, Math.round((1 - share) * 100))
     const [num, unit] = formatBytes(used, lang).split(' ')
+    const label = limited ? t('traffic') : t('rowTraffic')
 
     return (
         <StatRow
@@ -455,7 +501,7 @@ function TrafficRow({ action }: { action: IAction | null }) {
             actionLabel={t('rowBuy')}
             bar={
                 <span
-                    aria-label={t('rowTraffic')}
+                    aria-label={label}
                     aria-valuemax={100}
                     aria-valuemin={0}
                     aria-valuenow={Math.round(share * 100)}
@@ -467,14 +513,15 @@ function TrafficRow({ action }: { action: IAction | null }) {
                     <span style={{ width: `${Math.max(share * 100, used > 0 ? 2 : 0)}%` }} />
                 </span>
             }
-            hint={hint}
+            external={external}
+            hint={limited ? undefined : hint}
             icon={<IconArrowsUpDown size={18} stroke={1.9} />}
-            label={t('rowTraffic')}
+            label={label}
             tone={level}
             value={
-                unit && formatBytes(total, lang).endsWith(unit)
-                    ? t('rowOf', { used: num!, limit: formatBytes(total, lang) })
-                    : t('rowOf', { used: formatBytes(used, lang), limit: formatBytes(total, lang) })
+                unit && formatBytes(limit, lang).endsWith(unit)
+                    ? t('rowOf', { used: num!, limit: formatBytes(limit, lang) })
+                    : t('rowOf', { used: formatBytes(used, lang), limit: formatBytes(limit, lang) })
             }
         />
     )
