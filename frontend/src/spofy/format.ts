@@ -67,15 +67,22 @@ export function formatDays(n: number, lang: TSubscriptionPageLanguageCode): stri
     return translate(lang, key)
 }
 
-function plural(n: number, lang: TSubscriptionPageLanguageCode, unit: 'day' | 'month' | 'year') {
+export type TPluralUnit = 'day' | 'device' | 'hour' | 'month' | 'step' | 'year'
+
+/** The right word form for a count: 1 день · 2 дня · 5 дней. */
+export function plural(n: number, lang: TSubscriptionPageLanguageCode, unit: TPluralUnit) {
     let rule = 'other'
     try {
         rule = new Intl.PluralRules(intlLocale(lang)).select(n)
     } catch {
         // keep "other"
     }
-    return translate(lang, `${unit}_${rule}` as `${typeof unit}_few`)
+    return translate(lang, `${unit}_${rule}` as `${TPluralUnit}_few`)
 }
+
+/** «3 устройства», «5 шагов», «1 час» */
+export const countOf = (n: number, lang: TSubscriptionPageLanguageCode, unit: TPluralUnit) =>
+    `${n}\u00A0${plural(n, lang, unit)}`
 
 /** 30 → «1 месяц», 90 → «3 месяца», 365 → «1 год», 14 → «14 дней» */
 export function formatPeriod(days: number, lang: TSubscriptionPageLanguageCode): string {
@@ -87,7 +94,9 @@ export function formatPeriod(days: number, lang: TSubscriptionPageLanguageCode):
         const months = days / 30
         return `${months} ${plural(months, lang, 'month')}`
     }
-    return `${days} ${plural(days, lang, 'day')}`
+    const plain = `${days} ${plural(days, lang, 'day')}`
+    // multi-year plans that are not whole years: «2222 дня (≈ 6 лет)»
+    return days > 730 ? `${plain} (≈\u00A0${years}\u00A0${plural(years, lang, 'year')})` : plain
 }
 
 const BYTE_UNITS: Partial<Record<TSubscriptionPageLanguageCode, string[]>> = {
@@ -149,3 +158,30 @@ export const formatDateShort = (date: Date | string, lang: TSubscriptionPageLang
 /** "01.11.2026" — numeric date for the compact hero tiles */
 export const formatDateNumeric = (date: Date | string, lang: TSubscriptionPageLanguageCode) =>
     formatDateWith(date, lang, { day: '2-digit', month: '2-digit', year: 'numeric' })
+
+/** «16 ноября» (this year) or «16 ноября 2027» — no «г.» suffix, no zeros. */
+export function formatDayMonth(date: Date | string, lang: TSubscriptionPageLanguageCode): string {
+    const d = new Date(date)
+    const sameYear = d.getFullYear() === new Date().getFullYear()
+    return formatDateWith(d, lang, {
+        day: 'numeric',
+        month: 'long',
+        ...(sameYear ? {} : { year: 'numeric' })
+    }).replace(/\s?г\.$/, '')
+}
+
+/** Time left as words: «2 дня 5 часов», «5 часов», «меньше часа». */
+export function formatTimeLeft(
+    expiresAt: Date | string,
+    lang: TSubscriptionPageLanguageCode
+): string {
+    const ms = new Date(expiresAt).getTime() - Date.now()
+    if (ms <= 0) return ''
+    const hours = Math.floor(ms / 3_600_000)
+    const days = Math.floor(hours / 24)
+    const rest = hours % 24
+    if (days === 0)
+        return hours === 0 ? translate(lang, 'lessThanHour') : countOf(hours, lang, 'hour')
+    if (rest === 0 || days >= 3) return countOf(days, lang, 'day')
+    return `${countOf(days, lang, 'day')} ${countOf(rest, lang, 'hour')}`
+}

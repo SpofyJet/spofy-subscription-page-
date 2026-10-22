@@ -6,11 +6,13 @@ import { useSubscription } from '@entities/subscription-info-store'
 import { track } from './checkout/api'
 import { useCheckoutStore } from './checkout/checkout-store'
 import { PendingBanner, usePendingPhase } from './checkout/pending'
-import { BypassNotice } from './components/actions'
-import { SubscriptionBanner, TopBar } from './components/banner'
 import { ConnectSection } from './components/connect-section'
-import { LinkCard } from './components/link-card'
-import { detectPlatform, getSubscriptionState, toNumber } from './format'
+import { Header } from './components/header'
+import { MoreCard } from './components/more-card'
+import { StatusCard } from './components/status-card'
+import { detectPlatform } from './format'
+import { useSpofyT } from './i18n'
+import { usePageModel } from './page-model'
 import { useSpofyData } from './spofy-store'
 import classes from './spofy.module.css'
 
@@ -18,11 +20,19 @@ import classes from './spofy.module.css'
 const loadSheet = () => import('./components/checkout-sheet')
 const CheckoutSheet = lazy(loadSheet)
 
+/**
+ * Page order follows what the person came for:
+ *   1. Is my VPN on? — the status card, with one main action for the situation.
+ *   2. How do I connect? — the open, step-by-step guide.
+ *   3. Everything else — another device, the link, the cabinet, support.
+ */
 export function SpofyMainPage() {
     const config = useAppConfig()
     const subscription = useSubscription()
     const spofy = useSpofyData()
     const lang = useCurrentLang()
+    const { t } = useSpofyT()
+    const model = usePageModel()
 
     useEffect(() => {
         document.documentElement.lang = lang
@@ -34,9 +44,7 @@ export function SpofyMainPage() {
     )
 
     const { user } = subscription
-    const state = getSubscriptionState(user)
     const supportUrl = spofy.supportUrl ?? (config.brandingSettings.supportUrl || null)
-    const hasTrafficLimit = toNumber(user.trafficLimitBytes) > 0
     const checkout = spofy.checkoutEnabled
     const phase = usePendingPhase()
     useEffect(() => {
@@ -56,36 +64,31 @@ export function SpofyMainPage() {
         idle(() => void loadSheet())
     }, [checkout, offerReady])
 
+    const ended = model.view === 'expired' || model.view === 'disabled'
+    const name = spofy.displayName ?? user.username
+
     return (
         <>
-            <div aria-hidden className={classes.backdrop}>
+            <div aria-hidden className={classes.backdrop} data-view={model.view}>
                 <div className={classes.backdropAurora} />
-                <div className={classes.backdropGrid} />
             </div>
             <div className={classes.page}>
-                <TopBar
-                    displayName={spofy.displayName}
-                    state={state}
-                    supportUrl={supportUrl}
-                    user={user}
-                />
+                <Header supportUrl={supportUrl} />
 
-                <SubscriptionBanner
-                    checkout={checkout}
-                    renewUrl={spofy.renewUrl}
-                    state={state}
-                    supportUrl={supportUrl}
-                    trafficUrl={hasTrafficLimit ? spofy.trafficUrl : null}
-                    user={user}
-                />
+                <StatusCard model={model} supportUrl={supportUrl} />
 
                 {checkout && <PendingBanner phase={phase} />}
 
-                {spofy.bypassDisabled && <BypassNotice trafficUrl={spofy.trafficUrl} />}
+                <ConnectSection
+                    collapsed={ended}
+                    detected={detected}
+                    key={ended ? 'ended' : 'live'}
+                    supportUrl={supportUrl}
+                />
 
-                <ConnectSection detected={detected} />
+                <MoreCard cabinetUrl={spofy.cabinetUrl} supportUrl={supportUrl} />
 
-                <LinkCard cabinetUrl={spofy.cabinetUrl} />
+                <p className={classes.footer}>{t('stAccount', { name })}</p>
 
                 {checkout && sheetMounted && (
                     <Suspense fallback={null}>

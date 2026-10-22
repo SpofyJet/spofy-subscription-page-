@@ -1,5 +1,9 @@
 # Spofy fork of remnawave/subscription-page
 
+> **v5 (22.10.2026)** — calmer page with three distinct states, open step-by-step guide, two-step
+> purchase sheet, only Happ and INCY. What changed and why: [`SPOFY-v5.md`](SPOFY-v5.md) (in Russian).
+> Local preview of every state without a panel: `frontend/dev-preview/`.
+
 Branded subscription page for `sub.spofyltd.ru`, forked from upstream tag **8.0.0**
 (`upstream` remote = `https://github.com/remnawave/subscription-page`).
 The raw-subscription path (what VPN clients fetch) is untouched.

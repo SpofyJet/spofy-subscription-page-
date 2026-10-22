@@ -1,4 +1,3 @@
-import { Menu } from '@mantine/core'
 import { useClipboard } from '@mantine/hooks'
 import {
     TSubscriptionPageAppConfig,
@@ -10,12 +9,15 @@ import {
 import {
     IconCheck,
     IconChevronDown,
+    IconCopy,
     IconDownload,
-    IconListNumbers,
+    IconExternalLink,
+    IconInfoCircle,
+    IconPlus,
     IconQrcode
 } from '@tabler/icons-react'
 import clsx from 'clsx'
-import { useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 
 import { constructSubscriptionUrl } from '@shared/utils/construct-subscription-url'
 import { vibrate } from '@shared/utils/vibrate'
@@ -23,8 +25,8 @@ import { vibrate } from '@shared/utils/vibrate'
 import { useAppConfig } from '@entities/app-config-store'
 import { useSubscription } from '@entities/subscription-info-store'
 
-import { getAppLogo } from '../app-logos'
-import { PLATFORM_ORDER } from '../format'
+import { getAppLogo, isAllowedApp } from '../app-logos'
+import { countOf, PLATFORM_ORDER } from '../format'
 import { useSpofyT } from '../i18n'
 import { formatLink, useLinkTemplates } from '../link-template'
 import { prefs } from '../prefs'
@@ -32,22 +34,6 @@ import { useQrStore } from '../qr-store'
 import classes from '../spofy.module.css'
 
 type TButton = TSubscriptionPageButtonConfig
-
-/** Panel config colour names → RGB (same palette as the cabinet's colorParser). */
-const ICON_COLORS: Record<string, string> = {
-    cyan: '34, 211, 238',
-    teal: '32, 201, 151',
-    green: '64, 192, 87',
-    lime: '130, 201, 30',
-    yellow: '250, 176, 5',
-    orange: '253, 126, 20',
-    red: '250, 82, 82',
-    pink: '230, 73, 128',
-    grape: '190, 75, 219',
-    violet: '151, 117, 250',
-    indigo: '92, 124, 250',
-    blue: '34, 139, 230'
-}
 
 const TV_PLATFORMS: TSubscriptionPagePlatformKey[] = ['androidTV', 'appleTV']
 
@@ -87,28 +73,53 @@ function AppIcon({ app }: { app: TSubscriptionPageAppConfig }) {
     )
 }
 
-/** The buttons that become the one-tap actions of the setup card. */
-function pickHeroButtons(app: TSubscriptionPageAppConfig) {
-    const all = app.blocks.flatMap((block) => block.buttons)
-    return {
-        install: all.find((button) => button.type === 'external'),
-        add:
-            all.find((button) => button.type === 'subscriptionLink') ??
-            all.find((button) => button.type === 'copyButton')
-    }
+/** Steps already done for this platform + app, remembered on this device. */
+function useDoneSteps(key: string) {
+    // the guide is remounted for every platform + app (keyed), so the key never changes here
+    const [done, setDone] = useState<number[]>(() => prefs.steps(key))
+    const mark = (index: number) =>
+        setDone((current) => {
+            if (current.includes(index)) return current
+            const next = [...current, index]
+            prefs.setSteps(key, next)
+            return next
+        })
+    return { done, mark }
 }
 
+/**
+ * «How to connect» — the main block of the page. Platform and app are chips (the detected
+ * platform and the recommended app come preselected), and every step is open with its buttons
+ * inside it, so a newcomer just goes down the list. Steps tick themselves off as they are used.
+ */
 export function ConnectSection({
-    detected
+    collapsed: startCollapsed,
+    detected,
+    supportUrl
 }: {
+    /** the subscription has ended: the guide waits behind one row */
+    collapsed: boolean
     detected: TSubscriptionPagePlatformKey | undefined
+    supportUrl: null | string
 }) {
     const config = useAppConfig()
     const subscription = useSubscription()
     const { t, lang } = useSpofyT()
     const headingId = useId()
+    const [collapsed, setCollapsed] = useState(startCollapsed)
+    const stepsAnchor = useRef<HTMLDivElement>(null)
+    const showSteps = () => {
+        vibrate('selection')
+        const top = stepsAnchor.current?.getBoundingClientRect().top
+        // only move when the steps are out of sight or near the bottom edge
+        if (top !== undefined && (top < 0 || top > window.innerHeight * 0.6)) {
+            stepsAnchor.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+    }
 
-    const available = PLATFORM_ORDER.filter((key) => (config.platforms[key]?.apps.length ?? 0) > 0)
+    const appsOf = (key: TSubscriptionPagePlatformKey) =>
+        (config.platforms[key]?.apps ?? []).filter((app) => isAllowedApp(app.name))
+    const available = PLATFORM_ORDER.filter((key) => appsOf(key).length > 0)
 
     const [platform, setPlatform] = useState<TSubscriptionPagePlatformKey | undefined>(() => {
         const remembered = prefs.platform() as TSubscriptionPagePlatformKey | undefined
@@ -118,14 +129,16 @@ export function ConnectSection({
     const [picked, setPicked] = useState<{ name: string; platform: string } | null>(() =>
         platform ? { platform, name: prefs.app(platform) ?? '' } : null
     )
-    const appRefs = useRef(new Map<number, HTMLButtonElement | null>())
 
     const subscriptionUrl = useMemo(
         () => constructSubscriptionUrl(window.location.href, subscription.user.shortUuid),
         [subscription.user.shortUuid]
     )
 
-    const apps = platform ? (config.platforms[platform]?.apps ?? []) : []
+    // featured (recommended) app first
+    const apps = platform
+        ? [...appsOf(platform)].sort((a, b) => Number(b.featured) - Number(a.featured))
+        : []
     const featuredIndex = Math.max(
         0,
         apps.findIndex((app) => app.featured)
@@ -138,153 +151,188 @@ export function ConnectSection({
 
     if (!platform || available.length === 0 || apps.length === 0) return null
     const app = apps[appIndex]!
-    const platformConfig = config.platforms[platform]!
 
     const selectPlatform = (key: TSubscriptionPagePlatformKey) => {
         vibrate('selection')
         setPlatform(key)
         prefs.setPlatform(key)
     }
-    const selectApp = (index: number, focus = false) => {
+    const selectApp = (index: number) => {
         vibrate('selection')
         setPicked({ platform, name: apps[index]!.name })
         prefs.setApp(platform, apps[index]!.name)
-        if (focus) appRefs.current.get(index)?.focus()
     }
-    const onAppKeys = (event: React.KeyboardEvent) => {
-        const delta = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key]
-        if (!delta) return
-        event.preventDefault()
-        selectApp((appIndex + delta + apps.length) % apps.length, true)
+
+    if (collapsed) {
+        return (
+            <section aria-labelledby={headingId} className={clsx(classes.card, classes.connect)}>
+                <button
+                    aria-expanded={false}
+                    className={classes.collapsedRow}
+                    onClick={() => setCollapsed(false)}
+                    type="button"
+                >
+                    <span className={classes.collapsedText}>
+                        <span className={classes.sectionTitle} id={headingId}>
+                            {t('cnTitle')}
+                        </span>
+                        <span className={classes.sectionLead}>{t('cnLeadExpired')}</span>
+                    </span>
+                    <IconChevronDown
+                        aria-hidden
+                        className={classes.chevron}
+                        size={20}
+                        stroke={2.2}
+                    />
+                </button>
+            </section>
+        )
     }
 
     return (
         <section aria-labelledby={headingId} className={clsx(classes.card, classes.connect)}>
-            <div className={classes.connectHead}>
+            <div className={classes.sectionHead}>
                 <h2 className={classes.sectionTitle} id={headingId}>
-                    {t('connectA')}{' '}
-                    <span className={clsx(classes.glow, classes.glow_accent)}>{t('connectB')}</span>
+                    {t('cnTitle')}
                 </h2>
+                <p className={classes.sectionLead}>{t('cnLead')}</p>
+            </div>
 
-                {available.length > 1 && (
-                    <Menu
-                        classNames={{ dropdown: classes.menuDropdown, item: classes.menuItem }}
-                        position="bottom-end"
-                        width={210}
-                        withinPortal
-                    >
-                        <Menu.Target>
-                            <button
-                                aria-label={`${t('platform')}: ${localized(platformConfig.displayName, lang)}`}
-                                className={classes.platformButton}
-                                type="button"
-                            >
+            {available.length > 1 && (
+                <ChipGroup
+                    items={available.map((key) => {
+                        const item = config.platforms[key]!
+                        return {
+                            key,
+                            label: localized(item.displayName, lang),
+                            icon: (
                                 <SvgIcon
-                                    className={classes.platformIcon}
-                                    svg={config.svgLibrary[platformConfig.svgIconKey]}
+                                    className={classes.chipIcon}
+                                    svg={config.svgLibrary[item.svgIconKey]}
                                 />
-                                <span className={classes.platformName}>
-                                    {localized(platformConfig.displayName, lang)}
-                                </span>
-                                <IconChevronDown aria-hidden size={16} stroke={2.25} />
-                            </button>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                            {available.map((key) => {
-                                const item = config.platforms[key]!
-                                const current = key === platform
-                                return (
-                                    <Menu.Item
-                                        aria-current={current ? 'true' : undefined}
-                                        className={clsx(current && classes.menuItemActive)}
-                                        key={key}
-                                        leftSection={
-                                            <SvgIcon
-                                                className={classes.platformIcon}
-                                                svg={config.svgLibrary[item.svgIconKey]}
-                                            />
-                                        }
-                                        onClick={() => selectPlatform(key)}
-                                        rightSection={
-                                            current ? (
-                                                <IconCheck aria-hidden size={16} stroke={2.5} />
-                                            ) : null
-                                        }
-                                    >
-                                        {localized(item.displayName, lang)}
-                                    </Menu.Item>
-                                )
-                            })}
-                        </Menu.Dropdown>
-                    </Menu>
-                )}
-            </div>
+                            )
+                        }
+                    })}
+                    label={t('cnPlatforms')}
+                    onReselect={showSteps}
+                    onSelect={(key) => selectPlatform(key as TSubscriptionPagePlatformKey)}
+                    value={platform}
+                />
+            )}
 
-            <div
-                aria-label={t('app')}
-                className={clsx(classes.appGrid, apps.length === 1 && classes.appGridSingle)}
-                onKeyDown={onAppKeys}
-                role="radiogroup"
-            >
-                {apps.map((item, index) => {
-                    const checked = index === appIndex
-                    return (
-                        <button
-                            aria-checked={checked}
-                            className={classes.appTile}
-                            key={`${platform}-${item.name}`}
-                            onClick={() => selectApp(index)}
-                            ref={(el) => {
-                                appRefs.current.set(index, el)
-                            }}
-                            role="radio"
-                            tabIndex={checked ? 0 : -1}
-                            type="button"
-                        >
-                            <AppIcon app={item} />
-                            <span className={classes.appTileText}>
-                                <span className={classes.appTileName}>{item.name}</span>
-                                <span
-                                    className={clsx(
-                                        classes.appTileCaption,
-                                        item.featured && classes.appTileFeatured
-                                    )}
-                                >
-                                    {item.featured ? t('recommended') : t('alsoWorks')}
-                                </span>
-                            </span>
-                        </button>
-                    )
-                })}
-            </div>
+            {apps.length > 1 && (
+                <ChipGroup
+                    items={apps.map((item) => ({
+                        key: item.name,
+                        label: item.name,
+                        icon: <AppIcon app={item} />,
+                        tag: item.featured ? t('recommended') : undefined
+                    }))}
+                    label={t('cnApps')}
+                    onReselect={showSteps}
+                    onSelect={(name) => selectApp(apps.findIndex((item) => item.name === name))}
+                    value={app.name}
+                />
+            )}
 
-            <AppSetup
+            <div aria-hidden className={classes.stepsAnchor} ref={stepsAnchor} />
+            <Steps
                 app={app}
                 isTv={TV_PLATFORMS.includes(platform)}
                 key={`${platform}-${app.name}`}
+                platform={platform}
                 subscriptionUrl={subscriptionUrl}
                 username={subscription.user.username}
             />
+
+            {supportUrl && (
+                <p className={classes.helpLine}>
+                    {t('cnHelp')}{' '}
+                    <a href={supportUrl} rel="noopener noreferrer" target="_blank">
+                        {t('writeSupport')}
+                    </a>
+                </p>
+            )}
         </section>
     )
 }
 
-function AppSetup(props: {
+/** A row of choice chips (radio group). Scrolls sideways when it does not fit. */
+function ChipGroup(props: {
+    items: { icon: React.ReactNode; key: string; label: string; tag?: string }[]
+    label: string
+    /** the already chosen chip was tapped again */
+    onReselect?: () => void
+    onSelect: (key: string) => void
+    value: string
+}) {
+    const { items, label, onReselect, onSelect, value } = props
+    const refs = useRef(new Map<string, HTMLButtonElement | null>())
+    const onKeys = (event: React.KeyboardEvent) => {
+        const delta = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key]
+        if (!delta) return
+        event.preventDefault()
+        const index = items.findIndex((item) => item.key === value)
+        const next = items[(index + delta + items.length) % items.length]!
+        onSelect(next.key)
+        refs.current.get(next.key)?.focus()
+    }
+    // keep the selected chip in view when the row scrolls sideways (never scroll the page)
+    useEffect(() => {
+        const chip = refs.current.get(value)
+        const row = chip?.parentElement
+        if (!chip || !row || row.scrollWidth <= row.clientWidth) return
+        const left = chip.offsetLeft - row.offsetLeft
+        if (left < row.scrollLeft || left + chip.offsetWidth > row.scrollLeft + row.clientWidth) {
+            row.scrollLeft = Math.max(0, left - 16)
+        }
+    }, [value])
+
+    return (
+        <div aria-label={label} className={classes.chips} onKeyDown={onKeys} role="radiogroup">
+            {items.map((item) => {
+                const checked = item.key === value
+                return (
+                    <button
+                        aria-checked={checked}
+                        className={classes.chip}
+                        key={item.key}
+                        onClick={() => (checked ? onReselect?.() : onSelect(item.key))}
+                        ref={(el) => {
+                            refs.current.set(item.key, el)
+                        }}
+                        role="radio"
+                        tabIndex={checked ? 0 : -1}
+                        type="button"
+                    >
+                        {item.icon}
+                        <span className={classes.chipLabel}>{item.label}</span>
+                        {item.tag && <span className={classes.chipTag}>{item.tag}</span>}
+                    </button>
+                )
+            })}
+        </div>
+    )
+}
+
+function Steps(props: {
     app: TSubscriptionPageAppConfig
     isTv: boolean
+    platform: string
     subscriptionUrl: string
     username: string
 }) {
-    const { app, isTv, subscriptionUrl, username } = props
+    const { app, isTv, platform, subscriptionUrl, username } = props
     const { svgLibrary } = useAppConfig()
     const { t, lang } = useSpofyT()
     const clipboard = useClipboard({ timeout: 2_000 })
     const openQr = useQrStore((state) => state.setOpen)
     const [copiedButton, setCopiedButton] = useState<TButton | null>(null)
-    const [stepsOpen, setStepsOpen] = useState(false)
-    const stepsId = useId()
-
-    const { install, add } = pickHeroButtons(app)
+    const { done, mark } = useDoneSteps(`${platform}:${app.name}`)
+    // «The app did not open?» — shown under a step when its deep link left the page in front.
+    const [notOpened, setNotOpened] = useState<null | number>(null)
+    const timer = useRef<number | undefined>(undefined)
+    useEffect(() => () => window.clearTimeout(timer.current), [])
 
     useLinkTemplates(app.blocks.flatMap((block) => block.buttons.map((button) => button.link)))
     /** null while the crypto library is still loading for a link that needs it */
@@ -292,77 +340,108 @@ function AppSetup(props: {
         button.type === 'external'
             ? button.link
             : formatLink(button.link, { username, subscriptionUrl })
-    const format = (button: TButton) => formatOrNull(button) ?? '#'
 
-    const renderButton = (
-        button: TButton,
-        variant: 'ghost' | 'primary' | 'secondary',
-        label?: string
-    ) => {
-        const text = label ?? localized(button.text, lang)
-        const className = clsx(
-            classes.btn,
-            variant === 'primary' && clsx(classes.btnPrimary, classes.btnGlow),
-            variant === 'secondary' && classes.btnSecondary,
-            variant === 'ghost' && classes.btnGhost
-        )
-        const icon =
-            variant === 'ghost' ? (
-                <SvgIcon className={classes.btnIcon} svg={svgLibrary[button.svgIconKey]} />
-            ) : variant === 'secondary' ? (
-                <IconDownload aria-hidden size={19} stroke={2} />
-            ) : null
+    const current = app.blocks.findIndex((_, index) => !done.includes(index))
+    const total = app.blocks.length
 
+    const watchDeepLink = (index: number) => {
+        window.clearTimeout(timer.current)
+        setNotOpened(null)
+        let left = false
+        const away = () => {
+            left = true
+        }
+        document.addEventListener('visibilitychange', away, { once: true })
+        window.addEventListener('blur', away, { once: true })
+        timer.current = window.setTimeout(() => {
+            document.removeEventListener('visibilitychange', away)
+            window.removeEventListener('blur', away)
+            if (!left && document.visibilityState === 'visible') setNotOpened(index)
+        }, 1_600)
+    }
+
+    const copyLink = (button: TButton | null) => {
+        const link = button ? formatOrNull(button) : subscriptionUrl
+        if (link === null) return // never copy a placeholder
+        clipboard.copy(link)
+        setCopiedButton(button)
+        vibrate('tap')
+    }
+
+    const renderButton = (button: TButton, index: number, key: number) => {
+        const text = localized(button.text, lang)
         if (button.type === 'copyButton') {
             const isCopied = clipboard.copied && copiedButton === button
             return (
                 <button
-                    className={className}
+                    className={clsx(classes.btn, classes.btnSecondary, classes.btnSmall)}
+                    key={key}
                     onClick={() => {
-                        const link = formatOrNull(button)
-                        if (link === null) return // never copy a placeholder
-                        clipboard.copy(link)
-                        setCopiedButton(button)
-                        vibrate('tap')
+                        copyLink(button)
+                        mark(index)
                     }}
                     type="button"
                 >
-                    {isCopied ? <IconCheck aria-hidden size={19} stroke={2.25} /> : icon}
+                    {isCopied ? (
+                        <IconCheck aria-hidden size={18} stroke={2.4} />
+                    ) : (
+                        <IconCopy aria-hidden size={18} stroke={2} />
+                    )}
                     <span aria-live="polite">{isCopied ? t('copied') : text}</span>
                 </button>
             )
         }
 
-        const isExternal = button.type === 'external'
+        if (button.type === 'subscriptionLink') {
+            const href = formatOrNull(button) ?? '#'
+            return (
+                <a
+                    className={clsx(
+                        classes.btn,
+                        classes.btnPrimary,
+                        classes.btnGlow,
+                        classes.btnWide
+                    )}
+                    href={href}
+                    key={key}
+                    onClick={() => {
+                        vibrate('tap')
+                        mark(index)
+                        watchDeepLink(index)
+                    }}
+                    title={text}
+                >
+                    <IconPlus aria-hidden size={19} stroke={2.3} />
+                    {t('cnAddTo', { name: app.name })}
+                </a>
+            )
+        }
+
         return (
             <a
-                className={className}
-                href={format(button)}
-                onClick={() => vibrate('tap')}
-                rel={isExternal ? 'noopener noreferrer' : undefined}
-                target={isExternal ? '_blank' : undefined}
-                title={label && label !== text ? localized(button.text, lang) : undefined}
+                className={clsx(classes.btn, classes.btnSecondary, classes.btnSmall)}
+                href={button.link}
+                key={key}
+                onClick={() => {
+                    vibrate('tap')
+                    mark(index)
+                }}
+                rel="noopener noreferrer"
+                target="_blank"
             >
-                {icon}
+                {button.svgIconKey && svgLibrary[button.svgIconKey] ? (
+                    <SvgIcon className={classes.btnIcon} svg={svgLibrary[button.svgIconKey]} />
+                ) : (
+                    <IconDownload aria-hidden size={18} stroke={2} />
+                )}
                 {text}
+                <IconExternalLink aria-hidden className={classes.btnTrail} size={15} stroke={2} />
             </a>
         )
     }
 
     return (
-        <div className={classes.setup}>
-            {(install || add) && (
-                <div className={classes.setupButtons}>
-                    {install && renderButton(install, 'secondary', t('install'))}
-                    {add &&
-                        renderButton(
-                            add,
-                            'primary',
-                            add.type === 'subscriptionLink' ? t('addSubscription') : undefined
-                        )}
-                </div>
-            )}
-
+        <>
             {isTv && (
                 <button className={classes.tvHint} onClick={() => openQr(true)} type="button">
                     <span aria-hidden className={classes.iconSquare}>
@@ -372,75 +451,84 @@ function AppSetup(props: {
                 </button>
             )}
 
-            <button
-                aria-controls={stepsId}
-                aria-expanded={stepsOpen}
-                className={classes.disclosure}
-                onClick={() => setStepsOpen((open) => !open)}
-                type="button"
+            <ol
+                aria-label={`${t('howTo')}: ${app.name}, ${countOf(total, lang, 'step')}`}
+                className={classes.steps}
             >
-                <span aria-hidden className={classes.iconSquare}>
-                    <IconListNumbers size={18} stroke={2} />
-                </span>
-                <span className={clsx(classes.disclosureText, classes.disclosureInline)}>
-                    {t('instructions')}
-                    <span className={classes.disclosureMeta}>
-                        {t('stepsCount', { n: app.blocks.length })}
-                    </span>
-                </span>
-                <IconChevronDown
-                    aria-hidden
-                    className={clsx(classes.chevron, stepsOpen && classes.chevronOpen)}
-                    size={18}
-                    stroke={2.25}
-                />
-            </button>
-
-            <ol aria-label={t('howTo')} className={classes.steps} hidden={!stepsOpen} id={stepsId}>
                 {app.blocks.map((block, index) => {
-                    const extra = block.buttons.filter(
-                        (button) => button !== install && button !== add
+                    const isDone = done.includes(index)
+                    const state = isDone ? 'done' : index === current ? 'current' : 'todo'
+                    // subscription link first: it is the step's main action
+                    const buttons = [...block.buttons].sort(
+                        (a, b) =>
+                            Number(b.type === 'subscriptionLink') -
+                            Number(a.type === 'subscriptionLink')
                     )
-                    const rgb = ICON_COLORS[block.svgIconColor ?? ''] ?? ICON_COLORS.cyan
                     return (
-                        <li
-                            className={classes.step}
-                            key={index}
-                            style={{ '--step-rgb': rgb } as React.CSSProperties}
-                        >
-                            <span aria-hidden className={classes.stepIcon}>
-                                {block.svgIconKey && svgLibrary[block.svgIconKey] ? (
-                                    <span
-                                        className={classes.stepIconGlyph}
-                                        dangerouslySetInnerHTML={{
-                                            __html: svgLibrary[block.svgIconKey]!
-                                        }}
-                                    />
-                                ) : (
-                                    <span className={classes.num}>{index + 1}</span>
-                                )}
+                        <li className={classes.step} data-state={state} key={index}>
+                            <span aria-hidden className={clsx(classes.stepMarker, classes.num)}>
+                                {isDone ? <IconCheck size={15} stroke={3} /> : index + 1}
                             </span>
                             <div className={classes.stepBody}>
-                                <span className={classes.stepKicker}>
-                                    {t('stepOf', { n: index + 1, total: app.blocks.length })}
-                                </span>
-                                <p
-                                    className={classes.stepTitle}
-                                    dangerouslySetInnerHTML={{
-                                        __html: localized(block.title, lang)
-                                    }}
-                                />
+                                <h3 className={classes.stepTitle}>
+                                    <span
+                                        dangerouslySetInnerHTML={{
+                                            __html: localized(block.title, lang)
+                                        }}
+                                    />
+                                    {isDone && (
+                                        <span className={classes.visuallyHidden}>
+                                            {' '}
+                                            — {t('cnStepDone')}
+                                        </span>
+                                    )}
+                                </h3>
                                 <p
                                     className={classes.stepText}
                                     dangerouslySetInnerHTML={{
                                         __html: localized(block.description, lang)
                                     }}
                                 />
-                                {extra.length > 0 && (
+                                {buttons.length > 0 && (
                                     <div className={classes.stepButtons}>
-                                        {extra.map((button, i) => (
-                                            <span key={i}>{renderButton(button, 'ghost')}</span>
-                                        ))}
+                                        {buttons.map((button, i) => renderButton(button, index, i))}
+                                    </div>
+                                )}
+                                {notOpened === index && (
+                                    <div className={classes.notOpened} role="status">
+                                        <IconInfoCircle aria-hidden size={19} stroke={2} />
+                                        <div>
+                                            <strong>{t('cnNotOpened')}</strong>
+                                            <p>{t('cnNotOpenedText')}</p>
+                                            {!buttons.some((b) => b.type === 'copyButton') && (
+                                                <button
+                                                    className={clsx(
+                                                        classes.btn,
+                                                        classes.btnSecondary,
+                                                        classes.btnSmall
+                                                    )}
+                                                    onClick={() => copyLink(null)}
+                                                    type="button"
+                                                >
+                                                    {clipboard.copied && copiedButton === null ? (
+                                                        <IconCheck
+                                                            aria-hidden
+                                                            size={18}
+                                                            stroke={2.4}
+                                                        />
+                                                    ) : (
+                                                        <IconCopy
+                                                            aria-hidden
+                                                            size={18}
+                                                            stroke={2}
+                                                        />
+                                                    )}
+                                                    {clipboard.copied && copiedButton === null
+                                                        ? t('copied')
+                                                        : t('copyLinkFull')}
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -448,6 +536,6 @@ function AppSetup(props: {
                     )
                 })}
             </ol>
-        </div>
+        </>
     )
 }

@@ -83,6 +83,16 @@
     --sp-glow-accent: #2457e0;
     --sp-step-mix: 62%;
 
+    /* v5: trial and «money saved» colours, calmer surfaces */
+    --sp-trial: #8b5cf6;
+    --sp-trial-text: #6d3fd8;
+    --sp-trial-soft: rgba(139, 92, 246, 0.1);
+    --sp-saving: #138a55;
+    --sp-saving-soft: rgba(34, 181, 115, 0.12);
+    --sp-row: rgba(11, 18, 32, 0.035);
+    --sp-row-border: rgba(11, 18, 32, 0.07);
+    --sp-sheet: #ffffff;
+
     --sp-radius-lg: 16px;
     --sp-radius-md: 12px;
     --sp-radius-sm: 10px;
@@ -124,6 +134,14 @@
         --sp-glow-error: #ff6b70;
         --sp-glow-accent: #86a6ff;
         --sp-step-mix: 100%;
+
+        --sp-trial-text: #b39cff;
+        --sp-trial-soft: rgba(139, 92, 246, 0.16);
+        --sp-saving: #3ddc97;
+        --sp-saving-soft: rgba(34, 181, 115, 0.14);
+        --sp-row: rgba(255, 255, 255, 0.035);
+        --sp-row-border: rgba(255, 255, 255, 0.07);
+        --sp-sheet: #0c121d;
 
         --sp-accent-text: #7c9dff;
         --sp-success-text: #22b573;

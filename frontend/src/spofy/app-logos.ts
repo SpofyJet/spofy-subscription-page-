@@ -19,3 +19,11 @@ const LOGOS: Record<string, IAppLogo> = {
 }
 
 export const getAppLogo = (name: string): IAppLogo | undefined => LOGOS[name.trim().toLowerCase()]
+
+/**
+ * Apps the page offers, whatever else the panel config lists (owner's decision 22.10.2026:
+ * only Happ and INCY). A platform with none of them is not shown. To change: edit this list.
+ */
+export const ALLOWED_APPS = ['happ', 'incy']
+
+export const isAllowedApp = (name: string) => ALLOWED_APPS.includes(name.trim().toLowerCase())

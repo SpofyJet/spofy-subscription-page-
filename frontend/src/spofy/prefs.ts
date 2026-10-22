@@ -4,6 +4,8 @@ const KEY = 'spofy.subpage.prefs'
 interface IPrefs {
     apps?: Record<string, string>
     platform?: string
+    /** «ios:Happ» → indexes of the guide steps already done */
+    steps?: Record<string, number[]>
 }
 
 function read(): IPrefs {
@@ -30,5 +32,13 @@ export const prefs = {
     setApp: (platform: string, app: string) => {
         const current = read()
         write({ ...current, apps: { ...current.apps, [platform]: app } })
+    },
+    steps: (key: string): number[] => {
+        const value = read().steps?.[key]
+        return Array.isArray(value) ? value.filter((n) => Number.isInteger(n)) : []
+    },
+    setSteps: (key: string, steps: number[]) => {
+        const current = read()
+        write({ ...current, steps: { ...current.steps, [key]: steps } })
     }
 }

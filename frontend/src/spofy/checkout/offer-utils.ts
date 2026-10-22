@@ -27,7 +27,26 @@ export function cheapestTraffic(offer: IOffer | null): IOffer['traffic'][number]
     )
 }
 
+/**
+ * Cheapest price per month for «от N ₽/мес». Periods longer than a year are left out when shorter
+ * ones exist: a multi-year plan would advertise a monthly price almost nobody pays.
+ */
 export function minPerMonth(options: IPeriodOption[]): null | number {
-    const values = options.filter((o) => o.price_kopeks > 0).map(perMonthKopeks)
+    const paid = options.filter((o) => o.price_kopeks > 0)
+    const upToYear = paid.filter((o) => o.period_days <= 366)
+    const values = (upToYear.length ? upToYear : paid).map(perMonthKopeks)
     return values.length ? Math.min(...values) : null
+}
+
+/**
+ * The period to preselect: the one the bot marks with a star, else 3 months, else 1 month,
+ * else the first. Never the shortest by accident — 14 days is the dearest per month.
+ */
+export function defaultPeriod(options: IPeriodOption[]): IPeriodOption | undefined {
+    return (
+        options.find((o) => o.is_highlighted) ??
+        options.find((o) => o.period_days === 90) ??
+        options.find((o) => o.period_days === 30) ??
+        options[0]
+    )
 }
