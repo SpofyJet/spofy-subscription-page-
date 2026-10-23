@@ -164,6 +164,12 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
+/* The page itself can never be dragged sideways on a phone (iPhone ignores this on html alone). */
+body {
+    overflow-x: hidden;
+    overflow-x: clip;
+}
+
 .animated-background {
     display: none;
 }

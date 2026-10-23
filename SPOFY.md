@@ -1,5 +1,10 @@
 # Spofy fork of remnawave/subscription-page
 
+> **v7 (23.10.2026)** — made for phones: system tiles instead of a sideways row (the page can no
+> longer be dragged sideways), an unpaid invoice no longer swallows the buttons, «Подключить
+> устройство» always lands, «Скопировать ссылку» always present with a by-hand fallback, sheets close
+> by swipe and the Android back button, bigger text, restyled dead-link page. See [`SPOFY-v7.md`](SPOFY-v7.md).
+>
 > **v6 (23.10.2026)** — fixes after an independent audit and the owner's decisions: «VPN работает»
 > wording, renew/add/buy as equal row buttons, one support button at the bottom, nickname in the header,
 > Telegram in-app note, one-tap payment page, «Уже оплатили?» help. See [`SPOFY-v6.md`](SPOFY-v6.md);

@@ -4,15 +4,15 @@ const SHIELD =
 const TEXT = {
     ru: {
         title: 'Ссылка устарела',
-        text: 'Такой подписки больше нет. Обычно так бывает, когда подписку пересоздали или обновили: у неё появилась новая ссылка.',
-        hint: 'Актуальная ссылка и все покупки — в боте.',
+        text: 'VPN по этой ссылке больше не работает. Обычно так бывает, когда подписку пересоздали или обновили: у неё появилась новая ссылка.',
+        hint: 'Новая ссылка и все покупки — в боте.',
         bot: 'Открыть бота',
         support: 'Написать в поддержку',
     },
     en: {
         title: 'This link is out of date',
-        text: 'This subscription no longer exists. It usually happens when a subscription was re-created or updated and got a new link.',
-        hint: 'Your current link and purchases are in the bot.',
+        text: 'VPN no longer works with this link. It usually happens when a subscription was re-created or updated and got a new link.',
+        hint: 'Your new link and purchases are in the bot.',
         bot: 'Open the bot',
         support: 'Contact support',
     },
@@ -24,7 +24,11 @@ const escapeHtml = (value: string) =>
 const safeUrl = (value: null | string): null | string =>
     value && /^https:\/\//i.test(value) ? escapeHtml(value) : null;
 
-/** Small branded 404 for a person who opened a dead link in a browser (never for VPN clients). */
+/**
+ * Small branded 404 for a person who opened a dead link in a browser (never for VPN clients).
+ * Same look as the subscription page — its font (served from /assets/fonts), header, colours and
+ * card — so it does not read as a different, suspicious site.
+ */
 export function renderNotFoundPage(options: {
     acceptLanguage?: string;
     botUrl: null | string;
@@ -34,25 +38,37 @@ export function renderNotFoundPage(options: {
     const lang = t === TEXT.ru ? 'ru' : 'en';
     const bot = safeUrl(options.botUrl);
     const support = safeUrl(options.supportUrl);
+    const shield = (cls: string) =>
+        `<svg class="${cls}" viewBox="673 0 362 367" aria-hidden="true"><path d="${SHIELD}"/></svg>`;
 
     return `<!doctype html>
 <html lang="${lang}"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
 <meta name="color-scheme" content="light dark">
 <title>Spofy VPN · ${t.title}</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <style>
-:root{--bg:#f4f6fb;--card:#fff;--text:#0b1220;--muted:#56627d;--line:rgba(11,18,32,.1);--btn:#2b63f5;--btn2:#e9eefc;--btn2t:#1c47c4}
-@media(prefers-color-scheme:dark){:root{--bg:#070b18;--card:#0f1730;--text:#f2f5ff;--muted:#9aa6c4;--line:rgba(140,170,255,.18);--btn2:rgba(140,170,255,.14);--btn2t:#9db8ff}}
-*{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:16px;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-main{width:min(440px,100%);padding:28px 24px;border-radius:24px;background:var(--card);border:1px solid var(--line);text-align:center;box-shadow:0 30px 70px -40px rgba(43,99,245,.55)}
-.i{width:76px;height:76px;margin:0 auto 18px;border-radius:24px;display:grid;place-items:center;background:linear-gradient(145deg,#ff7676,#ff4040 45%,#c41d29);box-shadow:0 0 44px -10px rgba(255,64,64,.8)}
-.i svg{width:46px;height:46px;fill:#0a0e16}h1{margin:0 0 8px;font-size:24px;line-height:1.2}p{margin:0 0 10px;color:var(--muted)}
-.a{display:flex;flex-direction:column;gap:10px;margin-top:20px}a{display:flex;align-items:center;justify-content:center;min-height:52px;border-radius:16px;font-weight:700;text-decoration:none}
-.p{background:var(--btn);color:#fff}.s{background:var(--btn2);color:var(--btn2t)}
-</style></head><body><main>
-<div class="i"><svg viewBox="673 0 362 367" aria-hidden="true"><path d="${SHIELD}"/></svg></div>
+@font-face{font-family:'Manrope Variable';font-display:swap;font-weight:200 800;src:url(/assets/fonts/manrope-cyrillic.woff2) format('woff2-variations');unicode-range:U+0400-045F,U+0490-0491,U+2116}
+@font-face{font-family:'Manrope Variable';font-display:swap;font-weight:200 800;src:url(/assets/fonts/manrope-latin.woff2) format('woff2-variations');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+:root{--bg:#f3f5f9;--card:#fff;--text:#0b1220;--muted:#5b6475;--line:rgba(11,18,32,.1);--accent:#2b63f5;--btn2:rgba(43,99,245,.1);--btn2t:#1c47c4;--err:#d93a40}
+@media(prefers-color-scheme:dark){:root{--bg:#070b13;--card:rgba(255,255,255,.045);--text:#e9eef6;--muted:#8b95a7;--line:rgba(255,255,255,.08);--btn2:rgba(77,124,255,.14);--btn2t:#9db8ff;--err:#ff6b70}}
+*{box-sizing:border-box}
+body{margin:0;min-height:100dvh;background:var(--bg);color:var(--text);font:16px/1.5 'Manrope Variable',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;-webkit-text-size-adjust:100%}
+.w{width:100%;max-width:560px;margin:0 auto;padding:calc(8px + env(safe-area-inset-top)) 14px 28px}
+header{display:flex;align-items:center;gap:10px;min-height:52px;font-size:17.5px;font-weight:800}
+.b{width:30px;height:30px;fill:#ff4040;filter:drop-shadow(0 2px 8px rgba(255,64,64,.35))}
+main{margin-top:12px;padding:24px 18px;border-radius:22px;background:var(--card);border:1px solid var(--line)}
+.s{width:56px;height:58px;margin-bottom:14px;fill:var(--err)}
+h1{margin:0 0 8px;font-size:23px;line-height:1.25}
+p{margin:0 0 10px;color:var(--muted);font-size:16px}
+.a{display:flex;flex-direction:column;gap:10px;margin-top:20px}
+a{display:flex;align-items:center;justify-content:center;min-height:52px;padding:0 18px;border-radius:14px;font-weight:700;font-size:16.5px;text-decoration:none;touch-action:manipulation}
+.p{background:var(--accent);color:#fff}.q{background:var(--btn2);color:var(--btn2t)}
+</style></head><body><div class="w">
+<header>${shield('b')}<span>Spofy VPN</span></header>
+<main>${shield('s')}
 <h1>${t.title}</h1><p>${t.text}</p><p>${t.hint}</p>
-<div class="a">${bot ? `<a class="p" href="${bot}">${t.bot}</a>` : ''}${support ? `<a class="s" href="${support}">${t.support}</a>` : ''}</div>
-</main></body></html>`;
+<div class="a">${bot ? `<a class="p" href="${bot}">${t.bot}</a>` : ''}${support ? `<a class="q" href="${support}">${t.support}</a>` : ''}</div>
+</main></div></body></html>`;
 }

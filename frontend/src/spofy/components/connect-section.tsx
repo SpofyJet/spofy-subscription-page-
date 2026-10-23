@@ -1,4 +1,3 @@
-import { useClipboard } from '@mantine/hooks'
 import {
     TSubscriptionPageAppConfig,
     TSubscriptionPageButtonConfig,
@@ -26,13 +25,16 @@ import { useAppConfig } from '@entities/app-config-store'
 import { useSubscription } from '@entities/subscription-info-store'
 
 import { getAppLogo, isAllowedApp } from '../app-logos'
+import { useCopy } from '../copy'
 import { countOf, PLATFORM_ORDER } from '../format'
 import { useSpofyT } from '../i18n'
 import { formatLink, useLinkTemplates } from '../link-template'
 import { CONNECT_ID } from '../page-model'
 import { prefs } from '../prefs'
 import { useQrStore } from '../qr-store'
+import { revealBlock } from '../scroll'
 import classes from '../spofy.module.css'
+import { ManualCopy } from './manual-copy'
 
 type TButton = TSubscriptionPageButtonConfig
 
@@ -108,17 +110,20 @@ export function ConnectSection({
     const headingId = useId()
     const [collapsed, setCollapsed] = useState(startCollapsed !== null)
     const stepsAnchor = useRef<HTMLDivElement>(null)
+    // the chosen tile tapped again: go to the steps (and flash them, so the tap is answered)
     const showSteps = () => {
         vibrate('selection')
-        const top = stepsAnchor.current?.getBoundingClientRect().top
-        // only move when the steps are out of sight or near the bottom edge
-        if (top !== undefined && (top < 0 || top > window.innerHeight * 0.6)) {
-            stepsAnchor.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        }
+        revealBlock(stepsAnchor.current?.parentElement?.querySelector('ol') ?? null)
     }
 
+    // Only Happ and INCY (owner's decision); if the panel names them some other way, the guide
+    // falls back to the panel's own apps rather than disappearing (and «Подключить устройство»
+    // would have nothing to lead to).
+    const anyAllowed = PLATFORM_ORDER.some((key) =>
+        (config.platforms[key]?.apps ?? []).some((app) => isAllowedApp(app.name))
+    )
     const appsOf = (key: TSubscriptionPagePlatformKey) =>
-        (config.platforms[key]?.apps ?? []).filter((app) => isAllowedApp(app.name))
+        (config.platforms[key]?.apps ?? []).filter((app) => !anyAllowed || isAllowedApp(app.name))
     const available = PLATFORM_ORDER.filter((key) => appsOf(key).length > 0)
 
     const [platform, setPlatform] = useState<TSubscriptionPagePlatformKey | undefined>(() => {
@@ -227,6 +232,7 @@ export function ConnectSection({
                     onReselect={showSteps}
                     onSelect={(key) => selectPlatform(key as TSubscriptionPagePlatformKey)}
                     value={platform}
+                    variant="tile"
                 />
             )}
 
@@ -242,6 +248,7 @@ export function ConnectSection({
                     onReselect={showSteps}
                     onSelect={(name) => selectApp(apps.findIndex((item) => item.name === name))}
                     value={app.name}
+                    variant="app"
                 />
             )}
 
@@ -258,7 +265,11 @@ export function ConnectSection({
     )
 }
 
-/** A row of choice chips (radio group). Scrolls sideways when it does not fit. */
+/**
+ * Choice tiles (radio group), all visible at once — no sideways scrolling: on a phone a swipe on
+ * a scrolling row dragged the whole page into the empty space on the right.
+ * Systems are tiles (icon above the name), apps are two halves (icon + name + «Рекомендуем»).
+ */
 function ChipGroup(props: {
     items: { icon: React.ReactNode; key: string; label: string; tag?: string }[]
     label: string
@@ -266,24 +277,10 @@ function ChipGroup(props: {
     onReselect?: () => void
     onSelect: (key: string) => void
     value: string
+    variant: 'app' | 'tile'
 }) {
-    const { items, label, onReselect, onSelect, value } = props
+    const { items, label, onReselect, onSelect, value, variant } = props
     const refs = useRef(new Map<string, HTMLButtonElement | null>())
-    const row = useRef<HTMLDivElement>(null)
-    // «there is more to the right»: a fade on the edge until the row is scrolled to the end
-    const [more, setMore] = useState(false)
-    useEffect(() => {
-        const el = row.current
-        if (!el) return
-        const check = () => setMore(el.scrollLeft + el.clientWidth < el.scrollWidth - 4)
-        check()
-        el.addEventListener('scroll', check, { passive: true })
-        window.addEventListener('resize', check)
-        return () => {
-            el.removeEventListener('scroll', check)
-            window.removeEventListener('resize', check)
-        }
-    }, [items.length])
     const onKeys = (event: React.KeyboardEvent) => {
         const delta = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key]
         if (!delta) return
@@ -293,32 +290,28 @@ function ChipGroup(props: {
         onSelect(next.key)
         refs.current.get(next.key)?.focus()
     }
-    // keep the selected chip in view when the row scrolls sideways (never scroll the page)
-    useEffect(() => {
-        const chip = refs.current.get(value)
-        const row = chip?.parentElement
-        if (!chip || !row || row.scrollWidth <= row.clientWidth) return
-        const left = chip.offsetLeft - row.offsetLeft
-        if (left < row.scrollLeft || left + chip.offsetWidth > row.scrollLeft + row.clientWidth) {
-            row.scrollLeft = Math.max(0, left - 16)
-        }
-    }, [value])
+    // 2 → 2 halves, 3 → one row, 4 → 2 × 2, 5–6 → rows of 3
+    const n = items.length
+    const cols = variant === 'app' ? Math.min(2, n) : n <= 3 ? n : n === 4 ? 2 : 3
 
     return (
         <div
             aria-label={label}
             className={classes.chips}
-            data-more={more || undefined}
+            data-variant={variant}
             onKeyDown={onKeys}
-            ref={row}
             role="radiogroup"
+            style={{ '--cols': cols } as React.CSSProperties}
         >
             {items.map((item) => {
                 const checked = item.key === value
                 return (
                     <button
                         aria-checked={checked}
-                        className={classes.chip}
+                        className={clsx(
+                            classes.chip,
+                            variant === 'tile' ? classes.chipTile : classes.chipApp
+                        )}
                         key={item.key}
                         onClick={() => (checked ? onReselect?.() : onSelect(item.key))}
                         ref={(el) => {
@@ -329,8 +322,14 @@ function ChipGroup(props: {
                         type="button"
                     >
                         {item.icon}
-                        <span className={classes.chipLabel}>{item.label}</span>
-                        {item.tag && <span className={classes.chipTag}>{item.tag}</span>}
+                        {variant === 'app' ? (
+                            <span className={classes.chipAppText}>
+                                <span className={classes.chipLabel}>{item.label}</span>
+                                {item.tag && <span className={classes.chipTag}>{item.tag}</span>}
+                            </span>
+                        ) : (
+                            <span className={classes.chipLabel}>{item.label}</span>
+                        )}
                     </button>
                 )
             })}
@@ -348,9 +347,8 @@ function Steps(props: {
     const { app, isTv, platform, subscriptionUrl, username } = props
     const { svgLibrary } = useAppConfig()
     const { t, lang } = useSpofyT()
-    const clipboard = useClipboard({ timeout: 2_000 })
+    const { copied, copy, failed } = useCopy()
     const openQr = useQrStore((state) => state.setOpen)
-    const [copiedButton, setCopiedButton] = useState<TButton | null>(null)
     const { done, mark } = useDoneSteps(`${platform}:${app.name}`)
     // «The app did not open?» — shown under a step when its deep link left the page in front.
     const [notOpened, setNotOpened] = useState<null | number>(null)
@@ -396,36 +394,36 @@ function Steps(props: {
         }, 1_600)
     }
 
-    const copyLink = (button: TButton | null) => {
+    /** Copy; the step is ticked off only if the link really landed in the clipboard. */
+    const copyLink = async (button: TButton | null, index: number, key: string) => {
         const link = button ? formatOrNull(button) : subscriptionUrl
         if (link === null) return // never copy a placeholder
-        clipboard.copy(link)
-        setCopiedButton(button)
         vibrate('tap')
+        if (await copy(link, key)) mark(index)
+    }
+    const copyButton = (index: number, key: string, button: TButton | null, text: string) => {
+        const isCopied = copied === key
+        return (
+            <button
+                className={clsx(classes.btn, classes.btnSecondary, classes.btnSmall)}
+                key={key}
+                onClick={() => void copyLink(button, index, key)}
+                type="button"
+            >
+                {isCopied ? (
+                    <IconCheck aria-hidden size={18} stroke={2.4} />
+                ) : (
+                    <IconCopy aria-hidden size={18} stroke={2} />
+                )}
+                <span aria-live="polite">{isCopied ? t('copied') : text}</span>
+            </button>
+        )
     }
 
     const renderButton = (button: TButton, index: number, key: number) => {
         const text = localized(button.text, lang)
         if (button.type === 'copyButton') {
-            const isCopied = clipboard.copied && copiedButton === button
-            return (
-                <button
-                    className={clsx(classes.btn, classes.btnSecondary, classes.btnSmall)}
-                    key={key}
-                    onClick={() => {
-                        copyLink(button)
-                        mark(index)
-                    }}
-                    type="button"
-                >
-                    {isCopied ? (
-                        <IconCheck aria-hidden size={18} stroke={2.4} />
-                    ) : (
-                        <IconCopy aria-hidden size={18} stroke={2} />
-                    )}
-                    <span aria-live="polite">{isCopied ? t('copied') : text}</span>
-                </button>
-            )
+            return copyButton(index, `${index}:${key}`, button, text || t('copyLinkShort'))
         }
 
         if (button.type === 'subscriptionLink') {
@@ -499,6 +497,9 @@ function Steps(props: {
                             Number(b.type === 'subscriptionLink') -
                             Number(a.type === 'subscriptionLink')
                     )
+                    const ownCopy =
+                        buttons.some((b) => b.type === 'subscriptionLink') &&
+                        !buttons.some((b) => b.type === 'copyButton')
                     return (
                         <li className={classes.step} data-state={state} key={index}>
                             <span aria-hidden className={clsx(classes.stepMarker, classes.num)}>
@@ -530,11 +531,32 @@ function Steps(props: {
                                 {buttons.length > 0 && (
                                     <div className={classes.stepButtons}>
                                         {buttons.map((button, i) => renderButton(button, index, i))}
+                                        {/* the link can always be copied where it is added —
+                                            whether or not the panel config has a copy button */}
+                                        {ownCopy &&
+                                            copyButton(
+                                                index,
+                                                `${index}:own`,
+                                                null,
+                                                t('copyLinkShort')
+                                            )}
                                     </div>
                                 )}
-                                {buttons.some((b) => b.type === 'copyButton') && (
-                                    <p className={classes.stepNote}>{t('moreCopyHint')}</p>
+                                {failed?.startsWith(`${index}:`) && (
+                                    <ManualCopy
+                                        text={
+                                            (failed.endsWith(':own')
+                                                ? subscriptionUrl
+                                                : formatOrNull(
+                                                      buttons[Number(failed.split(':')[1])]!
+                                                  )) ?? subscriptionUrl
+                                        }
+                                    />
                                 )}
+                                {(ownCopy || buttons.some((b) => b.type === 'copyButton')) &&
+                                    !failed?.startsWith(`${index}:`) && (
+                                        <p className={classes.stepNote}>{t('moreCopyHint')}</p>
+                                    )}
                                 {notOpened === index && (
                                     <div
                                         className={classes.notOpened}
@@ -545,34 +567,6 @@ function Steps(props: {
                                         <div>
                                             <strong>{t('cnNotOpened')}</strong>
                                             <p>{t('cnNotOpenedText')}</p>
-                                            {!buttons.some((b) => b.type === 'copyButton') && (
-                                                <button
-                                                    className={clsx(
-                                                        classes.btn,
-                                                        classes.btnSecondary,
-                                                        classes.btnSmall
-                                                    )}
-                                                    onClick={() => copyLink(null)}
-                                                    type="button"
-                                                >
-                                                    {clipboard.copied && copiedButton === null ? (
-                                                        <IconCheck
-                                                            aria-hidden
-                                                            size={18}
-                                                            stroke={2.4}
-                                                        />
-                                                    ) : (
-                                                        <IconCopy
-                                                            aria-hidden
-                                                            size={18}
-                                                            stroke={2}
-                                                        />
-                                                    )}
-                                                    {clipboard.copied && copiedButton === null
-                                                        ? t('copied')
-                                                        : t('copyLinkFull')}
-                                                </button>
-                                            )}
                                         </div>
                                     </div>
                                 )}

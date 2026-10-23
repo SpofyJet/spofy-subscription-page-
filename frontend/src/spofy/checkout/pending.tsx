@@ -1,4 +1,4 @@
-import { IconCheck, IconLoader2 } from '@tabler/icons-react'
+import { IconCheck, IconLoader2, IconX } from '@tabler/icons-react'
 import clsx from 'clsx'
 import { useEffect, useState } from 'react'
 
@@ -122,7 +122,7 @@ export function usePendingPhase(): TPhase | null {
 /* ───────────── small banner while a payment is pending and the sheet is closed ───────────── */
 
 export function PendingBanner({ phase }: { phase: TPhase | null }) {
-    const { opened, pending, open } = useCheckoutStore()
+    const { opened, pending, openPayment, setPending } = useCheckoutStore()
     const subscription = useSubscription()
     const money = useMoney()
     const { t } = useSpofyT()
@@ -131,25 +131,45 @@ export function PendingBanner({ phase }: { phase: TPhase | null }) {
 
     const done = phase === 'done'
     const expired = phase === 'expired'
+    const paid = phase === 'paid'
     return (
-        <button
+        <div
+            aria-live="polite"
             className={clsx(classes.pendingBanner, done && classes.coStatusDone)}
-            onClick={() => open('renew')}
-            type="button"
         >
-            {done ? (
-                <IconCheck aria-hidden size={20} />
-            ) : (
-                <IconLoader2 aria-hidden className={classes.spin} size={20} />
+            <button
+                className={classes.pendingMain}
+                disabled={done}
+                onClick={() => openPayment()}
+                type="button"
+            >
+                {done ? (
+                    <IconCheck aria-hidden size={20} />
+                ) : (
+                    <IconLoader2 aria-hidden className={classes.spin} size={20} />
+                )}
+                <span className={classes.pendingText}>
+                    {done
+                        ? t('coPendingDone')
+                        : expired
+                          ? t('coSessionExpired')
+                          : paid
+                            ? t('coPaid')
+                            : t('coPendingBanner', { price: money(pending.result.amount_kopeks) })}
+                </span>
+                {!done && <span className={classes.pendingOpen}>{t('coPendingOpen')}</span>}
+            </button>
+            {/* an invoice the person changed their mind about: forget it here (only while unpaid) */}
+            {!done && !paid && (
+                <button
+                    aria-label={t('coPendingHide')}
+                    className={classes.pendingHide}
+                    onClick={() => setPending(null)}
+                    type="button"
+                >
+                    <IconX aria-hidden size={18} stroke={2.2} />
+                </button>
             )}
-            <span className={classes.pendingText}>
-                {done
-                    ? t('coDone')
-                    : expired
-                      ? t('coSessionExpired')
-                      : t('coPendingBanner', { price: money(pending.result.amount_kopeks) })}
-            </span>
-            <span className={classes.pendingOpen}>{t('coPendingOpen')}</span>
-        </button>
+        </div>
     )
 }

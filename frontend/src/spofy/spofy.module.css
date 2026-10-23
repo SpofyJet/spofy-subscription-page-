@@ -55,8 +55,12 @@
     gap: 12px;
     color: var(--sp-text);
     font-family: var(--sp-font);
-    font-size: 15px;
+    font-size: 16px;
     line-height: 1.45;
+    /* Nothing may push the page wider than the phone: a long word or button text from the
+       panel wraps, anything else is clipped — the page can never be dragged sideways. */
+    overflow-x: clip;
+    overflow-wrap: break-word;
 }
 
 .page *,
@@ -75,6 +79,24 @@
 .page svg {
     display: block;
     flex-shrink: 0;
+}
+
+/* «you are here»: the block a button just brought into view glows for a moment */
+.page [data-flash] {
+    animation: spFlash 1.6s ease-out;
+}
+
+@keyframes spFlash {
+    0%,
+    100% {
+        outline: 3px solid transparent;
+        outline-offset: 4px;
+    }
+    20%,
+    55% {
+        outline: 3px solid var(--sp-accent);
+        outline-offset: 4px;
+    }
 }
 
 .card {
@@ -113,7 +135,7 @@
 .sectionLead {
     margin: 0;
     color: var(--sp-text-2);
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 500;
 }
 
@@ -149,7 +171,7 @@
     border-radius: 14px;
     border: 1px solid transparent;
     font: inherit;
-    font-size: 15.5px;
+    font-size: 16.5px;
     font-weight: 700;
     line-height: 1.2;
     text-align: center;
@@ -192,7 +214,7 @@
     align-items: baseline;
     gap: 6px;
     flex-shrink: 0;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 700;
     opacity: 0.88;
     white-space: nowrap;
@@ -206,13 +228,13 @@
 }
 
 .btnPriceNote {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     opacity: 0.85;
 }
 
 .btnPrice s {
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 600;
     opacity: 0.7;
 }
@@ -305,7 +327,7 @@
 .btnSmall {
     min-height: 46px;
     padding: 0 14px;
-    font-size: 14.5px;
+    font-size: 15.5px;
     border-radius: 13px;
 }
 
@@ -385,7 +407,7 @@
     gap: 5px;
     min-width: 0;
     color: var(--sp-text-2);
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 700;
 }
 
@@ -408,7 +430,7 @@
     background: var(--sp-glass);
     color: var(--sp-text);
     font: inherit;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 700;
     text-decoration: none;
     cursor: pointer;
@@ -423,7 +445,7 @@
 .pillCompact {
     min-width: 44px;
     padding: 0 12px;
-    font-size: 13px;
+    font-size: 14px;
 }
 
 .menuDropdown {
@@ -438,7 +460,7 @@
     border-radius: 10px !important;
     color: var(--sp-text) !important;
     font-family: var(--sp-font) !important;
-    font-size: 15px !important;
+    font-size: 16px !important;
 }
 
 .menuItem[data-hovered] {
@@ -518,7 +540,7 @@
 .statusLine {
     margin: 0;
     color: var(--tone-text);
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 650;
 }
 
@@ -533,7 +555,7 @@
     border-radius: 999px;
     background: var(--sp-trial-soft);
     color: var(--sp-trial-text);
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 800;
 }
 
@@ -541,7 +563,7 @@
     position: relative;
     margin: 0;
     color: var(--sp-text-2);
-    font-size: 14.5px;
+    font-size: 15.5px;
 }
 
 .statusActions {
@@ -698,7 +720,7 @@
     align-items: center;
     gap: 0;
     color: var(--sp-text-2);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 650;
     line-height: 1.3;
 }
@@ -708,7 +730,7 @@
     flex-wrap: wrap;
     align-items: baseline;
     gap: 0 8px;
-    font-size: 16px;
+    font-size: 17px;
     font-weight: 800;
     line-height: 1.3;
 }
@@ -723,7 +745,7 @@
 
 .rowValueSub {
     color: var(--sp-text-2);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
 }
 
@@ -732,13 +754,13 @@
     padding: 0 10px 0 8px;
     gap: 5px;
     border-radius: 12px;
-    font-size: 14.5px;
+    font-size: 15.5px;
 }
 
 .rowHint {
     margin: 0 0 2px 46px;
     color: var(--sp-text-2);
-    font-size: 13.5px;
+    font-size: 14.5px;
 }
 
 .bar {
@@ -811,7 +833,7 @@
     align-items: flex-start;
     gap: 10px;
     min-width: 0;
-    font-size: 14.5px;
+    font-size: 15.5px;
     font-weight: 600;
 }
 
@@ -855,55 +877,70 @@
     transform: rotate(180deg);
 }
 
+/* Choice tiles: everything visible at once, never a sideways-scrolling row (on a phone a
+   swipe on such a row dragged the whole page sideways). Systems: icon above the name,
+   2–3 per row; apps: two equal halves. */
 .chips {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
     gap: 8px;
-    margin: 0 -16px;
-    padding: 2px 16px;
-    overflow-x: auto;
-    scrollbar-width: none;
-    overscroll-behavior-x: contain;
-}
-
-.chips::-webkit-scrollbar {
-    display: none;
-}
-
-/* more chips to the right: the row fades out at the edge */
-.chips[data-more] {
-    mask-image: linear-gradient(90deg, #000 calc(100% - 56px), transparent);
-    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 56px), transparent);
-}
-
-@media (min-width: 30em) {
-    .chips {
-        margin: 0 -20px;
-        padding: 2px 20px;
-        flex-wrap: wrap;
-    }
 }
 
 .chip {
-    display: inline-flex;
+    position: relative;
+    display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
-    flex-shrink: 0;
-    min-height: 44px;
-    padding: 0 14px 0 8px;
-    border-radius: 999px;
+    min-width: 0;
+    min-height: 48px;
+    padding: 6px 10px;
+    border-radius: 14px;
     border: 1px solid var(--sp-glass-border);
     background: var(--sp-row);
     color: var(--sp-text);
     font: inherit;
-    font-size: 14.5px;
+    font-size: 16px;
     font-weight: 700;
-    white-space: nowrap;
+    line-height: 1.2;
+    text-align: center;
     cursor: pointer;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
     transition:
         border-color 0.15s ease,
         background-color 0.15s ease;
+}
+
+/* a system: icon on top, the name under it (wraps to two lines on a small phone) */
+.chipTile {
+    flex-direction: column;
+    gap: 4px;
+    min-height: 68px;
+    padding: 8px 4px;
+}
+
+/* an app: icon on the left, the name and «Рекомендуем» stacked on the right */
+.chipApp {
+    justify-content: flex-start;
+    min-height: 56px;
+    padding: 6px 10px 6px 8px;
+    text-align: left;
+}
+
+.chipAppText {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    min-width: 0;
+}
+
+/* a small phone: one app per row, so «Рекомендуем» always fits */
+@media (max-width: 359px) {
+    .chips[data-variant='app'] {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 
 .chip:hover {
@@ -932,7 +969,8 @@
 }
 
 .chipLabel {
-    line-height: 1;
+    max-width: 100%;
+    overflow-wrap: anywhere;
 }
 
 .chipTag {
@@ -940,7 +978,7 @@
     border-radius: 6px;
     background: var(--sp-accent-soft);
     color: var(--sp-accent-text);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 800;
 }
 
@@ -995,7 +1033,7 @@
     background: transparent;
     color: var(--sp-text);
     font: inherit;
-    font-size: 14.5px;
+    font-size: 15.5px;
     font-weight: 650;
     text-align: left;
     cursor: pointer;
@@ -1056,7 +1094,7 @@
     border: 1.5px solid var(--sp-border-strong);
     background: var(--sp-surface);
     color: var(--sp-text-2);
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 800;
 }
 
@@ -1084,7 +1122,7 @@
 
 .stepTitle {
     margin: 0;
-    font-size: 16px;
+    font-size: 17px;
     font-weight: 800;
     line-height: 1.3;
 }
@@ -1096,7 +1134,7 @@
 .stepText {
     margin: 0;
     color: var(--sp-text-2);
-    font-size: 14px;
+    font-size: 15px;
     line-height: 1.5;
 }
 
@@ -1124,7 +1162,7 @@
     border-radius: 14px;
     background: var(--sp-accent-soft);
     color: var(--sp-text);
-    font-size: 14px;
+    font-size: 15px;
 }
 
 .notOpened > svg {
@@ -1218,13 +1256,13 @@
 }
 
 .listTitle {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 700;
 }
 
 .listCaption {
     color: var(--sp-text-2);
-    font-size: 13px;
+    font-size: 14px;
     overflow-wrap: anywhere;
 }
 
@@ -1279,26 +1317,86 @@
     margin: 14px 0 6px;
     color: var(--sp-text-2);
     text-align: center;
-    font-size: 14px;
+    font-size: 15px;
 }
 
 /* ───────── pending payment banner ───────── */
 .pendingBanner {
     display: flex;
-    align-items: center;
-    gap: 10px;
+    align-items: stretch;
     width: 100%;
-    min-height: 54px;
-    padding: 10px 14px;
     border-radius: 18px;
     border: 1px solid rgba(43, 99, 245, 0.35);
     background: var(--sp-accent-soft);
     color: var(--sp-text);
+}
+
+.pendingMain {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    min-height: 56px;
+    padding: 10px 6px 10px 14px;
+    border: 0;
+    background: none;
+    color: inherit;
     font: inherit;
-    font-size: 14.5px;
+    font-size: 16px;
     font-weight: 700;
     text-align: left;
     cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.pendingMain:disabled {
+    cursor: default;
+}
+
+.pendingHide {
+    display: grid;
+    place-items: center;
+    flex: 0 0 48px;
+    border: 0;
+    border-left: 1px solid rgba(43, 99, 245, 0.25);
+    background: none;
+    color: var(--sp-text-2);
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* an unpaid invoice above the choice in the purchase window */
+.coPendingNotice {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid var(--sp-warning-line);
+    background: var(--sp-warning-soft);
+    color: var(--sp-text);
+    font-size: 15.5px;
+    line-height: 1.4;
+}
+
+.coPendingNotice > svg {
+    margin-top: 1px;
+    color: var(--sp-warning);
+}
+
+.coPendingNoticeText {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    min-width: 0;
+}
+
+.coPendingNoticeText > span {
+    color: var(--sp-text-2);
 }
 
 .coStatusDone {
@@ -1413,7 +1511,7 @@
 
 .coTitleSub {
     color: var(--sp-text-2);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
 }
 
@@ -1436,14 +1534,14 @@
 
 .coLabel {
     margin: 4px 0 0;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 800;
 }
 
 .coHint {
     margin: 0;
     color: var(--sp-text-2);
-    font-size: 13.5px;
+    font-size: 14.5px;
     line-height: 1.45;
 }
 
@@ -1463,14 +1561,14 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
-    min-height: 40px;
+    min-height: 44px;
     padding: 0 6px;
     border: 0;
     border-radius: 10px;
     background: transparent;
     color: var(--sp-text-2);
     font: inherit;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 700;
     cursor: pointer;
     touch-action: manipulation;
@@ -1574,7 +1672,7 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 4px 8px;
-    font-size: 15.5px;
+    font-size: 16.5px;
     font-weight: 750;
     line-height: 1.25;
 }
@@ -1584,7 +1682,7 @@
     flex-wrap: wrap;
     gap: 2px 10px;
     color: var(--sp-text-2);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
 }
 
@@ -1607,7 +1705,7 @@
 
 .optPrice s {
     color: var(--sp-text-2);
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 600;
 }
 
@@ -1622,7 +1720,7 @@
     border-radius: 6px;
     background: var(--sp-accent);
     color: #ffffff;
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 800;
     line-height: 1.35;
     white-space: nowrap;
@@ -1633,7 +1731,7 @@
     display: inline-flex;
     padding: 2px 7px;
     border-radius: 6px;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 800;
     line-height: 1.35;
     white-space: nowrap;
@@ -1682,13 +1780,13 @@
     align-self: flex-start;
     align-items: center;
     gap: 6px;
-    min-height: 40px;
+    min-height: 44px;
     padding: 0 4px;
     border: 0;
     background: none;
     color: var(--sp-accent-text);
     font: inherit;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 700;
     cursor: pointer;
 }
@@ -1715,7 +1813,7 @@
     gap: 4px;
     flex-shrink: 0;
     color: var(--sp-accent-text);
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 700;
 }
 
@@ -1724,14 +1822,14 @@
     flex-direction: column;
     align-items: flex-end;
     color: var(--sp-text-2);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
     white-space: nowrap;
 }
 
 .optFromTotal {
     color: var(--sp-text);
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 800;
 }
 
@@ -1786,7 +1884,7 @@
 }
 
 .coWillBe {
-    font-size: 14.5px;
+    font-size: 15.5px;
     font-weight: 700;
 }
 
@@ -1796,7 +1894,7 @@
     gap: 8px;
     margin: 0;
     color: var(--sp-text-2);
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
 }
 
@@ -1832,7 +1930,7 @@
     border-radius: 8px;
     background: var(--sp-saving-soft);
     color: var(--sp-saving);
-    font-size: 13.5px;
+    font-size: 14.5px;
     font-weight: 800;
     text-align: center;
 }
@@ -1846,7 +1944,7 @@
 
 .coSecure {
     color: var(--sp-text-2);
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     text-align: center;
 }
@@ -1856,7 +1954,7 @@
     align-self: flex-start;
     align-items: center;
     gap: 6px;
-    min-height: 40px;
+    min-height: 44px;
     margin: -4px 0 -4px -6px;
     padding: 0 10px 0 6px;
     border: 0;
@@ -1864,7 +1962,7 @@
     background: none;
     color: var(--sp-accent-text);
     font: inherit;
-    font-size: 14.5px;
+    font-size: 15.5px;
     font-weight: 700;
     cursor: pointer;
 }
@@ -1888,13 +1986,13 @@
 }
 
 .coRowTitle {
-    font-size: 15.5px;
+    font-size: 16.5px;
     font-weight: 800;
 }
 
 .coRowMeta {
     color: var(--sp-text-2);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
 }
 
@@ -1914,7 +2012,7 @@
     background: var(--sp-error-soft);
     border: 1px solid var(--sp-error-line);
     color: var(--sp-error-text);
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 650;
 }
 
@@ -1976,7 +2074,7 @@
     align-items: center;
     gap: 12px;
     color: var(--sp-text-2);
-    font-size: 14.5px;
+    font-size: 15.5px;
     font-weight: 650;
 }
 
@@ -1993,7 +2091,7 @@
     flex-shrink: 0;
     border-radius: 50%;
     border: 1.5px solid var(--sp-border-strong);
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 800;
 }
 
@@ -2055,8 +2153,50 @@
 
 .coSuccessDate {
     color: var(--sp-success-text);
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 700;
+}
+
+/* ───────── ordinary and small phones: room for the value and its button ───────── */
+@media (max-width: 419px) {
+    /* the row icons step aside, and so does the icon inside the row's button */
+    .rowIcon {
+        display: none;
+    }
+
+    .bar,
+    .rowHint {
+        margin-left: 0;
+    }
+
+    .rowAction .btnLabel > svg {
+        display: none;
+    }
+
+    /* a phone: the label, then the price centred under it (not hanging to the right) —
+       the page's buttons only; the purchase window keeps «Продолжить 720 ₽» on one line */
+    .page .btnSplit {
+        flex-direction: column;
+        justify-content: center;
+        gap: 2px;
+        padding-top: 8px;
+        padding-bottom: 8px;
+        text-align: center;
+    }
+
+    .page .btnSplit .btnPrice,
+    .page .btnSplit .btnPrice:has(.btnPriceNote) {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: center;
+        gap: 0 6px;
+    }
+}
+
+/* the date / amount itself never breaks in the middle («16 / ноября») */
+.rowValue > :first-child {
+    white-space: nowrap;
 }
 
 /* ───────── very small phones ───────── */
@@ -2082,7 +2222,7 @@
     .pill {
         gap: 4px;
         padding: 0 10px;
-        font-size: 13px;
+        font-size: 14px;
     }
 
     .pillCompact svg {
@@ -2090,25 +2230,10 @@
     }
 
     .brand {
-        font-size: 15.5px;
+        font-size: 16.5px;
     }
 
-    /* room for the value and its button: the row icons step aside */
-    .rowIcon {
-        display: none;
-    }
 
-    .bar,
-    .rowHint {
-        margin-left: 0;
-    }
-
-    .btnSplit {
-        flex-wrap: wrap;
-        justify-content: center;
-        padding-top: 8px;
-        padding-bottom: 8px;
-    }
 }
 
 /* ───────── v6 ───────── */
@@ -2136,7 +2261,7 @@
 
 .supportCaption {
     color: var(--sp-text-2);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
 }
 
@@ -2144,7 +2269,7 @@
 .stepNote {
     margin: 6px 0 0;
     color: var(--sp-text-2);
-    font-size: 13px;
+    font-size: 14px;
 }
 
 /* payment hangs: support with the payment number */
@@ -2157,11 +2282,72 @@
     border-radius: 14px;
     background: var(--sp-warning-soft);
     border: 1px solid var(--sp-warning-line);
-    font-size: 14px;
+    font-size: 15px;
 }
 
 .coStuck p {
     margin: 0;
     color: var(--sp-text-2);
     overflow-wrap: anywhere;
+}
+
+/* the phone would not let the page copy: the link to select by hand */
+.manualCopy {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid var(--sp-warning-line);
+    background: var(--sp-warning-soft);
+}
+
+.manualCopyHead {
+    display: flex;
+    gap: 8px;
+    font-size: 15.5px;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.manualCopyHead > svg {
+    margin-top: 1px;
+    color: var(--sp-warning);
+}
+
+.manualCopyField {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--sp-border-strong);
+    background: var(--sp-bg);
+    color: var(--sp-text);
+    font: inherit;
+    /* 16px: an iPhone would zoom the page into a smaller field */
+    font-size: 17px;
+    line-height: 1.35;
+    word-break: break-all;
+    resize: none;
+    user-select: text;
+    -webkit-user-select: text;
+}
+
+.manualCopyNote {
+    color: var(--sp-text-2);
+    font-size: 15px;
+}
+
+.qrWarn {
+    margin: 8px 0 0;
+    color: var(--sp-warning);
+    font-size: 15px;
+    font-weight: 700;
+    text-align: center;
+}
+
+/* the chosen row is scrolled into view above the sticky footer (small phones) */
+.opt[aria-checked='true'] {
+    scroll-margin-top: 12px;
+    scroll-margin-bottom: 140px;
 }

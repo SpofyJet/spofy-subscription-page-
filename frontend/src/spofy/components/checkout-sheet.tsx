@@ -8,6 +8,7 @@ import {
     IconCalendarCheck,
     IconCheck,
     IconChevronDown,
+    IconClock,
     IconCreditCard,
     IconCurrencyBitcoin,
     IconDevices,
@@ -69,6 +70,7 @@ import {
     toNumber
 } from '../format'
 import { TSpofyKey, useSpofyT } from '../i18n'
+import { useBackToClose, useSwipeToClose } from '../overlay'
 import { useQrDataUrl } from '../qr'
 import { useSpofyData } from '../spofy-store'
 import classes from '../spofy.module.css'
@@ -93,12 +95,17 @@ export default function CheckoutSheet({
     renewUrl: null | string
     supportUrl: null | string
 }) {
-    const { opened, close, pending, tab, offer, offerError, loadOffer } = useCheckoutStore()
+    const { opened, close, pending, showPending, tab, offer, offerError, loadOffer } =
+        useCheckoutStore()
     const subscription = useSubscription()
     const shortUuid = subscription.user.shortUuid
     const isDesktop = useMediaQuery('(min-width: 48em)')
     const { t, lang } = useSpofyT()
     const bypassOff = useSpofyData().bypassDisabled
+    // a phone: «Назад» closes the window, and so does pulling it down by the top
+    const titleRef = useRef<HTMLSpanElement>(null)
+    useBackToClose(opened, close)
+    useSwipeToClose(titleRef, opened && !isDesktop, close)
 
     useEffect(() => {
         if (opened) loadOffer(shortUuid)
@@ -108,7 +115,11 @@ export default function CheckoutSheet({
         if (opened) track(shortUuid, 'sheet_open', { t: tab })
     }, [opened])
 
-    const showPayment = !!pending && pending.shortUuid === shortUuid
+    const ownPending = !!pending && pending.shortUuid === shortUuid
+    // The invoice is shown when it was asked for (banner, «Открыть счёт», just created) — or once
+    // its money has arrived: then nothing else may be bought until it is applied.
+    const showPayment =
+        ownPending && (showPending || phase === 'paid' || phase === 'done' || phase === 'expired')
     const trial = !!offer && (offer.subscription.is_trial || offer.renewal.length === 0)
     const titleKey: TSpofyKey = showPayment
         ? 'coStepPay'
@@ -166,7 +177,7 @@ export default function CheckoutSheet({
               )
 
     const title = (
-        <span className={classes.coTitle}>
+        <span className={classes.coTitle} ref={titleRef}>
             <span
                 aria-hidden
                 className={classes.coTitleIcon}
@@ -192,7 +203,10 @@ export default function CheckoutSheet({
             renewUrl={renewUrl}
         />
     ) : offer ? (
-        <Chooser offer={offer} renewUrl={renewUrl} />
+        <>
+            {ownPending && <PendingNotice pending={pending!} />}
+            <Chooser offer={offer} renewUrl={renewUrl} />
+        </>
     ) : (
         <SkeletonChooser />
     )
@@ -448,11 +462,31 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
         )
     }, [methodId])
 
-    // New step or tab: start reading from the top of the sheet.
+    // New step or tab: start reading from the top of the sheet — but on a small phone the
+    // preselected period must not hide under the button: bring it into view.
     useEffect(() => {
-        top.current
-            ?.closest('[class*="mantine-Drawer-content"], [class*="mantine-Modal-content"]')
-            ?.scrollTo({ top: 0 })
+        const scroller = top.current?.closest<HTMLElement>(
+            '[class*="mantine-Drawer-content"], [class*="mantine-Modal-content"]'
+        )
+        scroller?.scrollTo({ top: 0 })
+        if (stage !== 'choose') return
+        const id = window.setTimeout(() => {
+            const chosen = top.current?.querySelectorAll<HTMLElement>(
+                '[role="radio"][aria-checked="true"]'
+            )
+            const row = chosen?.[chosen.length - 1]
+            if (!scroller || !row) return
+            // lift the chosen row just above the sticky footer (its saving line + button)
+            const footer = scroller.querySelector<HTMLElement>(`.${classes.coFooter}`)
+            const visibleBottom =
+                scroller.getBoundingClientRect().bottom -
+                (footer?.getBoundingClientRect().height ?? 0) -
+                12
+            const overflow = row.getBoundingClientRect().bottom - visibleBottom
+            if (overflow > 0)
+                scroller.scrollTo({ top: scroller.scrollTop + overflow, behavior: 'smooth' })
+        }, 260)
+        return () => window.clearTimeout(id)
     }, [stage, tab])
 
     const deviceQuote = deviceQuotes.find((q) => q.devices === devices)
@@ -1189,6 +1223,40 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
 /** Payments whose page this tab opened by itself (so the button only offers to open it again). */
 const autoOpened = new Set<string>()
 
+/**
+ * An unpaid invoice above the choice: it can be opened, or a new purchase made instead. The bot
+ * keeps one cart per person, so a new invoice replaces the old one — say plainly not to pay it.
+ */
+function PendingNotice({ pending }: { pending: IPendingPayment }) {
+    const { t } = useSpofyT()
+    const money = useMoney()
+    const openPayment = useCheckoutStore((s) => s.openPayment)
+    return (
+        <div className={classes.coPendingNotice} role="status">
+            <IconClock aria-hidden size={20} stroke={2} />
+            <div className={classes.coPendingNoticeText}>
+                <strong>
+                    {t('coPendingNotice', {
+                        summary: pending.summary ?? t('coTotal'),
+                        price: money(pending.result.amount_kopeks)
+                    })}
+                </strong>
+                <span>{t('coPendingNoticeNew')}</span>
+                <button
+                    className={clsx(classes.btn, classes.btnSecondary, classes.btnSmall)}
+                    onClick={() => {
+                        vibrate('tap')
+                        openPayment()
+                    }}
+                    type="button"
+                >
+                    {t('coPendingNoticeOpen')}
+                </button>
+            </div>
+        </div>
+    )
+}
+
 /** After this long without «оплачено», offer support with the payment number. */
 const STUCK_MS = 75_000
 
@@ -1203,7 +1271,7 @@ function PaymentStep({
 }) {
     const { t, lang } = useSpofyT()
     const money = useMoney()
-    const { setPending, close, latest } = useCheckoutStore()
+    const { setPending, setShowPending, close, latest } = useCheckoutStore()
     const [showQr, setShowQr] = useState(false)
     const { result } = pending
     const qrSrc = useQrDataUrl(showQr ? result.qr_payload || result.payment_url : null)
@@ -1387,17 +1455,21 @@ function PaymentStep({
                         {t('coOtherDevice')}
                     </button>
                 )}
-                <button
-                    className={clsx(classes.btn, classes.btnGhost, classes.btnSmall)}
-                    onClick={() => {
-                        track(pending.shortUuid, 'pay_back')
-                        setPending(null)
-                    }}
-                    type="button"
-                >
-                    <IconArrowLeft aria-hidden size={18} />
-                    {t('coBack')}
-                </button>
+                {/* once the money is in, going back to the choice would only invite paying twice */}
+                {!paid && (
+                    <button
+                        className={clsx(classes.btn, classes.btnGhost, classes.btnSmall)}
+                        onClick={() => {
+                            track(pending.shortUuid, 'pay_back')
+                            // back to the choice; the invoice is still watched (it may be paid)
+                            setShowPending(false)
+                        }}
+                        type="button"
+                    >
+                        <IconArrowLeft aria-hidden size={18} />
+                        {t('coBack')}
+                    </button>
+                )}
             </div>
             {showQr && !paid && qrSrc && (
                 <img alt={t('coOtherDevice')} className={classes.coQr} src={qrSrc} />

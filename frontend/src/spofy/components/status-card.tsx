@@ -26,6 +26,7 @@ import {
 } from '../format'
 import { TSpofyKey, useSpofyT } from '../i18n'
 import { CONNECT_ID, IAction, IPageModel, TView } from '../page-model'
+import { revealBlock } from '../scroll'
 import { useSpofyData } from '../spofy-store'
 import classes from '../spofy.module.css'
 import { StatusShield, TShieldTone } from './status-shield'
@@ -40,8 +41,7 @@ const TONE: Record<TView, TShieldTone> = {
     limited: 'error'
 }
 
-const scrollToGuide = () =>
-    document.getElementById(CONNECT_ID)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+const scrollToGuide = () => revealBlock(document.getElementById(CONNECT_ID))
 
 /**
  * The subscription at a glance, written for someone who does not know the word «подписка»:

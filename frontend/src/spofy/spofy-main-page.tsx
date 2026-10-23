@@ -50,6 +50,17 @@ export function SpofyMainPage() {
         if (checkout) track(user.shortUuid, 'view')
     }, [checkout, user.shortUuid])
     const opened = useCheckoutStore((s) => s.opened)
+    const setPending = useCheckoutStore((s) => s.setPending)
+    // Paid and applied while the window is closed: refresh, so the card above never says
+    // «VPN выключен · Продлить» next to «Оплачено».
+    useEffect(() => {
+        if (phase !== 'done' || opened) return
+        const id = window.setTimeout(() => {
+            setPending(null)
+            window.location.reload()
+        }, 2_500)
+        return () => window.clearTimeout(id)
+    }, [phase, opened, setPending])
     const offerReady = useCheckoutStore((s) => !!s.offer)
     const [sheetMounted, setSheetMounted] = useState(false)
     useEffect(() => {

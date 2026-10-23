@@ -1,7 +1,9 @@
 import { Modal } from '@mantine/core'
 import {
     IconBrandTelegram,
+    IconCheck,
     IconChevronRight,
+    IconCopy,
     IconExternalLink,
     IconMessageCircle,
     IconQrcode,
@@ -16,11 +18,14 @@ import { vibrate } from '@shared/utils/vibrate'
 import { useAppConfig } from '@entities/app-config-store'
 import { useSubscription } from '@entities/subscription-info-store'
 
+import { useCopy } from '../copy'
 import { useSpofyT } from '../i18n'
+import { useBackToClose } from '../overlay'
 import { useQrDataUrl } from '../qr'
 import { useQrStore } from '../qr-store'
 import classes from '../spofy.module.css'
 import { isTelegramLink } from './header'
+import { ManualCopy } from './manual-copy'
 
 const hostOf = (url: string) => {
     try {
@@ -47,6 +52,8 @@ export function MoreCard({ cabinetUrl }: { cabinetUrl: null | string }) {
     )
     const qrSrc = useQrDataUrl(qrOpen ? subscriptionUrl : null)
     const showLink = !config.baseSettings.hideGetLinkButton
+    const { copied, copy, failed } = useCopy()
+    useBackToClose(qrOpen, () => setQrOpen(false))
 
     // Also opened from the TV hint in the guide, so it stays mounted even with no rows.
     const qrModal = (
@@ -69,14 +76,39 @@ export function MoreCard({ cabinetUrl }: { cabinetUrl: null | string }) {
                 {qrOpen && qrSrc && <img alt={t('qrTitle')} className={classes.qr} src={qrSrc} />}
             </div>
             <p className={classes.qrText}>{t('qrText')}</p>
+            <p className={classes.qrWarn}>{t('moreCopyHint')}</p>
         </Modal>
     )
-
-    if (!showLink && !cabinetUrl) return qrModal
 
     return (
         <section aria-label={t('subscriptionLink')} className={clsx(classes.card, classes.more)}>
             <ul className={classes.list}>
+                {/* the link itself, always (owner 23.10.2026): the guide talks about it */}
+                <li>
+                    <button
+                        className={classes.listRow}
+                        onClick={() => {
+                            vibrate('tap')
+                            void copy(subscriptionUrl, 'more')
+                        }}
+                        type="button"
+                    >
+                        <span aria-hidden className={classes.listIcon} data-hue="green">
+                            {copied === 'more' ? (
+                                <IconCheck size={20} stroke={2.2} />
+                            ) : (
+                                <IconCopy size={20} stroke={1.9} />
+                            )}
+                        </span>
+                        <span className={classes.listText}>
+                            <span aria-live="polite" className={classes.listTitle}>
+                                {copied === 'more' ? t('copied') : t('copyLinkFull')}
+                            </span>
+                            <span className={classes.listCaption}>{t('moreCopyHint')}</span>
+                        </span>
+                    </button>
+                    {failed === 'more' && <ManualCopy text={subscriptionUrl} />}
+                </li>
                 {showLink && (
                     <li>
                         <button

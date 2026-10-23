@@ -18,7 +18,14 @@ const LOGOS: Record<string, IAppLogo> = {
     happ: { tile: '#000000' }
 }
 
-export const getAppLogo = (name: string): IAppLogo | undefined => LOGOS[name.trim().toLowerCase()]
+/** «Happ», «Happ Proxy», «INCY VPN» → happ / incy */
+const appKey = (name: string) =>
+    name
+        .trim()
+        .toLowerCase()
+        .split(/[\s\-–—_]+/)[0] ?? ''
+
+export const getAppLogo = (name: string): IAppLogo | undefined => LOGOS[appKey(name)]
 
 /**
  * Apps the page offers, whatever else the panel config lists (owner's decision 22.10.2026:
@@ -26,4 +33,4 @@ export const getAppLogo = (name: string): IAppLogo | undefined => LOGOS[name.tri
  */
 export const ALLOWED_APPS = ['happ', 'incy']
 
-export const isAllowedApp = (name: string) => ALLOWED_APPS.includes(name.trim().toLowerCase())
+export const isAllowedApp = (name: string) => ALLOWED_APPS.includes(appKey(name))

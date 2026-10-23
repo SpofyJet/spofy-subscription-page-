@@ -124,12 +124,19 @@ interface IStore {
     offerError: null | TSpofyKey
     offerLoading: boolean
     open: (tab: TCheckoutTab, preset?: ICheckoutPreset) => void
+    /** open the window on the unpaid invoice itself (the banner, «Открыть счёт») */
+    openPayment: () => void
     opened: boolean
     pending: IPendingPayment | null
     preset: ICheckoutPreset | null
     setLatest: (snapshot: ISnapshot | null) => void
     setPending: (pending: IPendingPayment | null) => void
+    setShowPending: (show: boolean) => void
     setTab: (tab: TCheckoutTab) => void
+    /** The window shows the unpaid invoice rather than the choice. An unpaid invoice must never
+     *  swallow the page's buttons: «Добавить устройство» opens the devices choice, with a note
+     *  about the invoice on top. */
+    showPending: boolean
     tab: TCheckoutTab
 }
 
@@ -142,13 +149,17 @@ export const useCheckoutStore = create<IStore>()((set, get) => ({
     offerError: null,
     offerLoading: false,
     preset: null,
-    open: (tab, preset) => set({ opened: true, tab, preset: preset ?? null }),
+    showPending: false,
+    open: (tab, preset) => set({ opened: true, tab, preset: preset ?? null, showPending: false }),
+    openPayment: () => set({ opened: true, showPending: true }),
     close: () => set({ opened: false }),
+    setShowPending: (showPending) => set({ showPending }),
     setTab: (tab) => set({ tab }),
     setLatest: (latest) => set({ latest }),
     setPending: (pending) => {
         savePending(pending)
-        set({ pending, latest: null })
+        // a payment just created is shown at once; clearing one goes back to the choice
+        set({ pending, latest: null, showPending: !!pending })
     },
     loadOffer: (shortUuid, force = false) => {
         const { offer, offerError, offerLoading } = get()
