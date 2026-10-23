@@ -20,7 +20,6 @@ import {
     formatBytes,
     formatDayMonth,
     formatDays,
-    formatPeriod,
     formatTimeLeft,
     toNumber
 } from '../format'
@@ -125,17 +124,6 @@ export function StatusCard({ model }: { model: IPageModel }) {
                       ? t('stExpiringPitch')
                       : null
 
-    /* ── price on «Продлить»: the period the window opens on — «720 ₽» + «3 месяца · 240 ₽/мес» ── */
-    const pick = model.renewFrom
-    const from = pick ? money(pick.price) : null
-    const fromNote = pick
-        ? pick.perMonth !== null
-            ? t('ctaPickNote', {
-                  period: formatPeriod(pick.periodDays, lang),
-                  price: money(pick.perMonth)
-              })
-            : formatPeriod(pick.periodDays, lang)
-        : null
     const trafficFrom = model.trafficFrom
         ? t('ctaFrom', { price: money(model.trafficFrom.price_kopeks) })
         : null
@@ -221,8 +209,6 @@ export function StatusCard({ model }: { model: IPageModel }) {
                 external={external}
                 icon={<IconSparkles aria-hidden size={19} stroke={2} />}
                 label={bot(t('ctaChoosePlan'))}
-                price={from}
-                priceNote={fromNote}
                 variant={fresh ? 'secondary' : 'primary'}
             />
         )
@@ -243,14 +229,8 @@ export function StatusCard({ model }: { model: IPageModel }) {
                 external={external}
                 icon={<IconRefresh aria-hidden size={19} stroke={2.1} />}
                 label={bot(
-                    model.trial && view === 'expired'
-                        ? t('ctaChoosePlan')
-                        : from
-                          ? t('renewShort') // the price block needs the room
-                          : t('ctaRenew')
+                    model.trial && view === 'expired' ? t('ctaChoosePlan') : t('ctaRenew')
                 )}
-                price={from}
-                priceNote={fromNote}
                 variant="primary"
             />
         )
