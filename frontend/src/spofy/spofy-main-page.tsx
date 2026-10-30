@@ -6,6 +6,7 @@ import { useSubscription } from '@entities/subscription-info-store'
 import { track } from './checkout/api'
 import { useCheckoutStore } from './checkout/checkout-store'
 import { PendingBanner, usePendingPhase } from './checkout/pending'
+import { AmbientBackdrop } from './components/ambient-backdrop'
 import { ConnectSection } from './components/connect-section'
 import { Header } from './components/header'
 import { MoreCard, SupportButton } from './components/more-card'
@@ -64,7 +65,9 @@ export function SpofyMainPage() {
     const offerReady = useCheckoutStore((s) => !!s.offer)
     const [sheetMounted, setSheetMounted] = useState(false)
     useEffect(() => {
-        if (opened) setSheetMounted(true)
+        if (!opened) return
+        const id = window.setTimeout(() => setSheetMounted(true), 0)
+        return () => window.clearTimeout(id)
     }, [opened])
     // Fetch the sheet's code once prices are in, while the person is still reading.
     useEffect(() => {
@@ -84,9 +87,7 @@ export function SpofyMainPage() {
 
     return (
         <>
-            <div aria-hidden className={classes.backdrop} data-view={model.view}>
-                <div className={classes.backdropAurora} />
-            </div>
+            <AmbientBackdrop view={model.view} />
             <div className={classes.page}>
                 {/* the Telegram nickname from the panel's user description, never the technical id */}
                 <Header account={spofy.displayName} />

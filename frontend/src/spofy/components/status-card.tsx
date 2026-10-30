@@ -229,7 +229,11 @@ export function StatusCard({ model }: { model: IPageModel }) {
                 external={external}
                 icon={<IconRefresh aria-hidden size={19} stroke={2.1} />}
                 label={bot(
-                    model.trial && view === 'expired' ? t('ctaChoosePlan') : t('ctaRenew')
+                    model.trial && view === 'expired'
+                        ? t('ctaChoosePlan')
+                        : view === 'expiring'
+                          ? t('ctaRenewEarly')
+                          : t('ctaRenewNow')
                 )}
                 variant="primary"
             />

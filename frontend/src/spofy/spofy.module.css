@@ -33,12 +33,129 @@
 
 .backdropAurora {
     position: absolute;
-    inset: -10% -10% auto;
-    height: 75vh;
+    inset: -10%;
     opacity: var(--sp-aurora-opacity);
     background:
         radial-gradient(50% 50% at 85% 0%, var(--glow-a), transparent 70%),
-        radial-gradient(40% 40% at 5% 6%, var(--glow-b), transparent 70%);
+        radial-gradient(40% 40% at 5% 6%, var(--glow-b), transparent 70%),
+        radial-gradient(38% 48% at 0% 68%, rgba(43, 99, 245, 0.2), transparent 74%),
+        radial-gradient(42% 52% at 100% 62%, rgba(0, 32, 91, 0.72), transparent 76%);
+}
+
+.backdropGrid {
+    position: absolute;
+    inset: 0;
+    opacity: 0.5;
+    background-image:
+        linear-gradient(var(--sp-grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--sp-grid-line) 1px, transparent 1px);
+    background-size: 72px 72px;
+    mask-image: radial-gradient(ellipse 85% 70% at 50% 35%, black, transparent 82%);
+}
+
+.backdropNetwork {
+    position: absolute;
+    inset: -4%;
+    width: 108%;
+    height: 108%;
+    overflow: visible;
+    color: #8cb4e7;
+    opacity: 0.32;
+}
+
+.backdropMesh {
+    fill: currentColor;
+    stroke: currentColor;
+    stroke-width: 0.75;
+    stroke-opacity: 0.28;
+}
+
+.backdropMesh circle {
+    stroke: none;
+    filter: drop-shadow(0 0 5px rgba(140, 180, 231, 0.65));
+}
+
+.backdropOrbits {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1;
+    stroke-opacity: 0.34;
+    stroke-dasharray: 2 8;
+}
+
+.backdropNoise {
+    position: absolute;
+    inset: 0;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E");
+    mix-blend-mode: soft-light;
+}
+
+.backdropVignette {
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(90deg, rgba(0, 32, 91, 0.08), transparent 25% 75%, rgba(0, 32, 91, 0.08)),
+        radial-gradient(ellipse 58% 72% at 50% 45%, transparent 40%, rgba(2, 6, 18, 0.28));
+}
+
+@media (prefers-color-scheme: dark) {
+    .backdrop {
+        --sp-grid-line: rgba(140, 180, 231, 0.09);
+    }
+
+    .backdropNetwork {
+        opacity: 0.52;
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .backdropAurora {
+        animation: backdrop-breathe 16s ease-in-out infinite alternate;
+    }
+
+    .backdropMesh {
+        animation: backdrop-drift 32s ease-in-out infinite alternate;
+    }
+
+    .backdropOrbits {
+        animation: backdrop-drift 44s ease-in-out -12s infinite alternate-reverse;
+    }
+}
+
+@keyframes backdrop-breathe {
+    from {
+        opacity: calc(var(--sp-aurora-opacity) * 0.8);
+        transform: translate3d(-1.5%, -1%, 0) scale(0.98);
+    }
+    to {
+        opacity: var(--sp-aurora-opacity);
+        transform: translate3d(1.5%, 1%, 0) scale(1.04);
+    }
+}
+
+@keyframes backdrop-drift {
+    from {
+        transform: translate3d(-10px, -6px, 0);
+    }
+    to {
+        transform: translate3d(12px, 8px, 0);
+    }
+}
+
+@media (max-width: 47.99em) {
+    .backdropNetwork {
+        opacity: 0.16;
+    }
+
+    .backdropOrbits {
+        display: none;
+    }
+
+    .backdropGrid {
+        background-size: 56px 56px;
+        opacity: 0.1;
+    }
 }
 
 /* ───────── layout ───────── */
@@ -1320,6 +1437,11 @@
     font-size: 15px;
 }
 
+.qrCopy {
+    width: 100%;
+    margin-top: 12px;
+}
+
 /* ───────── pending payment banner ───────── */
 .pendingBanner {
     display: flex;
@@ -1791,6 +1913,169 @@
     cursor: pointer;
 }
 
+/* compact period comparison: three useful choices first, the full list on demand */
+.periodGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.periodCard {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    min-width: 0;
+    min-height: 132px;
+    padding: 11px 10px;
+    border-radius: 14px;
+    border: 1px solid var(--sp-row-border);
+    background: var(--sp-row);
+    color: var(--sp-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition:
+        border-color 0.15s ease,
+        background-color 0.15s ease,
+        transform 0.1s ease;
+}
+
+.periodCard:hover {
+    border-color: var(--sp-border-strong);
+}
+
+.periodCard:active {
+    transform: scale(0.98);
+}
+
+.periodCard:focus-visible {
+    outline: 2px solid var(--sp-accent);
+    outline-offset: 2px;
+}
+
+.periodCard[aria-checked='true'] {
+    border-color: var(--sp-accent);
+    background: var(--sp-accent-soft);
+    box-shadow: inset 0 0 0 1px var(--sp-accent);
+}
+
+.periodTop {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 4px;
+    min-height: 22px;
+}
+
+.periodName {
+    min-width: 0;
+    font-size: 15px;
+    font-weight: 750;
+    line-height: 1.25;
+}
+
+.periodCheck {
+    margin-top: 1px;
+    color: var(--sp-accent-text);
+}
+
+.periodBadge,
+.periodDiscount {
+    display: block;
+    align-self: flex-start;
+    max-width: 100%;
+    min-height: 20px;
+    margin-top: 5px;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.25;
+    overflow-wrap: normal;
+}
+
+.periodBadge {
+    background: var(--sp-accent);
+    color: var(--sp-on-accent);
+}
+
+.periodDiscount {
+    background: var(--sp-saving-soft);
+    color: var(--sp-saving);
+}
+
+.periodPrice {
+    display: block;
+    margin-top: auto;
+    padding-top: 10px;
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    overflow-wrap: anywhere;
+}
+
+.periodStrike {
+    display: block;
+    min-height: 16px;
+    margin-top: 3px;
+    color: var(--sp-text-2);
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.periodMeta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 5px;
+    color: var(--sp-text-2);
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.periodsMore {
+    align-self: center;
+    margin-bottom: -4px;
+}
+
+.tariffFacts {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 2px 2px 4px;
+}
+
+.tariffFactRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    color: var(--sp-text);
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.tariffFactRow > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.tariffFactRow svg {
+    color: var(--sp-accent-text);
+}
+
+.tariffFacts p {
+    margin: 0;
+    color: var(--sp-text-2);
+    font-size: 14px;
+    line-height: 1.45;
+}
+
 /* tariff (trial): the offered plan, others behind «Сменить» */
 .tariffPicked {
     display: flex;
@@ -2159,6 +2444,10 @@
 
 /* ───────── ordinary and small phones: room for the value and its button ───────── */
 @media (max-width: 419px) {
+    .periodGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     /* the row icons step aside, and so does the icon inside the row's button */
     .rowIcon {
         display: none;
@@ -2233,7 +2522,34 @@
         font-size: 16.5px;
     }
 
+    .periodGrid {
+        gap: 6px;
+    }
 
+    .periodCard {
+        min-height: 128px;
+        padding: 10px 8px;
+    }
+
+    .periodName {
+        font-size: 14px;
+    }
+
+    .periodBadge,
+    .periodDiscount {
+        padding-right: 5px;
+        padding-left: 5px;
+        font-size: 12px;
+    }
+
+    .periodPrice {
+        font-size: 16.5px;
+    }
+
+    .periodMeta,
+    .periodStrike {
+        font-size: 12px;
+    }
 }
 
 /* ───────── v6 ───────── */

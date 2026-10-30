@@ -98,6 +98,7 @@ export default function CheckoutSheet({
     const { opened, close, pending, showPending, tab, offer, offerError, loadOffer } =
         useCheckoutStore()
     const subscription = useSubscription()
+    const [now] = useState(() => Date.now())
     const shortUuid = subscription.user.shortUuid
     const isDesktop = useMediaQuery('(min-width: 48em)')
     const { t, lang } = useSpofyT()
@@ -138,7 +139,7 @@ export default function CheckoutSheet({
         tab === 'renew' &&
         !trial &&
         !isIndefinite(subscription.user.expiresAt) &&
-        new Date(subscription.user.expiresAt).getTime() > Date.now() &&
+        new Date(subscription.user.expiresAt).getTime() > now &&
         daysLeft >= 0 &&
         daysLeft <= 3
     const expired =
@@ -146,7 +147,7 @@ export default function CheckoutSheet({
         !trial &&
         (subscription.user.userStatus === 'EXPIRED' ||
             (!isIndefinite(subscription.user.expiresAt) &&
-                new Date(subscription.user.expiresAt).getTime() <= Date.now()))
+                new Date(subscription.user.expiresAt).getTime() <= now))
     const subtitle = showPayment
         ? phase === 'done'
             ? t('coDoneSub')
@@ -308,7 +309,8 @@ function ErrorBox({
 /** The bot decorates names with emoji («💳 Карта»); the page has its own icons. */
 const plain = (text: null | string | undefined) =>
     (text ?? '')
-        .replace(/[\p{Extended_Pictographic}\p{Emoji_Modifier}\p{Regional_Indicator}️‍⃣]/gu, '')
+        .replace(/[\p{Extended_Pictographic}\p{Emoji_Modifier}\p{Regional_Indicator}]/gu, '')
+        .replace(/\uFE0F|\u200D|\u20E3/gu, '')
         .replace(/\s{2,}/g, ' ')
         .trim()
 
@@ -370,6 +372,7 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
     const { t, lang } = useSpofyT()
     const money = useMoney()
     const subscription = useSubscription()
+    const [now] = useState(() => Date.now())
     const { tab: wantedTab, setTab, setPending, preset } = useCheckoutStore()
     const [stage, setStage] = useState<'choose' | 'method'>('choose')
     const top = useRef<HTMLDivElement>(null)
@@ -394,7 +397,11 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
     useEffect(() => {
         if (tab !== wantedTab) setTab(tab)
     }, [tab, wantedTab, setTab])
-    const tariffMode = tab === 'renew' && (isTrial || !canRenew)
+    const requiresTariff = tab === 'renew' && (isTrial || !canRenew)
+    const [renewMode, setRenewMode] = useState<'renew' | 'tariff'>(
+        requiresTariff ? 'tariff' : 'renew'
+    )
+    const tariffMode = tab === 'renew' && (requiresTariff || renewMode === 'tariff')
 
     // A card or CTA on the page may have chosen the period / package already.
     const [period, setPeriod] = useState<number | null>(
@@ -410,6 +417,7 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
             (preset?.tariffId && offer.tariffs.some((x) => x.id === preset.tariffId)
                 ? preset.tariffId
                 : null) ??
+            offer.tariffs.find((x) => x.id === offer.subscription.tariff_id)?.id ??
             offeredTariff(offer.tariffs)?.id ??
             null
     )
@@ -447,20 +455,21 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
             : (primary[0] ?? offer.payment_methods[0]?.id ?? null)
     })
     const method = offer.payment_methods.find((m) => m.id === methodId)
-    const [optionId, setOptionId] = useState<null | string>(method?.options?.[0]?.id ?? null)
+    const [selectedOptionId, setSelectedOptionId] = useState<null | string>(
+        method?.options?.[0]?.id ?? null
+    )
+    const optionId = method?.options?.some((option) => option.id === selectedOptionId)
+        ? selectedOptionId
+        : (method?.options?.[0]?.id ?? null)
     const [allMethods, setAllMethods] = useState(false)
     const [tariffsOpen, setTariffsOpen] = useState(false)
+    const [allPeriods, setAllPeriods] = useState(false)
     const [busy, setBusy] = useState(false)
+    // React needs a render before `busy` disables the button. This synchronous lock closes
+    // that gap: two tap/click events in the same frame still create only one invoice.
+    const submitting = useRef(false)
     const [error, setError] = useState<TSpofyKey | null>(null)
     const [errorDetail, setErrorDetail] = useState<null | string>(null)
-
-    useEffect(() => {
-        setOptionId((current) =>
-            method?.options?.some((o) => o.id === current)
-                ? current
-                : (method?.options?.[0]?.id ?? null)
-        )
-    }, [methodId])
 
     // New step or tab: start reading from the top of the sheet — but on a small phone the
     // preselected period must not hide under the button: bring it into view.
@@ -484,7 +493,7 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                 12
             const overflow = row.getBoundingClientRect().bottom - visibleBottom
             if (overflow > 0)
-                scroller.scrollTo({ top: scroller.scrollTop + overflow, behavior: 'smooth' })
+                scroller.scrollTo({ top: scroller.scrollTop + overflow, behavior: 'auto' })
         }, 260)
         return () => window.clearTimeout(id)
     }, [stage, tab])
@@ -545,7 +554,7 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
     // Only for a plain renewal: when a new plan starts is the bot's business, not a guess here.
     const newEnd =
         tab === 'renew' && !tariffMode && period && !isIndefinite(new Date(currentEnd))
-            ? Math.max(currentEnd, Date.now()) + period * DAY_MS
+            ? Math.max(currentEnd, now) + period * DAY_MS
             : null
 
     const currentDevices = offer.devices.current_device_limit ?? offer.subscription.device_limit
@@ -622,7 +631,7 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                 setAllMethods(true)
                 if (next) {
                     setMethodId(next.id)
-                    setOptionId(next.options?.[0]?.id ?? null)
+                    setSelectedOptionId(next.options?.[0]?.id ?? null)
                     key = 'coErrMethodSwitched'
                 }
             }
@@ -642,39 +651,45 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
      * the waiting screen keeps its «Перейти к оплате» button.
      */
     const payAndOpen = async () => {
-        let tab: null | Window = null
+        if (submitting.current) return
+        submitting.current = true
         try {
-            tab = window.open('', '_blank')
-            if (tab) {
-                tab.opener = null
-                tab.document.write(
-                    `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Spofy VPN</title><p style="font:17px system-ui,sans-serif;padding:32px 24px;color:#5b6475">${t('coOpening')}</p>`
-                )
-                tab.document.close()
-            }
-        } catch {
-            tab = null
-        }
-        const before = useCheckoutStore.getState().pending
-        await submit()
-        const created = useCheckoutStore.getState().pending
-        if (!tab) return
-        if (created && created !== before && created.result.payment_url) {
+            let tab: null | Window = null
             try {
-                tab.location.href = created.result.payment_url
-                autoOpened.add(created.result.payment_id)
-                markPayOpened(created.result.payment_id)
-                track(created.shortUuid, 'pay_open', {
-                    t:
-                        created.kind === 'devices' || created.kind === 'traffic'
-                            ? created.kind
-                            : 'renew'
-                })
+                tab = window.open('', '_blank')
+                if (tab) {
+                    tab.opener = null
+                    tab.document.write(
+                        `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Spofy VPN</title><p style="font:17px system-ui,sans-serif;padding:32px 24px;color:#5b6475">${t('coOpening')}</p>`
+                    )
+                    tab.document.close()
+                }
             } catch {
+                tab = null
+            }
+            const before = useCheckoutStore.getState().pending
+            await submit()
+            const created = useCheckoutStore.getState().pending
+            if (!tab) return
+            if (created && created !== before && created.result.payment_url) {
+                try {
+                    tab.location.href = created.result.payment_url
+                    useCheckoutStore.getState().setAutoOpenedPaymentId(created.result.payment_id)
+                    markPayOpened(created.result.payment_id)
+                    track(created.shortUuid, 'pay_open', {
+                        t:
+                            created.kind === 'devices' || created.kind === 'traffic'
+                                ? created.kind
+                                : 'renew'
+                    })
+                } catch {
+                    tab.close()
+                }
+            } else {
                 tab.close()
             }
-        } else {
-            tab.close()
+        } finally {
+            submitting.current = false
         }
     }
 
@@ -686,76 +701,135 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
         onChange: (v: number) => void
     ) => {
         const sorted = [...options].sort((a, b) => a.period_days - b.period_days)
+        const finite = sorted.filter((option) => !isForeverDays(option.period_days))
+        const first = finite[0] ?? sorted[0]
+        const last = finite.at(-1) ?? sorted.at(-1)
+        const picked = sorted.find((option) => option.period_days === value)
+        const suggested = sorted.find((option) => option.period_days === recommended)
+        const primary = [first, suggested, last].filter(
+            (option): option is IPeriodOption => !!option
+        )
+        if (picked && !primary.some((option) => option.period_days === picked.period_days)) {
+            primary[primary.length - 1] = picked
+        }
+        const uniquePrimary = [
+            ...new Map(primary.map((option) => [option.period_days, option])).values()
+        ]
+        const visible =
+            allPeriods || sorted.length <= 3
+                ? sorted
+                : uniquePrimary.sort((a, b) => a.period_days - b.period_days)
+
         return (
-            <div aria-label={t('coChoosePeriod')} className={classes.optList} role="radiogroup">
-                {sorted.map((option) => {
-                    const months = monthsOf(option.period_days)
-                    const optionSaving = savingOf(option)
-                    const isRecommended = option.period_days === recommended
-                    const strike =
-                        option.original_price_kopeks &&
-                        option.original_price_kopeks > option.price_kopeks
-                            ? option.original_price_kopeks
-                            : null
-                    const discount = discountOf(option)
-                    return (
-                        <button
-                            aria-checked={option.period_days === value}
-                            className={classes.opt}
-                            data-recommended={isRecommended || undefined}
-                            key={option.period_days}
-                            onClick={() => {
-                                vibrate('tap')
-                                onChange(option.period_days)
-                            }}
-                            role="radio"
-                            type="button"
-                        >
-                            {radio}
-                            <span className={classes.optMain}>
-                                <span className={classes.optTitle}>
-                                    {formatPeriod(option.period_days, lang)}
-                                    {isRecommended && (
-                                        <span className={classes.badgeRecommended}>
-                                            {t('coRecommended')}
-                                        </span>
+            <section className={classes.coSection} aria-label={t('coChoosePeriod')}>
+                <h3 className={classes.coLabel}>{t('coPeriod')}</h3>
+                <div
+                    aria-label={t('coChoosePeriod')}
+                    className={classes.periodGrid}
+                    role="radiogroup"
+                >
+                    {visible.map((option) => {
+                        const optionSaving = savingOf(option)
+                        const isRecommended = option.period_days === recommended
+                        const selected = option.period_days === value
+                        const discount = discountOf(option)
+                        const monthlyTotal =
+                            monthly && option.period_days > 31 && !isForeverDays(option.period_days)
+                                ? monthly.price_kopeks * monthsOf(option.period_days)
+                                : null
+                        const strike =
+                            option.original_price_kopeks &&
+                            option.original_price_kopeks > option.price_kopeks
+                                ? option.original_price_kopeks
+                                : monthlyTotal && monthlyTotal > option.price_kopeks
+                                  ? monthlyTotal
+                                  : null
+                        return (
+                            <button
+                                aria-checked={selected}
+                                className={classes.periodCard}
+                                data-recommended={isRecommended || undefined}
+                                key={option.period_days}
+                                onClick={() => {
+                                    vibrate('tap')
+                                    onChange(option.period_days)
+                                }}
+                                role="radio"
+                                type="button"
+                            >
+                                <span className={classes.periodTop}>
+                                    <span className={classes.periodName}>
+                                        {formatPeriod(option.period_days, lang)}
+                                    </span>
+                                    {selected && (
+                                        <IconCheck
+                                            aria-hidden
+                                            className={classes.periodCheck}
+                                            size={16}
+                                            stroke={2.8}
+                                        />
                                     )}
                                 </span>
-                                {isForeverDays(option.period_days) ? (
-                                    <span className={classes.optMeta}>{t('coForeverMeta')}</span>
-                                ) : (
-                                    option.period_days >= 28 && (
-                                        <span className={clsx(classes.optMeta, classes.num)}>
-                                            {/* the bot adds days: «3 месяца» are 90 of them */}
+                                {isRecommended && (
+                                    <span className={classes.periodBadge}>
+                                        {t('coRecommended')}
+                                    </span>
+                                )}
+                                {!isRecommended && discount > 0 && (
+                                    <span className={classes.periodDiscount}>−{discount}%</span>
+                                )}
+                                <strong className={clsx(classes.periodPrice, classes.num)}>
+                                    {money(option.price_kopeks)}
+                                </strong>
+                                {strike && optionSaving > 0 && (
+                                    <s className={clsx(classes.periodStrike, classes.num)}>
+                                        {money(strike)}
+                                    </s>
+                                )}
+                                <span className={classes.periodMeta}>
+                                    {isForeverDays(option.period_days) ? (
+                                        t('coForeverMeta')
+                                    ) : (
+                                        <>
                                             <span>{countOf(option.period_days, lang, 'day')}</span>
-                                            {months >= 2 && (
-                                                <span>
+                                            {option.period_days >= 28 && (
+                                                <span className={classes.num}>
                                                     {t('perMonthShort', {
                                                         price: money(perMonthKopeks(option))
                                                     })}
                                                 </span>
                                             )}
-                                            {optionSaving > 0 ? (
+                                            {optionSaving > 0 && (
                                                 <span className={classes.saving}>
                                                     {t('coRowSaving', {
                                                         saving: money(optionSaving)
                                                     })}
                                                 </span>
-                                            ) : discount > 0 ? (
-                                                <span className={classes.saving}>−{discount}%</span>
-                                            ) : null}
-                                        </span>
-                                    )
-                                )}
-                            </span>
-                            <span className={clsx(classes.optPrice, classes.num)}>
-                                <strong>{money(option.price_kopeks)}</strong>
-                                {strike && <s>{money(strike)}</s>}
-                            </span>
-                        </button>
-                    )
-                })}
-            </div>
+                                            )}
+                                        </>
+                                    )}
+                                </span>
+                            </button>
+                        )
+                    })}
+                </div>
+                {sorted.length > 3 && (
+                    <button
+                        aria-expanded={allPeriods}
+                        className={clsx(classes.coMore, classes.periodsMore)}
+                        onClick={() => setAllPeriods((open) => !open)}
+                        type="button"
+                    >
+                        {allPeriods ? t('coMethodLess') : t('coPeriodsMore')}
+                        <IconChevronDown
+                            aria-hidden
+                            className={clsx(classes.chevron, allPeriods && classes.chevronOpen)}
+                            size={16}
+                            stroke={2.25}
+                        />
+                    </button>
+                )}
+            </section>
         )
     }
 
@@ -826,7 +900,7 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                                     onClick={() => {
                                         vibrate('tap')
                                         setMethodId(m.id)
-                                        setOptionId(o?.id ?? m.options?.[0]?.id ?? null)
+                                        setSelectedOptionId(o?.id ?? m.options?.[0]?.id ?? null)
                                     }}
                                     role="radio"
                                     type="button"
@@ -860,7 +934,7 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                                         onClick={() => {
                                             vibrate('tap')
                                             setMethodId(m.id)
-                                            setOptionId(m.options?.[0]?.id ?? null)
+                                            setSelectedOptionId(m.options?.[0]?.id ?? null)
                                         }}
                                         role="radio"
                                         type="button"
@@ -949,6 +1023,29 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
     /* ── step 1: what to buy ── */
     return (
         <div className={classes.coStack} ref={top}>
+            {tab === 'renew' && !requiresTariff && canTariff && (
+                <div aria-label={t('coChooseTariff')} className={classes.coTabs} role="tablist">
+                    <button
+                        aria-selected={!tariffMode}
+                        className={classes.coTab}
+                        onClick={() => setRenewMode('renew')}
+                        role="tab"
+                        type="button"
+                    >
+                        {t('coTabRenew')}
+                    </button>
+                    <button
+                        aria-selected={tariffMode}
+                        className={classes.coTab}
+                        onClick={() => setRenewMode('tariff')}
+                        role="tab"
+                        type="button"
+                    >
+                        {t('coTabTariff')}
+                    </button>
+                </div>
+            )}
+
             {tab === 'renew' && !tariffMode && periodList(offer.renewal, period, setPeriod)}
 
             {tab === 'renew' && tariffMode && tariff && (
@@ -963,11 +1060,6 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                         >
                             <span className={classes.optMain}>
                                 <span className={classes.optTitle}>{tariff.name}</span>
-                                {(tariff.description ?? '').trim() && (
-                                    <span className={classes.optMeta}>
-                                        {tariff.description!.trim()}
-                                    </span>
-                                )}
                             </span>
                             <span className={classes.tariffChange}>
                                 {t('coChangeTariff')}
@@ -1040,6 +1132,21 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                             })}
                         </div>
                     )}
+                    <div className={classes.tariffFacts}>
+                        <div className={classes.tariffFactRow}>
+                            <span>
+                                <IconDevices aria-hidden size={17} stroke={1.9} />
+                                {countOf(tariff.device_limit, lang, 'device')}
+                            </span>
+                            <span>
+                                <IconArrowsUpDown aria-hidden size={17} stroke={1.9} />
+                                {tariff.traffic_limit_gb > 0
+                                    ? trafficLabel(tariff.traffic_limit_gb)
+                                    : t('coUnlimited')}
+                            </span>
+                        </div>
+                        {(tariff.description ?? '').trim() && <p>{tariff.description!.trim()}</p>}
+                    </div>
                     {periodList(tariff.periods, tariffPeriod, setTariffPeriod)}
                 </>
             )}
@@ -1220,9 +1327,6 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
 
 /* ───────────── step 3: pay and wait ───────────── */
 
-/** Payments whose page this tab opened by itself (so the button only offers to open it again). */
-const autoOpened = new Set<string>()
-
 /**
  * An unpaid invoice above the choice: it can be opened, or a new purchase made instead. The bot
  * keeps one cart per person, so a new invoice replaces the old one — say plainly not to pay it.
@@ -1278,7 +1382,7 @@ function PaymentStep({
 
     const done = phase === 'done'
     const paid = done || phase === 'paid'
-    const opened = autoOpened.has(result.payment_id)
+    const opened = useCheckoutStore((s) => s.autoOpenedPaymentId === result.payment_id)
     const [stuck, setStuck] = useState(() => Date.now() - pending.createdAt > STUCK_MS)
     useEffect(() => {
         if (stuck) return

@@ -31,9 +31,12 @@ export function RootLayout() {
 
             if (subscriptionUrl) {
                 try {
-                    const subscription: GetSubscriptionInfoByShortUuidCommand.Response = JSON.parse(
-                        atob(subscriptionUrl)
+                    // atob() decodes as Latin-1 and would corrupt non-ASCII (Cyrillic names)
+                    const bytes = Uint8Array.from(atob(subscriptionUrl), (char) =>
+                        char.charCodeAt(0)
                     )
+                    const subscription: GetSubscriptionInfoByShortUuidCommand.Response =
+                        JSON.parse(new TextDecoder().decode(bytes))
 
                     subscriptionActions.setSubscriptionInfo({
                         subscription: subscription.response

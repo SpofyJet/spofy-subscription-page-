@@ -31,16 +31,21 @@ export function formatLink(
     return template.replace(/\{\{(\w+)\}\}/g, (match, key: string) => values[key]?.() ?? match)
 }
 
-/** Re-render once the crypto library has loaded, if any of these links needs it. */
-export function useLinkTemplates(templates: string[]): void {
-    const [, rerender] = useState(0)
+/** Load encrypted-link support on demand and expose an honest loading/error state. */
+export function useLinkTemplates(templates: string[]): 'error' | 'loading' | 'ready' {
+    const needed = templates.some((t) => CRYPT.test(t))
     const key = templates.join('\n')
+    const [result, setResult] = useState<{ key: string; status: 'error' | 'ready' } | null>(null)
     useEffect(() => {
-        if (crypto || !templates.some((t) => CRYPT.test(t))) return
+        if (!needed || crypto) return
         let alive = true
-        loadCrypto().then(() => alive && rerender((n) => n + 1))
+        loadCrypto()
+            .then(() => alive && setResult({ key, status: 'ready' }))
+            .catch(() => alive && setResult({ key, status: 'error' }))
         return () => {
             alive = false
         }
-    }, [key])
+    }, [key, needed])
+    if (!needed || crypto) return 'ready'
+    return result?.key === key ? result.status : 'loading'
 }

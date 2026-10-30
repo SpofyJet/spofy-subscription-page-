@@ -24,7 +24,7 @@ import { vibrate } from '@shared/utils/vibrate'
 import { useAppConfig } from '@entities/app-config-store'
 import { useSubscription } from '@entities/subscription-info-store'
 
-import { getAppLogo, isAllowedApp } from '../app-logos'
+import { getAppLogo, isAllowedApp, isDefaultApp } from '../app-logos'
 import { useCopy } from '../copy'
 import { countOf, PLATFORM_ORDER } from '../format'
 import { useSpofyT } from '../i18n'
@@ -126,11 +126,11 @@ export function ConnectSection({
         (config.platforms[key]?.apps ?? []).filter((app) => !anyAllowed || isAllowedApp(app.name))
     const available = PLATFORM_ORDER.filter((key) => appsOf(key).length > 0)
 
-    const [platform, setPlatform] = useState<TSubscriptionPagePlatformKey | undefined>(() => {
-        const remembered = prefs.platform() as TSubscriptionPagePlatformKey | undefined
-        if (remembered && available.includes(remembered)) return remembered
-        return detected && available.includes(detected) ? detected : available[0]
-    })
+    // Always detect again on page load. A manual platform choice lasts only for this view;
+    // if the UA is unknown, use the first available guide instead of an old stored platform.
+    const [platform, setPlatform] = useState<TSubscriptionPagePlatformKey | undefined>(() =>
+        detected && available.includes(detected) ? detected : available[0]
+    )
     const [picked, setPicked] = useState<{ name: string; platform: string } | null>(() =>
         platform ? { platform, name: prefs.app(platform) ?? '' } : null
     )
@@ -140,14 +140,17 @@ export function ConnectSection({
         [subscription.user.shortUuid]
     )
 
-    // featured (recommended) app first
-    const apps = platform
-        ? [...appsOf(platform)].sort((a, b) => Number(b.featured) - Number(a.featured))
-        : []
-    const featuredIndex = Math.max(
-        0,
-        apps.findIndex((app) => app.featured)
+    // INCY is the owner's default recommendation. On platforms where the panel does not offer
+    // INCY, keep the panel's featured app (Happ in the current configuration) as the fallback.
+    const platformApps = platform ? appsOf(platform) : []
+    const recommendedApp =
+        platformApps.find((app) => isDefaultApp(app.name)) ??
+        platformApps.find((app) => app.featured) ??
+        platformApps[0]
+    const apps = [...platformApps].sort(
+        (a, b) => Number(b.name === recommendedApp?.name) - Number(a.name === recommendedApp?.name)
     )
+    const featuredIndex = 0
     const pickedIndex =
         picked && picked.platform === platform
             ? apps.findIndex((app) => app.name === picked.name)
@@ -160,7 +163,6 @@ export function ConnectSection({
     const selectPlatform = (key: TSubscriptionPagePlatformKey) => {
         vibrate('selection')
         setPlatform(key)
-        prefs.setPlatform(key)
     }
     const selectApp = (index: number) => {
         vibrate('selection')
@@ -242,7 +244,7 @@ export function ConnectSection({
                         key: item.name,
                         label: item.name,
                         icon: <AppIcon app={item} />,
-                        tag: item.featured ? t('recommended') : undefined
+                        tag: item.name === recommendedApp?.name ? t('recommended') : undefined
                     }))}
                     label={t('cnApps')}
                     onReselect={showSteps}
@@ -353,9 +355,18 @@ function Steps(props: {
     // «The app did not open?» — shown under a step when its deep link left the page in front.
     const [notOpened, setNotOpened] = useState<null | number>(null)
     const timer = useRef<number | undefined>(undefined)
-    useEffect(() => () => window.clearTimeout(timer.current), [])
+    const stopWatching = useRef<() => void>(() => {})
+    useEffect(
+        () => () => {
+            window.clearTimeout(timer.current)
+            stopWatching.current()
+        },
+        []
+    )
 
-    useLinkTemplates(app.blocks.flatMap((block) => block.buttons.map((button) => button.link)))
+    const linkStatus = useLinkTemplates(
+        app.blocks.flatMap((block) => block.buttons.map((button) => button.link))
+    )
     /** null while the crypto library is still loading for a link that needs it */
     const formatOrNull = (button: TButton) =>
         button.type === 'external'
@@ -368,18 +379,25 @@ function Steps(props: {
     /** The step is ticked off only when the app really opened (the page went to background). */
     const watchDeepLink = (index: number) => {
         window.clearTimeout(timer.current)
+        stopWatching.current()
         setNotOpened(null)
         let left = false
+        const cleanup = () => {
+            document.removeEventListener('visibilitychange', away)
+            window.removeEventListener('blur', away)
+        }
+        stopWatching.current = cleanup
         const away = () => {
             if (left) return
             left = true
+            window.clearTimeout(timer.current)
+            cleanup()
             mark(index)
         }
         document.addEventListener('visibilitychange', away, { once: true })
         window.addEventListener('blur', away, { once: true })
         timer.current = window.setTimeout(() => {
-            document.removeEventListener('visibilitychange', away)
-            window.removeEventListener('blur', away)
+            cleanup()
             if (!left && document.visibilityState === 'visible') {
                 setNotOpened(index)
                 // bring the hint into view — it appears below the button
@@ -403,9 +421,11 @@ function Steps(props: {
     }
     const copyButton = (index: number, key: string, button: TButton | null, text: string) => {
         const isCopied = copied === key
+        const pending = button !== null && formatOrNull(button) === null
         return (
             <button
                 className={clsx(classes.btn, classes.btnSecondary, classes.btnSmall)}
+                disabled={pending}
                 key={key}
                 onClick={() => void copyLink(button, index, key)}
                 type="button"
@@ -427,15 +447,33 @@ function Steps(props: {
         }
 
         if (button.type === 'subscriptionLink') {
-            const href = formatOrNull(button) ?? '#'
+            const href = formatOrNull(button)
+            const content = (
+                <>
+                    <IconPlus aria-hidden size={19} stroke={2.3} />
+                    {href === null
+                        ? t(linkStatus === 'error' ? 'cnLinkError' : 'cnPreparingLink')
+                        : t('cnAddTo', { name: app.name })}
+                </>
+            )
+            const className = clsx(
+                classes.btn,
+                classes.btnPrimary,
+                classes.btnGlow,
+                classes.btnWide
+            )
+            // Never turn an unprepared encrypted link into «#»: that both loses the page position
+            // and starts a false «app did not open» timer. The plain copy action remains available.
+            if (href === null) {
+                return (
+                    <button className={className} disabled key={key} title={text} type="button">
+                        {content}
+                    </button>
+                )
+            }
             return (
                 <a
-                    className={clsx(
-                        classes.btn,
-                        classes.btnPrimary,
-                        classes.btnGlow,
-                        classes.btnWide
-                    )}
+                    className={className}
                     href={href}
                     key={key}
                     onClick={() => {
@@ -444,8 +482,7 @@ function Steps(props: {
                     }}
                     title={text}
                 >
-                    <IconPlus aria-hidden size={19} stroke={2.3} />
-                    {t('cnAddTo', { name: app.name })}
+                    {content}
                 </a>
             )
         }

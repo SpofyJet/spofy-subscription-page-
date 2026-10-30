@@ -34,3 +34,6 @@ export const getAppLogo = (name: string): IAppLogo | undefined => LOGOS[appKey(n
 export const ALLOWED_APPS = ['happ', 'incy']
 
 export const isAllowedApp = (name: string) => ALLOWED_APPS.includes(appKey(name))
+
+/** Owner's default recommendation; Happ remains the fallback where INCY is unavailable. */
+export const isDefaultApp = (name: string) => appKey(name) === 'incy'

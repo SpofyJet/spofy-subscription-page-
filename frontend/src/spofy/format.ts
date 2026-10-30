@@ -143,7 +143,8 @@ export function detectPlatform(
     maxTouchPoints: number
 ): TSubscriptionPagePlatformKey | undefined {
     if (/AppleTV|tvOS/i.test(ua)) return 'appleTV'
-    if (/Android.*\b(TV|AFT\w*)\b|GoogleTV|BRAVIA|\bAFT[A-Z]/i.test(ua)) return 'androidTV'
+    if (/Android.*\b(TV|AFT\w*)\b|Google ?TV|Chromecast|BRAVIA|\bAFT[A-Z]/i.test(ua))
+        return 'androidTV'
     if (/iPhone|iPad|iPod/i.test(ua)) return 'ios'
     if (/Macintosh/i.test(ua) && maxTouchPoints > 1) return 'ios' // iPadOS desktop UA
     if (/Android/i.test(ua)) return 'android'

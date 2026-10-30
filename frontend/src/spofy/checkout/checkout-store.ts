@@ -30,7 +30,9 @@ export interface IPendingPayment {
 
 const KEY = 'spofy.subpage.pending'
 const METHOD_KEY = 'spofy.subpage.method'
-const TTL_MS = 30 * 60_000
+// The bot keeps the cart and its payment binding for 24h (CART_TTL_SECONDS) and completes a
+// late payment up to that age — the page must not forget the invoice any earlier.
+const TTL_MS = 24 * 60 * 60_000
 
 /** A stored entry must look like a payment we created — a corrupt one is dropped, not polled. */
 function isPendingPayment(pending: unknown): pending is IPendingPayment {
@@ -93,7 +95,10 @@ export const errorKey = (error: unknown, phase: 'checkout' | 'offer' = 'checkout
     if (error.code === 'rate_limited') return 'coErrRate'
     if (error.code === 'no_session') return 'coErrSession'
     if (error.code === 'bridge_error' && error.status === 404) return 'coErrNotInBot'
-    if (error.status === 409 || error.code === 'checkout_disabled') return 'coErrDisabled'
+    // The bridge's 409s are transient: another checkout in flight, its wait-branch timed out,
+    // or the cart slot changed under us (cart mismatch never pays, it conflicts) — retry.
+    if (error.status === 409) return 'coErrRetry'
+    if (error.code === 'checkout_disabled') return 'coErrDisabled'
     if (phase === 'offer') return 'coErrLoad'
     const detail = (error.detail ?? '').toLowerCase()
     // «Failed to create Platega payment» / «temporarily unavailable»: one provider is down, the bot works.
@@ -115,6 +120,8 @@ export const KNOWN_ERROR_KEYS: TSpofyKey[] = [
 ]
 
 interface IStore {
+    /** payment whose page this tab opened itself (payAndOpen) — the sheet offers it again, quietly */
+    autoOpenedPaymentId: null | string
     close: () => void
     /** latest subscription snapshot seen while polling a payment */
     latest: ISnapshot | null
@@ -130,6 +137,7 @@ interface IStore {
     pending: IPendingPayment | null
     preset: ICheckoutPreset | null
     setLatest: (snapshot: ISnapshot | null) => void
+    setAutoOpenedPaymentId: (paymentId: string) => void
     setPending: (pending: IPendingPayment | null) => void
     setShowPending: (show: boolean) => void
     setTab: (tab: TCheckoutTab) => void
@@ -150,12 +158,14 @@ export const useCheckoutStore = create<IStore>()((set, get) => ({
     offerLoading: false,
     preset: null,
     showPending: false,
+    autoOpenedPaymentId: null,
     open: (tab, preset) => set({ opened: true, tab, preset: preset ?? null, showPending: false }),
     openPayment: () => set({ opened: true, showPending: true }),
     close: () => set({ opened: false }),
     setShowPending: (showPending) => set({ showPending }),
     setTab: (tab) => set({ tab }),
     setLatest: (latest) => set({ latest }),
+    setAutoOpenedPaymentId: (paymentId) => set({ autoOpenedPaymentId: paymentId }),
     setPending: (pending) => {
         savePending(pending)
         // a payment just created is shown at once; clearing one goes back to the choice

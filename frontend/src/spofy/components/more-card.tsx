@@ -76,6 +76,22 @@ export function MoreCard({ cabinetUrl }: { cabinetUrl: null | string }) {
                 {qrOpen && qrSrc && <img alt={t('qrTitle')} className={classes.qr} src={qrSrc} />}
             </div>
             <p className={classes.qrText}>{t('qrText')}</p>
+            <button
+                className={clsx(classes.btn, classes.btnPrimary, classes.qrCopy)}
+                onClick={() => {
+                    vibrate('tap')
+                    void copy(subscriptionUrl, 'qr')
+                }}
+                type="button"
+            >
+                {copied === 'qr' ? (
+                    <IconCheck aria-hidden size={18} stroke={2.2} />
+                ) : (
+                    <IconCopy aria-hidden size={18} stroke={2} />
+                )}
+                {copied === 'qr' ? t('copied') : t('copyLinkFull')}
+            </button>
+            {failed === 'qr' && <ManualCopy text={subscriptionUrl} />}
             <p className={classes.qrWarn}>{t('moreCopyHint')}</p>
         </Modal>
     )
