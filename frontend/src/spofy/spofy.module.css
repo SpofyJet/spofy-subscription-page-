@@ -1393,6 +1393,7 @@
     border-radius: 24px !important;
     color: var(--sp-text);
     font-family: var(--sp-font);
+    overscroll-behavior: contain;
 }
 
 .modalHeader {
@@ -1557,6 +1558,9 @@
     border: 1px solid var(--sp-glass-border) !important;
     color: var(--sp-text);
     font-family: var(--sp-font);
+    /* a finished inner scroll must never chain into the page behind (iOS Safari
+     * ignores the body lock while the finger/wheel is inside the sheet) */
+    overscroll-behavior: contain;
 }
 
 .sheetContent:global(.mantine-Drawer-content) {
