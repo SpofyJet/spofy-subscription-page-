@@ -193,11 +193,18 @@ export function SupportButton({ supportUrl }: { supportUrl: null | string }) {
             rel="noopener noreferrer"
             target="_blank"
         >
-            {telegram ? (
-                <IconBrandTelegram aria-hidden size={20} stroke={1.9} />
-            ) : (
-                <IconMessageCircle aria-hidden size={20} stroke={1.9} />
-            )}
+            {/* the same icon tile as the rows above: one visual language on the page */}
+            <span
+                aria-hidden
+                className={classes.listIcon}
+                data-hue={telegram ? 'telegram' : 'sky'}
+            >
+                {telegram ? (
+                    <IconBrandTelegram size={20} stroke={1.9} />
+                ) : (
+                    <IconMessageCircle size={20} stroke={1.9} />
+                )}
+            </span>
             <span className={classes.supportText}>
                 <span>{t('writeSupport')}</span>
                 <span className={classes.supportCaption}>

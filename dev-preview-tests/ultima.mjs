@@ -44,7 +44,7 @@ const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); c ? pass++ : fa
   await page.waitForTimeout(1500)
   const card = (await page.locator('main, body').first().innerText()).replace(/\s+/g, ' ')
   ok(/VPN работает/.test(card), 'ULTIMA owner: «VPN работает»')
-  ok(/продлевать не нужно/.test(card), 'ULTIMA owner: «бессрочная, продлевать не нужно»')
+  ok(/ULTIMA · навсегда/.test(card), 'ULTIMA owner: «тариф ULTIMA · навсегда»')
   ok((await page.getByRole('button', { name: /^Продлить/ }).count()) === 0, 'ULTIMA owner: no «Продлить»')
   ok(!/Оплачено до/.test(card) && !/2222|2032|2033/.test(card), 'ULTIMA owner: no far-off end date')
   await page.screenshot({ path: `${out}/ultima-owner.png`, fullPage: false })

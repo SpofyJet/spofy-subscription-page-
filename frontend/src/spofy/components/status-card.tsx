@@ -91,7 +91,12 @@ export function StatusCard({ model }: { model: IPageModel }) {
             break
         default:
             title = fresh ? t('stNoDevicesTitle') : t('stActive')
-            line = model.indefinite ? t('stIndefinite') : null
+            // ULTIMA: the plan is named, «навсегда» is its term (never the plan's name)
+            line = model.indefinite
+                ? offer?.subscription.tariff_name
+                    ? t('stIndefinitePlan', { name: offer.subscription.tariff_name })
+                    : t('stIndefinite')
+                : null
     }
 
     // Shield «charge»: share of a month left (a trial counts against three days).
