@@ -61,6 +61,8 @@
     overflow: visible;
     color: #8cb4e7;
     opacity: 0.32;
+    /* the mesh frames the column instead of running under the text (a dot sat on the nickname) */
+    mask-image: linear-gradient(90deg, black 0 26%, transparent 34% 66%, black 74%);
 }
 
 .backdropMesh {
@@ -97,6 +99,20 @@
     background:
         linear-gradient(90deg, rgba(0, 32, 91, 0.08), transparent 25% 75%, rgba(0, 32, 91, 0.08)),
         radial-gradient(ellipse 58% 72% at 50% 45%, transparent 40%, rgba(2, 6, 18, 0.28));
+}
+
+/* light: the navy blob and the vignette are for the dark page — on white they read as a grey
+   haze behind the header; keep only the soft tint of the situation */
+@media (prefers-color-scheme: light) {
+    .backdropAurora {
+        background:
+            radial-gradient(50% 50% at 85% 0%, var(--glow-a), transparent 70%),
+            radial-gradient(40% 40% at 5% 6%, var(--glow-b), transparent 70%);
+    }
+
+    .backdropVignette {
+        display: none;
+    }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1086,9 +1102,23 @@
     height: 18px;
 }
 
+/* a system tile: the icon is the tile's picture, not a bullet */
+.chipTile .chipIcon svg {
+    width: 22px;
+    height: 22px;
+}
+
 .chipLabel {
     max-width: 100%;
     overflow-wrap: anywhere;
+}
+
+/* a system tile: a two-line name («iPhone / iPad») must not lift its icon above the others */
+.chipTile .chipLabel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.4em;
 }
 
 .chipTag {
@@ -2449,8 +2479,10 @@
 
 /* ───────── ordinary and small phones: room for the value and its button ───────── */
 @media (max-width: 419px) {
+    /* a phone: periods as rows — two columns left the third period alone in its row
+       and a half-empty «1 месяц» card next to the recommended one */
     .periodGrid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: minmax(0, 1fr);
     }
 
     /* the row icons step aside, and so does the icon inside the row's button */
@@ -2485,6 +2517,63 @@
         align-items: baseline;
         justify-content: center;
         gap: 0 6px;
+    }
+
+    .periodCard {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas:
+            'top price'
+            'badge badge'
+            'meta strike';
+        align-items: center;
+        column-gap: 12px;
+        min-height: 64px;
+        padding: 11px 14px;
+    }
+
+    .periodTop {
+        grid-area: top;
+        justify-content: flex-start;
+        gap: 6px;
+        min-height: 0;
+    }
+
+    .periodName {
+        font-size: 15px;
+    }
+
+    .periodBadge,
+    .periodDiscount {
+        grid-area: badge;
+        justify-self: start;
+        margin-top: 4px;
+        min-height: 0;
+    }
+
+    .periodPrice {
+        grid-area: price;
+        justify-self: end;
+        margin: 0;
+        padding: 0;
+        font-size: 17px;
+    }
+
+    .periodStrike {
+        grid-area: strike;
+        justify-self: end;
+        align-self: center;
+        min-height: 0;
+        margin-top: 0;
+        font-size: 12px;
+    }
+
+    .periodMeta {
+        grid-area: meta;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 2px 10px;
+        font-size: 12.5px;
     }
 }
 
@@ -2531,30 +2620,6 @@
         gap: 6px;
     }
 
-    .periodCard {
-        min-height: 128px;
-        padding: 10px 8px;
-    }
-
-    .periodName {
-        font-size: 14px;
-    }
-
-    .periodBadge,
-    .periodDiscount {
-        padding-right: 5px;
-        padding-left: 5px;
-        font-size: 12px;
-    }
-
-    .periodPrice {
-        font-size: 16.5px;
-    }
-
-    .periodMeta,
-    .periodStrike {
-        font-size: 12px;
-    }
 }
 
 /* ───────── v6 ───────── */

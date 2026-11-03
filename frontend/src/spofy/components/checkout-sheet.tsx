@@ -61,7 +61,6 @@ import { markPayOpened, TPhase } from '../checkout/pending'
 import {
     countOf,
     formatBytes,
-    formatDateNumeric,
     formatDayMonth,
     formatDays,
     formatPeriod,
@@ -173,7 +172,7 @@ export default function CheckoutSheet({
                             ? 'coSubRenewPlain'
                             : 'coSubRenew',
                   tab === 'renew'
-                      ? { date: formatDateNumeric(subscription.user.expiresAt, lang) }
+                      ? { date: formatDayMonth(subscription.user.expiresAt, lang) }
                       : undefined
               )
 
@@ -1282,11 +1281,7 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
             )}
 
             <div className={classes.coFooter}>
-                {saving > 0 && (
-                    <span className={clsx(classes.coSaving, classes.num)}>
-                        {t('coSavingLine', { saving: money(saving) })}
-                    </span>
-                )}
+                {/* the saving is on the chosen period's card; a second banner only repeated it */}
                 {deviceFree && renewUrl ? (
                     <a
                         className={clsx(classes.btn, classes.btnPrimary, classes.coPayBtn)}

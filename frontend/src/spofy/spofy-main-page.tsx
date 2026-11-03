@@ -102,7 +102,10 @@ export function SpofyMainPage() {
                     key={ended ? 'ended' : full ? 'full' : connected ? 'connected' : 'open'}
                 />
 
-                <MoreCard cabinetUrl={spofy.cabinetUrl} />
+                <MoreCard
+                    cabinetUrl={spofy.cabinetUrl}
+                    guideHasCopy={!ended && !full && !connected}
+                />
 
                 <SupportButton supportUrl={supportUrl} />
 

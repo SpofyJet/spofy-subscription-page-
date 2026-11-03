@@ -6,8 +6,15 @@ import {
     TSubscriptionPagePlatformKey
 } from '@remnawave/subscription-page-types'
 import {
+    IconBrandAndroid,
+    IconBrandApple,
+    IconBrandUbuntu,
+    IconBrandWindows,
     IconCheck,
     IconChevronDown,
+    IconDeviceLaptop,
+    IconDeviceTv,
+    IconDeviceTvOld,
     IconCopy,
     IconDownload,
     IconExternalLink,
@@ -46,6 +53,30 @@ function localized(
 ): string {
     if (!text) return ''
     return text[lang] ?? text.en ?? text.ru ?? Object.values(text)[0] ?? ''
+}
+
+/**
+ * One icon set for the system tiles. The panel's glyphs drew macOS and Android TV as the same
+ * monitor; a platform not listed here keeps the panel's glyph.
+ */
+const PLATFORM_ICONS: Partial<Record<string, typeof IconBrandApple>> = {
+    ios: IconBrandApple,
+    android: IconBrandAndroid,
+    windows: IconBrandWindows,
+    macos: IconDeviceLaptop,
+    linux: IconBrandUbuntu,
+    androidTV: IconDeviceTv,
+    appleTV: IconDeviceTvOld
+}
+
+function PlatformIcon({ platform, svg }: { platform: string; svg: string | undefined }) {
+    const Icon = PLATFORM_ICONS[platform]
+    if (!Icon) return <SvgIcon className={classes.chipIcon} svg={svg} />
+    return (
+        <span aria-hidden className={classes.chipIcon}>
+            <Icon size={22} stroke={1.8} />
+        </span>
+    )
 }
 
 function SvgIcon({ className, svg }: { className: string; svg: string | undefined }) {
@@ -223,8 +254,8 @@ export function ConnectSection({
                             key,
                             label: localized(item.displayName, lang),
                             icon: (
-                                <SvgIcon
-                                    className={classes.chipIcon}
+                                <PlatformIcon
+                                    platform={key}
                                     svg={config.svgLibrary[item.svgIconKey]}
                                 />
                             )
@@ -295,6 +326,10 @@ function ChipGroup(props: {
     // 2 → 2 halves, 3 → one row, 4 → 2 × 2, 5–6 → rows of 3
     const n = items.length
     const cols = variant === 'app' ? Math.min(2, n) : n <= 3 ? n : n === 4 ? 2 : 3
+    // rows of 3 with a short last row (5, 7 systems): the last tiles share the full width
+    // instead of leaving a hole on the right — a 6-column grid, 2 columns per tile
+    const rest = cols === 3 ? n % 3 : 0
+    const spanOf = (index: number) => (rest && index >= n - rest ? 6 / rest : 2)
 
     return (
         <div
@@ -303,9 +338,9 @@ function ChipGroup(props: {
             data-variant={variant}
             onKeyDown={onKeys}
             role="radiogroup"
-            style={{ '--cols': cols } as React.CSSProperties}
+            style={{ '--cols': rest ? 6 : cols } as React.CSSProperties}
         >
-            {items.map((item) => {
+            {items.map((item, index) => {
                 const checked = item.key === value
                 return (
                     <button
@@ -320,6 +355,7 @@ function ChipGroup(props: {
                             refs.current.set(item.key, el)
                         }}
                         role="radio"
+                        style={rest ? { gridColumn: `span ${spanOf(index)}` } : undefined}
                         tabIndex={checked ? 0 : -1}
                         type="button"
                     >

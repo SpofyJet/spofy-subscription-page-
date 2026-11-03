@@ -39,7 +39,14 @@ const hostOf = (url: string) => {
  * Everything besides the guide, as plain labelled rows: another device (QR), the link itself and
  * the web cabinet. Each row says what it does; nothing is an unlabelled icon.
  */
-export function MoreCard({ cabinetUrl }: { cabinetUrl: null | string }) {
+export function MoreCard({
+    cabinetUrl,
+    guideHasCopy = false
+}: {
+    cabinetUrl: null | string
+    /** the open guide already has «Скопировать ссылку» with the same warning: not twice */
+    guideHasCopy?: boolean
+}) {
     const config = useAppConfig()
     const subscription = useSubscription()
     const { t } = useSpofyT()
@@ -99,32 +106,34 @@ export function MoreCard({ cabinetUrl }: { cabinetUrl: null | string }) {
     return (
         <section aria-label={t('subscriptionLink')} className={clsx(classes.card, classes.more)}>
             <ul className={classes.list}>
-                {/* the link itself, always (owner 23.10.2026): the guide talks about it */}
-                <li>
-                    <button
-                        className={classes.listRow}
-                        onClick={() => {
-                            vibrate('tap')
-                            void copy(subscriptionUrl, 'more')
-                        }}
-                        type="button"
-                    >
-                        <span aria-hidden className={classes.listIcon} data-hue="green">
-                            {copied === 'more' ? (
-                                <IconCheck size={20} stroke={2.2} />
-                            ) : (
-                                <IconCopy size={20} stroke={1.9} />
-                            )}
-                        </span>
-                        <span className={classes.listText}>
-                            <span aria-live="polite" className={classes.listTitle}>
-                                {copied === 'more' ? t('copied') : t('copyLinkFull')}
+                {/* the link itself, always (owner 23.10.2026) — here, or in the open guide */}
+                {!guideHasCopy && (
+                    <li>
+                        <button
+                            className={classes.listRow}
+                            onClick={() => {
+                                vibrate('tap')
+                                void copy(subscriptionUrl, 'more')
+                            }}
+                            type="button"
+                        >
+                            <span aria-hidden className={classes.listIcon}>
+                                {copied === 'more' ? (
+                                    <IconCheck size={20} stroke={2.2} />
+                                ) : (
+                                    <IconCopy size={20} stroke={1.9} />
+                                )}
                             </span>
-                            <span className={classes.listCaption}>{t('moreCopyHint')}</span>
-                        </span>
-                    </button>
-                    {failed === 'more' && <ManualCopy text={subscriptionUrl} />}
-                </li>
+                            <span className={classes.listText}>
+                                <span aria-live="polite" className={classes.listTitle}>
+                                    {copied === 'more' ? t('copied') : t('copyLinkFull')}
+                                </span>
+                                <span className={classes.listCaption}>{t('moreCopyHint')}</span>
+                            </span>
+                        </button>
+                        {failed === 'more' && <ManualCopy text={subscriptionUrl} />}
+                    </li>
+                )}
                 {showLink && (
                     <li>
                         <button
