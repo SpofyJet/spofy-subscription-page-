@@ -168,6 +168,37 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
+/*
+ * Backdrop: light falling on the page from above — a wide accent glow behind the status card,
+ * a faint Spofy-red one in the corner, a cool one low on the left. Pure CSS, fixed (it does not
+ * scroll away or repaint), no grid/mesh/pictures; cards stay readable on top of it.
+ */
+:root {
+    --sp-bg-glow-top: rgba(59, 130, 246, 0.16);
+    --sp-bg-glow-brand: rgba(255, 64, 64, 0.08);
+    --sp-bg-glow-low: rgba(56, 189, 248, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --sp-bg-glow-top: rgba(59, 130, 246, 0.34);
+        --sp-bg-glow-brand: rgba(255, 64, 64, 0.16);
+        --sp-bg-glow-low: rgba(56, 189, 248, 0.14);
+    }
+}
+
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+        radial-gradient(110% 50% at 15% -8%, var(--sp-bg-glow-top), transparent 65%),
+        radial-gradient(70% 38% at 108% 4%, var(--sp-bg-glow-brand), transparent 70%),
+        radial-gradient(90% 45% at 90% 108%, var(--sp-bg-glow-low), transparent 70%);
+}
+
 /* The page itself can never be dragged sideways on a phone (iPhone ignores this on html alone). */
 body {
     overflow-x: hidden;
