@@ -27,7 +27,7 @@ export function ActionButton(props: {
     const { action, icon, label, price, priceNote, variant } = props
     const className = clsx(
         classes.btn,
-        variant === 'primary' && clsx(classes.btnPrimary, classes.btnGlow),
+        variant === 'primary' && classes.btnPrimary,
         variant === 'secondary' && classes.btnSecondary,
         variant === 'soft' && classes.btnSoft,
         variant === 'solid' && classes.btnPrimary,

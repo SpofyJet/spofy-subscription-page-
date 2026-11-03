@@ -6,13 +6,13 @@ import { useSubscription } from '@entities/subscription-info-store'
 import { track } from './checkout/api'
 import { useCheckoutStore } from './checkout/checkout-store'
 import { PendingBanner, usePendingPhase } from './checkout/pending'
-import { AmbientBackdrop } from './components/ambient-backdrop'
 import { ConnectSection } from './components/connect-section'
 import { Header } from './components/header'
 import { MoreCard, SupportButton } from './components/more-card'
 import { StatusCard } from './components/status-card'
 import { detectPlatform } from './format'
 import { usePageModel } from './page-model'
+import { SpofyShell } from './spofy-shell'
 import { useSpofyData } from './spofy-store'
 import classes from './spofy.module.css'
 
@@ -76,6 +76,18 @@ export function SpofyMainPage() {
         idle(() => void loadSheet())
     }, [checkout, offerReady])
 
+    // First paint waits for the bot's answer (tariff name, trial flag, prices) — otherwise the
+    // card is drawn from the panel alone and then rewritten a moment later («бессрочная» →
+    // «тариф ULTIMA», «VPN работает» → «Пробный период»). The bot is slow or down: show what
+    // the panel knows after a short wait rather than a blank page.
+    const settled = useCheckoutStore((s) => !!s.offer || !!s.offerError)
+    const [patient, setPatient] = useState(true)
+    useEffect(() => {
+        if (!checkout || settled) return
+        const id = window.setTimeout(() => setPatient(false), 2_500)
+        return () => window.clearTimeout(id)
+    }, [checkout, settled])
+
     const ended = model.view === 'expired' || model.view === 'disabled'
     // A device is already connected: the guide waits behind one row («ещё одно устройство»).
     // A newcomer (0 devices, or the panel does not count them) gets it open.
@@ -85,9 +97,10 @@ export function SpofyMainPage() {
         spofy.devicesLimit !== null &&
         spofy.devicesUsed >= spofy.devicesLimit
 
+    if (checkout && !settled && patient) return <SpofyShell />
+
     return (
         <>
-            <AmbientBackdrop view={model.view} />
             <div className={classes.page}>
                 {/* the Telegram nickname from the panel's user description, never the technical id */}
                 <Header account={spofy.displayName} />

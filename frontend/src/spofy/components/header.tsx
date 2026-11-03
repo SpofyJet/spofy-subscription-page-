@@ -2,7 +2,7 @@ import { Menu } from '@mantine/core'
 import { TSubscriptionPageLanguageCode } from '@remnawave/subscription-page-types'
 // deep import: the package entry is CommonJS and pulls in every zod schema
 import { getLanguageInfo } from '@remnawave/subscription-page-types/build/backend/constants'
-import { IconCheck, IconChevronDown, IconUserCircle } from '@tabler/icons-react'
+import { IconCheck, IconWorld } from '@tabler/icons-react'
 import clsx from 'clsx'
 
 import { useAppConfig, useAppConfigStoreActions, useCurrentLang } from '@entities/app-config-store'
@@ -15,8 +15,9 @@ export const isTelegramLink = (url: null | string) =>
     !!url && /^https?:\/\/(t\.me|telegram\.me)\//i.test(url)
 
 /**
- * Brand on the left; on the right whose page this is (the Telegram nickname the bot writes into
- * the panel's user description) and the language. Support lives in one place — the bottom of the page.
+ * Like the cabinet's header: the brand with whose page this is under it (the Telegram nickname
+ * the bot writes into the panel's user description), and one small button on the right — the
+ * language. Support lives in one place — the bottom of the page.
  */
 export function Header({ account }: { account: null | string }) {
     const config = useAppConfig()
@@ -28,25 +29,29 @@ export function Header({ account }: { account: null | string }) {
     return (
         <header className={classes.topBar}>
             <span className={classes.brand}>
-                <SpofyShield className={classes.brandMark} />
-                <span className={classes.brandName}>{title}</span>
+                <span aria-hidden className={classes.brandTile}>
+                    <SpofyShield className={classes.brandMark} />
+                </span>
+                <span className={classes.brandText}>
+                    <span className={classes.brandName}>{title}</span>
+                    {account && (
+                        <span
+                            className={classes.accountName}
+                            title={t('stAccount', { name: account })}
+                        >
+                            {account}
+                        </span>
+                    )}
+                </span>
             </span>
-            <div className={classes.topActions}>
-                {account && (
-                    <span className={classes.account} title={t('stAccount', { name: account })}>
-                        <IconUserCircle aria-hidden size={18} stroke={1.9} />
-                        <span className={classes.accountName}>{account}</span>
-                    </span>
-                )}
-                {config.locales.length > 1 && (
-                    <LanguageMenu
-                        currentLang={currentLang}
-                        label={t('language')}
-                        locales={config.locales}
-                        onChange={setLanguage}
-                    />
-                )}
-            </div>
+            {config.locales.length > 1 && (
+                <LanguageMenu
+                    currentLang={currentLang}
+                    label={t('language')}
+                    locales={config.locales}
+                    onChange={setLanguage}
+                />
+            )}
         </header>
     )
 }
@@ -72,8 +77,8 @@ function LanguageMenu(props: {
                     className={clsx(classes.pill, classes.pillCompact)}
                     type="button"
                 >
+                    <IconWorld aria-hidden size={16} stroke={1.9} />
                     {currentLang.toUpperCase()}
-                    <IconChevronDown aria-hidden size={14} stroke={2.25} />
                 </button>
             </Menu.Target>
             <Menu.Dropdown>

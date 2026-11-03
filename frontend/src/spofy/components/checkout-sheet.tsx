@@ -997,8 +997,7 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                         className={clsx(
                             classes.btn,
                             classes.btnPrimary,
-                            classes.btnGlow,
-                            classes.coPayBtn
+                                        classes.coPayBtn
                         )}
                         disabled={busy || price <= 0 || !method}
                         onClick={() => void payAndOpen()}
@@ -1296,8 +1295,7 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                         className={clsx(
                             classes.btn,
                             classes.btnPrimary,
-                            classes.btnGlow,
-                            classes.btnSplit,
+                                        classes.btnSplit,
                             classes.coPayBtn
                         )}
                         disabled={price <= 0}
@@ -1500,7 +1498,7 @@ function PaymentStep({
                     className={clsx(
                         classes.btn,
                         // already opened by the tap on «Оплатить»: offered again, but quietly
-                        opened ? classes.btnSecondary : clsx(classes.btnPrimary, classes.btnGlow),
+                        opened ? classes.btnSecondary : classes.btnPrimary,
                         classes.coPayBtn
                     )}
                     href={result.payment_url}

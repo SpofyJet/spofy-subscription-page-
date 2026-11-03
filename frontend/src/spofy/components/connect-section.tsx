@@ -19,6 +19,7 @@ import {
     IconDownload,
     IconExternalLink,
     IconInfoCircle,
+    IconPlugConnected,
     IconPlus,
     IconQrcode
 } from '@tabler/icons-react'
@@ -36,7 +37,7 @@ import { useCopy } from '../copy'
 import { countOf, PLATFORM_ORDER } from '../format'
 import { useSpofyT } from '../i18n'
 import { formatLink, useLinkTemplates } from '../link-template'
-import { CONNECT_ID } from '../page-model'
+import { CONNECT_ID, CONNECT_OPEN_EVENT } from '../page-model'
 import { prefs } from '../prefs'
 import { useQrStore } from '../qr-store'
 import { revealBlock } from '../scroll'
@@ -109,22 +110,25 @@ function AppIcon({ app }: { app: TSubscriptionPageAppConfig }) {
 
 /** Steps already done for this platform + app, remembered on this device. */
 function useDoneSteps(key: string) {
-    // the guide is remounted for every platform + app (keyed), so the key never changes here
-    const [done, setDone] = useState<number[]>(() => prefs.steps(key))
+    const [state, setState] = useState(() => ({ key, done: prefs.steps(key) }))
+    const done = state.key === key ? state.done : prefs.steps(key)
     const mark = (index: number) =>
-        setDone((current) => {
-            if (current.includes(index)) return current
-            const next = [...current, index]
+        setState((current) => {
+            const base = current.key === key ? current.done : prefs.steps(key)
+            if (base.includes(index)) return { key, done: base }
+            const next = [...base, index]
             prefs.setSteps(key, next)
-            return next
+            return { key, done: next }
         })
     return { done, mark }
 }
 
 /**
- * «How to connect» — the main block of the page. Platform and app are chips (the detected
- * platform and the recommended app come preselected), and every step is open with its buttons
- * inside it, so a newcomer just goes down the list. Steps tick themselves off as they are used.
+ * «How to connect» — one card that folds both ways. Its head always says what it will take
+ * («iPhone · 3 шага · пара минут») or how far the person got («шаг 2 из 3»), so even folded it
+ * sells the next step. Open: the detected device in one line (the full list only behind
+ * «Другое»), the app, then the steps with their buttons; steps tick themselves off as they are
+ * used. Any «Подключить» button on the page opens it at the current step.
  */
 export function ConnectSection({
     collapsed: startCollapsed,
@@ -139,8 +143,25 @@ export function ConnectSection({
     const subscription = useSubscription()
     const { t, lang } = useSpofyT()
     const headingId = useId()
-    const [collapsed, setCollapsed] = useState(startCollapsed !== null)
+    const bodyId = useId()
+    const [open, setOpen] = useState(startCollapsed === null)
+    const [picking, setPicking] = useState(false)
+    const sectionRef = useRef<HTMLElement>(null)
     const stepsAnchor = useRef<HTMLDivElement>(null)
+    useEffect(() => {
+        const onOpen = () => {
+            setOpen(true)
+            // after the steps are drawn: go to the step to do now, or to the card itself
+            window.requestAnimationFrame(() => {
+                const section = sectionRef.current
+                revealBlock(
+                    section?.querySelector<HTMLElement>('[data-state="current"]') ?? section ?? null
+                )
+            })
+        }
+        window.addEventListener(CONNECT_OPEN_EVENT, onOpen)
+        return () => window.removeEventListener(CONNECT_OPEN_EVENT, onOpen)
+    }, [])
     // the chosen tile tapped again: go to the steps (and flash them, so the tap is answered)
     const showSteps = () => {
         vibrate('selection')
@@ -187,13 +208,32 @@ export function ConnectSection({
             ? apps.findIndex((app) => app.name === picked.name)
             : -1
     const appIndex = pickedIndex >= 0 ? pickedIndex : featuredIndex
+    const app = apps[appIndex]
+    const { done, mark } = useDoneSteps(`${platform}:${app?.name ?? ''}`)
 
-    if (!platform || available.length === 0 || apps.length === 0) return null
-    const app = apps[appIndex]!
+    if (!platform || available.length === 0 || !app) return null
+    const platformName = localized(config.platforms[platform]?.displayName, lang)
+    const total = app.blocks.length
+    const current = app.blocks.findIndex((_, index) => !done.includes(index))
+    // the device was not recognised: the list is shown right away instead of a guess
+    const known = !!detected && available.includes(detected)
 
     const selectPlatform = (key: TSubscriptionPagePlatformKey) => {
         vibrate('selection')
         setPlatform(key)
+        setPicking(false)
+    }
+    const toggle = () => {
+        vibrate('selection')
+        if (open) {
+            setOpen(false)
+            setPicking(false)
+            // folding a long guide must not leave the person far below the page
+            const section = sectionRef.current
+            if (section && section.getBoundingClientRect().top < 0) {
+                window.requestAnimationFrame(() => revealBlock(section, { flash: false }))
+            }
+        } else setOpen(true)
     }
     const selectApp = (index: number) => {
         vibrate('selection')
@@ -201,99 +241,143 @@ export function ConnectSection({
         prefs.setApp(platform, apps[index]!.name)
     }
 
-    if (collapsed) {
-        return (
-            <section
-                aria-labelledby={headingId}
-                className={clsx(classes.card, classes.connect)}
-                id={CONNECT_ID}
-            >
-                <button
-                    aria-expanded={false}
-                    className={classes.collapsedRow}
-                    onClick={() => setCollapsed(false)}
-                    type="button"
-                >
-                    <span className={classes.collapsedText}>
-                        <span className={classes.sectionTitle} id={headingId}>
-                            {startCollapsed === 'connected' ? t('cnMoreTitle') : t('cnTitle')}
-                        </span>
-                        <span className={classes.sectionLead}>
-                            {startCollapsed === 'ended' ? t('cnLeadExpired') : t('cnMoreLead')}
-                        </span>
-                    </span>
-                    <IconChevronDown
-                        aria-hidden
-                        className={classes.chevron}
-                        size={20}
-                        stroke={2.2}
-                    />
-                </button>
-            </section>
-        )
-    }
+    const title = startCollapsed === 'connected' ? t('cnMoreTitle') : t('cnTitle')
+    const lead =
+        startCollapsed === 'ended'
+            ? t('cnLeadExpired')
+            : current === -1
+              ? t('cnLeadDone', { platform: platformName })
+              : done.length > 0
+                ? t('cnLeadProgress', { platform: platformName, n: current + 1, total })
+                : t('cnLeadSteps', { platform: platformName, steps: countOf(total, lang, 'step') })
 
     return (
         <section
             aria-labelledby={headingId}
             className={clsx(classes.card, classes.connect)}
+            data-open={open || undefined}
             id={CONNECT_ID}
+            ref={sectionRef}
         >
-            <div className={classes.sectionHead}>
-                <h2 className={classes.sectionTitle} id={headingId}>
-                    {t('cnTitle')}
-                </h2>
-                <p className={classes.sectionLead}>{t('cnLead')}</p>
-            </div>
-
-            {available.length > 1 && (
-                <ChipGroup
-                    items={available.map((key) => {
-                        const item = config.platforms[key]!
-                        return {
-                            key,
-                            label: localized(item.displayName, lang),
-                            icon: (
-                                <PlatformIcon
-                                    platform={key}
-                                    svg={config.svgLibrary[item.svgIconKey]}
-                                />
-                            )
-                        }
-                    })}
-                    label={t('cnPlatforms')}
-                    onReselect={showSteps}
-                    onSelect={(key) => selectPlatform(key as TSubscriptionPagePlatformKey)}
-                    value={platform}
-                    variant="tile"
+            <button
+                aria-controls={bodyId}
+                aria-expanded={open}
+                className={classes.connectHead}
+                onClick={toggle}
+                type="button"
+            >
+                <span
+                    aria-hidden
+                    className={classes.connectHeadIcon}
+                    data-done={current === -1 || undefined}
+                >
+                    {current === -1 ? (
+                        <IconCheck size={22} stroke={2.4} />
+                    ) : (
+                        <IconPlugConnected size={22} stroke={1.9} />
+                    )}
+                </span>
+                <span className={classes.collapsedText}>
+                    <span className={classes.sectionTitle} id={headingId}>
+                        {title}
+                    </span>
+                    <span className={clsx(classes.sectionLead, classes.num)}>{lead}</span>
+                </span>
+                <IconChevronDown
+                    aria-hidden
+                    className={clsx(classes.chevron, open && classes.chevronOpen)}
+                    size={20}
+                    stroke={2.2}
                 />
-            )}
+            </button>
 
-            {apps.length > 1 && (
-                <ChipGroup
-                    items={apps.map((item) => ({
-                        key: item.name,
-                        label: item.name,
-                        icon: <AppIcon app={item} />,
-                        tag: item.name === recommendedApp?.name ? t('recommended') : undefined
-                    }))}
-                    label={t('cnApps')}
-                    onReselect={showSteps}
-                    onSelect={(name) => selectApp(apps.findIndex((item) => item.name === name))}
-                    value={app.name}
-                    variant="app"
-                />
-            )}
+            {open && (
+                <div className={classes.connectBody} id={bodyId}>
+                    {available.length > 1 && known && !picking && (
+                        <div className={classes.deviceLine}>
+                            <PlatformIcon
+                                platform={platform}
+                                svg={config.svgLibrary[config.platforms[platform]!.svgIconKey]}
+                            />
+                            <span className={classes.deviceLineText}>
+                                <span className={classes.deviceLineLabel}>{t('cnPlatforms')}</span>
+                                <span className={classes.deviceLineName}>{platformName}</span>
+                            </span>
+                            <button
+                                className={clsx(classes.btn, classes.btnQuiet)}
+                                onClick={() => {
+                                    vibrate('selection')
+                                    setPicking(true)
+                                }}
+                                type="button"
+                            >
+                                {t('cnChange')}
+                            </button>
+                        </div>
+                    )}
 
-            <div aria-hidden className={classes.stepsAnchor} ref={stepsAnchor} />
-            <Steps
-                app={app}
-                isTv={TV_PLATFORMS.includes(platform)}
-                key={`${platform}-${app.name}`}
-                platform={platform}
-                subscriptionUrl={subscriptionUrl}
-                username={subscription.user.username}
-            />
+                    {available.length > 1 && (!known || picking) && (
+                        <ChipGroup
+                            items={available.map((key) => {
+                                const item = config.platforms[key]!
+                                return {
+                                    key,
+                                    label: localized(item.displayName, lang),
+                                    icon: (
+                                        <PlatformIcon
+                                            platform={key}
+                                            svg={config.svgLibrary[item.svgIconKey]}
+                                        />
+                                    )
+                                }
+                            })}
+                            label={t('cnPlatforms')}
+                            onReselect={showSteps}
+                            onSelect={(key) => selectPlatform(key as TSubscriptionPagePlatformKey)}
+                            value={platform}
+                            variant="tile"
+                        />
+                    )}
+
+                    {apps.length > 1 && (
+                        <ChipGroup
+                            items={apps.map((item) => ({
+                                key: item.name,
+                                label: item.name,
+                                icon: <AppIcon app={item} />,
+                                tag: item.name === recommendedApp?.name ? t('recommended') : undefined
+                            }))}
+                            label={t('cnApps')}
+                            onReselect={showSteps}
+                            onSelect={(name) => selectApp(apps.findIndex((item) => item.name === name))}
+                            value={app.name}
+                            variant="app"
+                        />
+                    )}
+
+                    <div aria-hidden className={classes.stepsAnchor} ref={stepsAnchor} />
+                    <Steps
+                        app={app}
+                        done={done}
+                        isTv={TV_PLATFORMS.includes(platform)}
+                        key={`${platform}-${app.name}`}
+                        mark={mark}
+                        subscriptionUrl={subscriptionUrl}
+                        username={subscription.user.username}
+                    />
+
+                    <button
+                        aria-controls={bodyId}
+                        aria-expanded
+                        className={clsx(classes.btn, classes.btnQuiet, classes.connectFold)}
+                        onClick={toggle}
+                        type="button"
+                    >
+                        {t('cnCollapse')}
+                        <IconChevronDown aria-hidden className={classes.chevronOpen} size={18} stroke={2.2} />
+                    </button>
+                </div>
+            )}
         </section>
     )
 }
@@ -377,17 +461,17 @@ function ChipGroup(props: {
 
 function Steps(props: {
     app: TSubscriptionPageAppConfig
+    done: number[]
     isTv: boolean
-    platform: string
+    mark: (index: number) => void
     subscriptionUrl: string
     username: string
 }) {
-    const { app, isTv, platform, subscriptionUrl, username } = props
+    const { app, done, isTv, mark, subscriptionUrl, username } = props
     const { svgLibrary } = useAppConfig()
     const { t, lang } = useSpofyT()
     const { copied, copy, failed } = useCopy()
     const openQr = useQrStore((state) => state.setOpen)
-    const { done, mark } = useDoneSteps(`${platform}:${app.name}`)
     // «The app did not open?» — shown under a step when its deep link left the page in front.
     const [notOpened, setNotOpened] = useState<null | number>(null)
     const timer = useRef<number | undefined>(undefined)
@@ -495,7 +579,6 @@ function Steps(props: {
             const className = clsx(
                 classes.btn,
                 classes.btnPrimary,
-                classes.btnGlow,
                 classes.btnWide
             )
             // Never turn an unprepared encrypted link into «#»: that both loses the page position

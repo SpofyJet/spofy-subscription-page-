@@ -24,8 +24,7 @@ import {
     toNumber
 } from '../format'
 import { TSpofyKey, useSpofyT } from '../i18n'
-import { CONNECT_ID, IAction, IPageModel, TView } from '../page-model'
-import { revealBlock } from '../scroll'
+import { IAction, IPageModel, openConnectGuide, TView } from '../page-model'
 import { useSpofyData } from '../spofy-store'
 import classes from '../spofy.module.css'
 import { StatusShield, TShieldTone } from './status-shield'
@@ -39,8 +38,6 @@ const TONE: Record<TView, TShieldTone> = {
     disabled: 'muted',
     limited: 'error'
 }
-
-const scrollToGuide = () => revealBlock(document.getElementById(CONNECT_ID))
 
 /**
  * The subscription at a glance, written for someone who does not know the word «подписка»:
@@ -200,7 +197,7 @@ export function StatusCard({ model }: { model: IPageModel }) {
     const external = !model.inPage
     const connect = (
         <ActionButton
-            action={{ onClick: scrollToGuide }}
+            action={{ onClick: openConnectGuide }}
             icon={<IconPlugConnected aria-hidden size={19} stroke={2} />}
             label={t('ctaConnect')}
             variant="primary"

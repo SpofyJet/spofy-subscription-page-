@@ -42,15 +42,15 @@
     --sp-subtle: rgba(11, 18, 32, 0.04);
     --sp-subtle-hover: rgba(11, 18, 32, 0.07);
 
-    --sp-accent: #2b63f5;
-    --sp-accent-hover: #2357e0;
+    --sp-accent: #3b82f6;
+    --sp-accent-hover: #2563eb;
     --sp-on-accent: #ffffff;
-    --sp-success: #22b573;
-    --sp-warning: #f0a33a;
-    --sp-error: #e5484d;
+    --sp-success: #22c55e;
+    --sp-warning: #f59e0b;
+    --sp-error: #ef4444;
 
     /* text-safe variants (AA on surface/background); fills keep the brand values */
-    --sp-accent-text: #2457e0;
+    --sp-accent-text: #2563eb;
     --sp-success-text: #137a4b;
     --sp-warning-text: #9a5b00;
     --sp-error-text: #c4262b;
@@ -60,7 +60,7 @@
     --sp-error-line: rgba(229, 72, 77, 0.4);
 
     --sp-surface-2: #f7f8fb;
-    --sp-accent-soft: rgba(43, 99, 245, 0.1);
+    --sp-accent-soft: rgba(59, 130, 246, 0.1);
     --sp-success-soft: rgba(34, 181, 115, 0.12);
     --sp-brand: #ff4040;
     --sp-brand-soft: rgba(255, 64, 64, 0.08);
@@ -68,9 +68,9 @@
     --sp-icon-tile: #151c2b;
 
     /* cabinet-style glass surfaces */
-    --sp-glass: linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.86) 100%);
+    --sp-glass: #ffffff;
     --sp-glass-border: rgba(11, 18, 32, 0.09);
-    --sp-card-shadow: 0 2px 16px rgba(11, 18, 32, 0.07), 0 0 0 1px rgba(11, 18, 32, 0.02);
+    --sp-card-shadow: none;
     --sp-inner: rgba(11, 18, 32, 0.03);
     --sp-inner-border: rgba(11, 18, 32, 0.07);
     --sp-aurora-opacity: 0.45;
@@ -92,6 +92,8 @@
     --sp-row: rgba(11, 18, 32, 0.035);
     --sp-row-border: rgba(11, 18, 32, 0.07);
     --sp-sheet: #ffffff;
+    --sp-btn-2: rgba(11, 18, 32, 0.05);
+    --sp-btn-2-border: rgba(11, 18, 32, 0.08);
 
     --sp-radius-lg: 16px;
     --sp-radius-md: 12px;
@@ -104,27 +106,27 @@
 
 @media (prefers-color-scheme: dark) {
     :root {
-        --sp-bg: #070b13;
-        --sp-surface: #0e1420;
-        --sp-text: #e9eef6;
-        --sp-text-2: #8b95a7;
-        --sp-border: rgba(255, 255, 255, 0.07);
-        --sp-border-strong: rgba(255, 255, 255, 0.14);
-        --sp-subtle: rgba(255, 255, 255, 0.04);
-        --sp-subtle-hover: rgba(255, 255, 255, 0.08);
+        --sp-bg: #0a0f1a;
+        --sp-surface: #0f172a;
+        --sp-text: #f1f5f9;
+        --sp-text-2: #94a3b8;
+        --sp-border: rgba(51, 65, 85, 0.45);
+        --sp-border-strong: rgba(71, 85, 105, 0.7);
+        --sp-subtle: rgba(30, 41, 59, 0.5);
+        --sp-subtle-hover: rgba(30, 41, 59, 0.85);
 
-        --sp-surface-2: #131a27;
-        --sp-accent-soft: rgba(43, 99, 245, 0.18);
-        --sp-success-soft: rgba(34, 181, 115, 0.14);
+        --sp-surface-2: #131c2f;
+        --sp-accent-soft: rgba(59, 130, 246, 0.12);
+        --sp-success-soft: rgba(34, 197, 94, 0.12);
         --sp-brand-soft: rgba(255, 64, 64, 0.1);
         --sp-brand-line: rgba(255, 64, 64, 0.24);
-        --sp-icon-tile: #1a2335;
+        --sp-icon-tile: #1e293b;
 
-        --sp-glass: linear-gradient(145deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.02) 100%);
-        --sp-glass-border: rgba(255, 255, 255, 0.08);
-        --sp-card-shadow: 0 10px 40px -12px rgba(0, 0, 0, 0.5);
-        --sp-inner: rgba(255, 255, 255, 0.03);
-        --sp-inner-border: rgba(255, 255, 255, 0.06);
+        --sp-glass: rgba(15, 23, 42, 0.7);
+        --sp-glass-border: rgba(30, 41, 59, 0.8);
+        --sp-card-shadow: none;
+        --sp-inner: rgba(30, 41, 59, 0.35);
+        --sp-inner-border: rgba(30, 41, 59, 0.9);
         --sp-aurora-opacity: 0.7;
         --sp-grid-line: rgba(255, 255, 255, 0.035);
         --sp-glow-a: 0.65;
@@ -139,18 +141,20 @@
         --sp-trial-soft: rgba(139, 92, 246, 0.16);
         --sp-saving: #3ddc97;
         --sp-saving-soft: rgba(34, 181, 115, 0.14);
-        --sp-row: rgba(255, 255, 255, 0.035);
-        --sp-row-border: rgba(255, 255, 255, 0.07);
-        --sp-sheet: #0c121d;
+        --sp-row: rgba(30, 41, 59, 0.4);
+        --sp-row-border: rgba(30, 41, 59, 0.9);
+        --sp-sheet: #0f172a;
+        --sp-btn-2: rgba(30, 41, 59, 0.7);
+        --sp-btn-2-border: rgba(51, 65, 85, 0.6);
 
-        --sp-accent-text: #7c9dff;
-        --sp-success-text: #22b573;
-        --sp-warning-text: #f0a33a;
-        --sp-error-text: #ef6266;
-        --sp-warning-soft: rgba(240, 163, 58, 0.07);
-        --sp-warning-line: rgba(240, 163, 58, 0.35);
-        --sp-error-soft: rgba(229, 72, 77, 0.08);
-        --sp-error-line: rgba(229, 72, 77, 0.35);
+        --sp-accent-text: #60a5fa;
+        --sp-success-text: #4ade80;
+        --sp-warning-text: #fbbf24;
+        --sp-error-text: #f87171;
+        --sp-warning-soft: rgba(245, 158, 11, 0.08);
+        --sp-warning-line: rgba(245, 158, 11, 0.3);
+        --sp-error-soft: rgba(239, 68, 68, 0.08);
+        --sp-error-line: rgba(239, 68, 68, 0.3);
     }
 }
 

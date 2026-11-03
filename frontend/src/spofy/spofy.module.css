@@ -1,5 +1,6 @@
 /*
- * Spofy subscription page v5.
+ * Spofy subscription page v9 — the cabinet's (v10) look: flat surfaces on a plain dark page,
+ * solid accent buttons, no glow, no aurora.
  *
  * One idea, kept quiet everywhere else: the Spofy shield is the status — «charged» to the share
  * of the subscription that is left and coloured by the situation. Around it: one card for the
@@ -8,172 +9,6 @@
  * Radii by level: card 22 · row/button 14 · chip pill · badge 6.
  * Spacing scale: 4 · 6 · 8 · 12 · 16 · 20 · 24.
  */
-
-/* ───────── backdrop: one soft light, tinted by the situation ───────── */
-.backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    overflow: hidden;
-    pointer-events: none;
-    --glow-a: rgba(43, 99, 245, 0.42);
-    --glow-b: rgba(255, 64, 64, 0.2);
-}
-
-.backdrop[data-view='trial'] {
-    --glow-a: rgba(139, 92, 246, 0.45);
-}
-
-.backdrop[data-view='expired'],
-.backdrop[data-view='disabled'],
-.backdrop[data-view='limited'] {
-    --glow-a: rgba(229, 72, 77, 0.3);
-    --glow-b: rgba(229, 72, 77, 0.14);
-}
-
-.backdropAurora {
-    position: absolute;
-    inset: -10%;
-    opacity: var(--sp-aurora-opacity);
-    background:
-        radial-gradient(50% 50% at 85% 0%, var(--glow-a), transparent 70%),
-        radial-gradient(40% 40% at 5% 6%, var(--glow-b), transparent 70%),
-        radial-gradient(38% 48% at 0% 68%, rgba(43, 99, 245, 0.2), transparent 74%),
-        radial-gradient(42% 52% at 100% 62%, rgba(0, 32, 91, 0.72), transparent 76%);
-}
-
-.backdropGrid {
-    position: absolute;
-    inset: 0;
-    opacity: 0.5;
-    background-image:
-        linear-gradient(var(--sp-grid-line) 1px, transparent 1px),
-        linear-gradient(90deg, var(--sp-grid-line) 1px, transparent 1px);
-    background-size: 72px 72px;
-    mask-image: radial-gradient(ellipse 85% 70% at 50% 35%, black, transparent 82%);
-}
-
-.backdropNetwork {
-    position: absolute;
-    inset: -4%;
-    width: 108%;
-    height: 108%;
-    overflow: visible;
-    color: #8cb4e7;
-    opacity: 0.32;
-    /* the mesh frames the column instead of running under the text (a dot sat on the nickname) */
-    mask-image: linear-gradient(90deg, black 0 26%, transparent 34% 66%, black 74%);
-}
-
-.backdropMesh {
-    fill: currentColor;
-    stroke: currentColor;
-    stroke-width: 0.75;
-    stroke-opacity: 0.28;
-}
-
-.backdropMesh circle {
-    stroke: none;
-    filter: drop-shadow(0 0 5px rgba(140, 180, 231, 0.65));
-}
-
-.backdropOrbits {
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1;
-    stroke-opacity: 0.34;
-    stroke-dasharray: 2 8;
-}
-
-.backdropNoise {
-    position: absolute;
-    inset: 0;
-    opacity: 0.025;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E");
-    mix-blend-mode: soft-light;
-}
-
-.backdropVignette {
-    position: absolute;
-    inset: 0;
-    background:
-        linear-gradient(90deg, rgba(0, 32, 91, 0.08), transparent 25% 75%, rgba(0, 32, 91, 0.08)),
-        radial-gradient(ellipse 58% 72% at 50% 45%, transparent 40%, rgba(2, 6, 18, 0.28));
-}
-
-/* light: the navy blob and the vignette are for the dark page — on white they read as a grey
-   haze behind the header; keep only the soft tint of the situation */
-@media (prefers-color-scheme: light) {
-    .backdropAurora {
-        background:
-            radial-gradient(50% 50% at 85% 0%, var(--glow-a), transparent 70%),
-            radial-gradient(40% 40% at 5% 6%, var(--glow-b), transparent 70%);
-    }
-
-    .backdropVignette {
-        display: none;
-    }
-}
-
-@media (prefers-color-scheme: dark) {
-    .backdrop {
-        --sp-grid-line: rgba(140, 180, 231, 0.09);
-    }
-
-    .backdropNetwork {
-        opacity: 0.52;
-    }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-    .backdropAurora {
-        animation: backdrop-breathe 16s ease-in-out infinite alternate;
-    }
-
-    .backdropMesh {
-        animation: backdrop-drift 32s ease-in-out infinite alternate;
-    }
-
-    .backdropOrbits {
-        animation: backdrop-drift 44s ease-in-out -12s infinite alternate-reverse;
-    }
-}
-
-@keyframes backdrop-breathe {
-    from {
-        opacity: calc(var(--sp-aurora-opacity) * 0.8);
-        transform: translate3d(-1.5%, -1%, 0) scale(0.98);
-    }
-    to {
-        opacity: var(--sp-aurora-opacity);
-        transform: translate3d(1.5%, 1%, 0) scale(1.04);
-    }
-}
-
-@keyframes backdrop-drift {
-    from {
-        transform: translate3d(-10px, -6px, 0);
-    }
-    to {
-        transform: translate3d(12px, 8px, 0);
-    }
-}
-
-@media (max-width: 47.99em) {
-    /* a phone: the mesh's dots land in the gaps between cards and read as specks of dirt */
-    .backdropNetwork {
-        display: none;
-    }
-
-    .backdropOrbits {
-        display: none;
-    }
-
-    .backdropGrid {
-        background-size: 56px 56px;
-        opacity: 0.1;
-    }
-}
 
 /* ───────── layout ───────── */
 .page {
@@ -238,12 +73,9 @@
     flex-direction: column;
     gap: 14px;
     padding: 16px;
-    border-radius: 22px;
+    border-radius: 24px;
     background: var(--sp-glass);
     border: 1px solid var(--sp-glass-border);
-    box-shadow: var(--sp-card-shadow);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
 }
 
 @media (min-width: 30em) {
@@ -260,8 +92,8 @@
 
 .sectionTitle {
     margin: 0;
-    font-size: 19px;
-    font-weight: 800;
+    font-size: 17px;
+    font-weight: 700;
     line-height: 1.25;
     letter-spacing: -0.015em;
 }
@@ -269,7 +101,7 @@
 .sectionLead {
     margin: 0;
     color: var(--sp-text-2);
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 500;
 }
 
@@ -300,13 +132,13 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    min-height: 52px;
+    min-height: 48px;
     padding: 0 18px;
-    border-radius: 14px;
+    border-radius: 16px;
     border: 1px solid transparent;
     font: inherit;
-    font-size: 16.5px;
-    font-weight: 700;
+    font-size: 15.5px;
+    font-weight: 650;
     line-height: 1.2;
     text-align: center;
     text-decoration: none;
@@ -374,50 +206,17 @@
 }
 
 .btnPrimary {
-    background: linear-gradient(180deg, #3a72ff 0%, var(--sp-accent) 100%);
+    background: var(--sp-accent);
     color: var(--sp-on-accent);
-    box-shadow:
-        0 10px 24px -12px rgba(43, 99, 245, 0.9),
-        inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 
 .btnPrimary:hover {
-    background: linear-gradient(180deg, #3166f0 0%, var(--sp-accent-hover) 100%);
-}
-
-/* A slow light beam around the one main action of the screen. */
-.btnGlow {
-    border: 1.5px solid transparent;
-    background:
-        linear-gradient(180deg, #3a72ff 0%, var(--sp-accent) 100%) padding-box,
-        conic-gradient(
-                from var(--sp-angle),
-                #c7d6ff 0%,
-                rgba(199, 214, 255, 0) 25%,
-                rgba(199, 214, 255, 0) 75%,
-                #c7d6ff 100%
-            )
-            border-box;
-    box-shadow:
-        0 0 24px -6px rgba(43, 99, 245, 0.7),
-        inset 0 1px 0 rgba(255, 255, 255, 0.22);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-    .btnGlow {
-        animation: border-rotate 3.6s linear infinite;
-    }
-}
-
-@keyframes border-rotate {
-    to {
-        --sp-angle: 360deg;
-    }
+    background: var(--sp-accent-hover);
 }
 
 .btnSecondary {
-    background: var(--sp-row);
-    border-color: var(--sp-glass-border);
+    background: var(--sp-btn-2);
+    border-color: var(--sp-btn-2-border);
     color: var(--sp-text);
 }
 
@@ -459,10 +258,10 @@
 }
 
 .btnSmall {
-    min-height: 46px;
+    min-height: 44px;
     padding: 0 14px;
-    font-size: 15.5px;
-    border-radius: 13px;
+    font-size: 15px;
+    border-radius: 14px;
 }
 
 .btnWide {
@@ -506,50 +305,52 @@
 .brand {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
     min-width: 0;
+}
+
+/* the shield on a tile, like the avatar tile in the cabinet's header */
+.brandTile {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
     flex-shrink: 0;
-    font-size: 17px;
-    font-weight: 800;
-    letter-spacing: -0.01em;
+    border-radius: 14px;
+    background: var(--sp-brand-soft);
 }
 
 .brandMark {
     width: 26px;
     height: 26px;
     color: var(--sp-brand);
-    filter: drop-shadow(0 2px 8px rgba(255, 64, 64, 0.35));
+}
+
+.brandText {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
 }
 
 .brandName {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.topActions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
 }
 
 /* whose page this is: the Telegram nickname from the panel */
-.account {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    min-width: 0;
-    color: var(--sp-text-2);
-    font-size: 15px;
-    font-weight: 700;
-}
-
 .accountName {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 150px;
+    color: var(--sp-text-2);
+    font-size: 13.5px;
+    font-weight: 500;
+    line-height: 1.3;
 }
 
 .pill {
@@ -557,11 +358,11 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
-    height: 44px;
+    height: 40px;
     padding: 0 14px;
-    border-radius: 999px;
-    border: 1px solid var(--sp-glass-border);
-    background: var(--sp-glass);
+    border-radius: 14px;
+    border: 1px solid var(--sp-btn-2-border);
+    background: var(--sp-btn-2);
     color: var(--sp-text);
     font: inherit;
     font-size: 15px;
@@ -634,20 +435,6 @@
     --tone-text: var(--sp-text-2);
 }
 
-/* a faint wash of the status colour behind the shield */
-.status::before {
-    content: '';
-    position: absolute;
-    inset: -40% 40% 55% -20%;
-    background: radial-gradient(closest-side, color-mix(in srgb, var(--tone) 20%, transparent), transparent);
-    pointer-events: none;
-}
-
-.status[data-tone='trial'],
-.status[data-tone='error'] {
-    border-color: color-mix(in srgb, var(--tone) 35%, var(--sp-glass-border));
-}
-
 .statusHead {
     position: relative;
     display: flex;
@@ -665,8 +452,8 @@
 
 .statusTitle {
     margin: 0;
-    font-size: 22px;
-    font-weight: 800;
+    font-size: 21px;
+    font-weight: 700;
     line-height: 1.2;
     letter-spacing: -0.02em;
 }
@@ -674,8 +461,8 @@
 .statusLine {
     margin: 0;
     color: var(--tone-text);
-    font-size: 16px;
-    font-weight: 650;
+    font-size: 15px;
+    font-weight: 600;
 }
 
 .statusLineQuiet {
@@ -690,14 +477,14 @@
     background: var(--sp-trial-soft);
     color: var(--sp-trial-text);
     font-size: 13.5px;
-    font-weight: 800;
+    font-weight: 700;
 }
 
 .statusNote {
     position: relative;
     margin: 0;
     color: var(--sp-text-2);
-    font-size: 15.5px;
+    font-size: 14.5px;
 }
 
 .statusActions {
@@ -709,8 +496,8 @@
 /* the shield emblem */
 .shield {
     --shield: var(--tone);
-    width: 62px;
-    height: 64px;
+    width: 52px;
+    height: 54px;
     overflow: visible;
 }
 
@@ -763,14 +550,6 @@
 .shieldHelmetDry {
     fill: color-mix(in srgb, var(--shield) 75%, var(--sp-text));
     opacity: 0.85;
-}
-
-.shield[data-tone='ok'] {
-    filter: drop-shadow(0 6px 16px rgba(34, 181, 115, 0.3));
-}
-
-.shield[data-tone='trial'] {
-    filter: drop-shadow(0 6px 16px rgba(139, 92, 246, 0.35));
 }
 
 /* the one orchestrated moment: the shield charges up on load */
@@ -854,8 +633,8 @@
     align-items: center;
     gap: 0;
     color: var(--sp-text-2);
-    font-size: 14px;
-    font-weight: 650;
+    font-size: 13.5px;
+    font-weight: 600;
     line-height: 1.3;
 }
 
@@ -864,8 +643,8 @@
     flex-wrap: wrap;
     align-items: baseline;
     gap: 0 8px;
-    font-size: 17px;
-    font-weight: 800;
+    font-size: 16.5px;
+    font-weight: 700;
     line-height: 1.3;
 }
 
@@ -910,7 +689,7 @@
     display: block;
     height: 100%;
     border-radius: inherit;
-    background: linear-gradient(90deg, #2b63f5, #5b8cff);
+    background: var(--sp-accent);
 }
 
 .bar[data-tone='warning'] > span {
@@ -977,10 +756,10 @@
 
 /* ───────── connection guide ───────── */
 .connect {
-    gap: 14px;
+    gap: 16px;
 }
 
-.collapsedRow {
+.connectHead {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -988,11 +767,83 @@
     margin: -4px;
     padding: 4px;
     border: 0;
+    border-radius: 18px;
     background: none;
     color: inherit;
     font: inherit;
     text-align: left;
     cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.connectHeadIcon {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border-radius: 14px;
+    background: var(--sp-accent);
+    color: var(--sp-on-accent);
+}
+
+/* every step done on this device */
+.connectHeadIcon[data-done] {
+    background: var(--sp-success-soft);
+    color: var(--sp-success-text);
+}
+
+/* folded for someone who already has a device: a quiet row, not a call to action */
+.connect:not([data-open]) .connectHeadIcon:not([data-done]) {
+    background: var(--sp-accent-soft);
+    color: var(--sp-accent-text);
+}
+
+.connectBody {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* the recognised device in one line; the full list waits behind «Другое» */
+.deviceLine {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 56px;
+    padding: 6px 6px 6px 12px;
+    border-radius: 16px;
+    background: var(--sp-row);
+    border: 1px solid var(--sp-row-border);
+}
+
+.deviceLineText {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.deviceLineLabel {
+    color: var(--sp-text-2);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.deviceLineName {
+    font-size: 15.5px;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.btn.connectFold {
+    align-self: center;
+    gap: 6px;
+    margin: -6px 0 -4px;
+    color: var(--sp-text-2);
+    font-size: 14.5px;
 }
 
 .collapsedText {
@@ -1082,9 +933,8 @@
 }
 
 .chip[aria-checked='true'] {
-    border-color: var(--sp-accent);
+    border-color: color-mix(in srgb, var(--sp-accent) 70%, transparent);
     background: var(--sp-accent-soft);
-    box-shadow: inset 0 0 0 1px var(--sp-accent);
 }
 
 .chipIcon {
@@ -1127,7 +977,7 @@
     background: var(--sp-accent-soft);
     color: var(--sp-accent-text);
     font-size: 14px;
-    font-weight: 800;
+    font-weight: 700;
 }
 
 .appIcon {
@@ -1243,14 +1093,14 @@
     background: var(--sp-surface);
     color: var(--sp-text-2);
     font-size: 15px;
-    font-weight: 800;
+    font-weight: 700;
 }
 
 .step[data-state='current'] .stepMarker {
     border-color: var(--sp-accent);
     background: var(--sp-accent);
     color: #ffffff;
-    box-shadow: 0 0 0 5px var(--sp-accent-soft);
+    box-shadow: 0 0 0 4px var(--sp-accent-soft);
 }
 
 .step[data-state='done'] .stepMarker {
@@ -1270,8 +1120,8 @@
 
 .stepTitle {
     margin: 0;
-    font-size: 17px;
-    font-weight: 800;
+    font-size: 16.5px;
+    font-weight: 700;
     line-height: 1.3;
 }
 
@@ -1324,7 +1174,7 @@
 }
 
 .notOpened strong {
-    font-weight: 800;
+    font-weight: 700;
 }
 
 /* ───────── more: QR, link, cabinet, support ───────── */
@@ -1368,15 +1218,15 @@
 }
 
 .listIcon {
-    --hue: 43, 99, 245;
+    --hue: 59, 130, 246;
     display: grid;
     place-items: center;
-    width: 38px;
-    height: 38px;
+    width: 40px;
+    height: 40px;
     flex-shrink: 0;
     border-radius: 12px;
-    background: rgba(var(--hue), 0.14);
-    color: rgb(var(--hue));
+    background: rgba(var(--hue), 0.1);
+    color: color-mix(in srgb, rgb(var(--hue)) 75%, #ffffff);
 }
 
 .listIcon[data-hue='violet'] {
@@ -1404,13 +1254,13 @@
 }
 
 .listTitle {
-    font-size: 16px;
-    font-weight: 700;
+    font-size: 15.5px;
+    font-weight: 650;
 }
 
 .listCaption {
     color: var(--sp-text-2);
-    font-size: 14px;
+    font-size: 13.5px;
     overflow-wrap: anywhere;
 }
 
@@ -1480,7 +1330,7 @@
     align-items: stretch;
     width: 100%;
     border-radius: 18px;
-    border: 1px solid rgba(43, 99, 245, 0.35);
+    border: 1px solid rgba(59, 130, 246, 0.35);
     background: var(--sp-accent-soft);
     color: var(--sp-text);
 }
@@ -1514,7 +1364,7 @@
     place-items: center;
     flex: 0 0 48px;
     border: 0;
-    border-left: 1px solid rgba(43, 99, 245, 0.25);
+    border-left: 1px solid rgba(59, 130, 246, 0.25);
     background: none;
     color: var(--sp-text-2);
     cursor: pointer;
@@ -1565,7 +1415,7 @@
 
 .pendingOpen {
     color: var(--sp-accent-text);
-    font-weight: 800;
+    font-weight: 700;
 }
 
 /* ───────── loading shell ───────── */
@@ -1662,7 +1512,7 @@
     flex-direction: column;
     gap: 1px;
     font-size: 18px;
-    font-weight: 800;
+    font-weight: 700;
     line-height: 1.2;
 }
 
@@ -1692,7 +1542,7 @@
 .coLabel {
     margin: 4px 0 0;
     font-size: 16px;
-    font-weight: 800;
+    font-weight: 700;
 }
 
 .coHint {
@@ -1776,9 +1626,8 @@
 }
 
 .opt[aria-checked='true'] {
-    border-color: var(--sp-accent);
+    border-color: color-mix(in srgb, var(--sp-accent) 70%, transparent);
     background: var(--sp-accent-soft);
-    box-shadow: inset 0 0 0 1px var(--sp-accent);
 }
 
 .opt[data-best][aria-checked='true'] {
@@ -1857,7 +1706,7 @@
 
 .optPrice strong {
     font-size: 17px;
-    font-weight: 800;
+    font-weight: 700;
 }
 
 .optPrice s {
@@ -1868,7 +1717,7 @@
 
 .saving {
     color: var(--sp-saving);
-    font-weight: 800;
+    font-weight: 700;
 }
 
 .badgeRecommended {
@@ -1878,7 +1727,7 @@
     background: var(--sp-accent);
     color: #ffffff;
     font-size: 13.5px;
-    font-weight: 800;
+    font-weight: 700;
     line-height: 1.35;
     white-space: nowrap;
 }
@@ -1889,7 +1738,7 @@
     padding: 2px 7px;
     border-radius: 6px;
     font-size: 12.5px;
-    font-weight: 800;
+    font-weight: 700;
     line-height: 1.35;
     white-space: nowrap;
 }
@@ -1991,9 +1840,8 @@
 }
 
 .periodCard[aria-checked='true'] {
-    border-color: var(--sp-accent);
+    border-color: color-mix(in srgb, var(--sp-accent) 70%, transparent);
     background: var(--sp-accent-soft);
-    box-shadow: inset 0 0 0 1px var(--sp-accent);
 }
 
 .periodTop {
@@ -2026,7 +1874,7 @@
     padding: 2px 6px;
     border-radius: 6px;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 700;
     line-height: 1.25;
     overflow-wrap: normal;
 }
@@ -2046,7 +1894,7 @@
     margin-top: auto;
     padding-top: 10px;
     font-size: 18px;
-    font-weight: 800;
+    font-weight: 700;
     line-height: 1.15;
     letter-spacing: -0.02em;
     overflow-wrap: anywhere;
@@ -2150,7 +1998,7 @@
 .optFromTotal {
     color: var(--sp-text);
     font-size: 15px;
-    font-weight: 800;
+    font-weight: 700;
 }
 
 /* devices */
@@ -2198,7 +2046,7 @@
 .coStepValue {
     min-width: 72px;
     font-size: 40px;
-    font-weight: 800;
+    font-weight: 700;
     line-height: 1;
     color: var(--sp-accent-text);
 }
@@ -2251,7 +2099,7 @@
     background: var(--sp-saving-soft);
     color: var(--sp-saving);
     font-size: 14.5px;
-    font-weight: 800;
+    font-weight: 700;
     text-align: center;
 }
 
@@ -2307,7 +2155,7 @@
 
 .coRowTitle {
     font-size: 16.5px;
-    font-weight: 800;
+    font-weight: 700;
 }
 
 .coRowMeta {
@@ -2319,7 +2167,7 @@
 .coOrderPrice {
     flex-shrink: 0;
     font-size: 22px;
-    font-weight: 800;
+    font-weight: 700;
 }
 
 .coError {
@@ -2400,7 +2248,7 @@
 
 .coStep[data-state='active'] {
     color: var(--sp-text);
-    font-weight: 800;
+    font-weight: 700;
 }
 
 .coStepDot {
@@ -2412,7 +2260,7 @@
     border-radius: 50%;
     border: 1.5px solid var(--sp-border-strong);
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 700;
 }
 
 .coStep[data-state='done'] .coStepDot {
@@ -2468,7 +2316,7 @@
 
 .coSuccessTitle {
     font-size: 20px;
-    font-weight: 800;
+    font-weight: 700;
 }
 
 .coSuccessDate {
@@ -2630,8 +2478,8 @@
     min-height: 64px;
     justify-content: flex-start;
     gap: 12px;
-    padding: 10px 18px;
-    border-radius: 18px;
+    padding: 10px 16px;
+    border-radius: 24px;
     text-align: left;
 }
 

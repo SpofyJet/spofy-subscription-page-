@@ -19,6 +19,9 @@ import { useSpofyData } from './spofy-store'
  */
 /** id of the connection guide: «Подключить устройство» scrolls there */
 export const CONNECT_ID = 'sp-connect'
+/** Any button on the page that means «connect»: open the guide (it may be folded) and go there. */
+export const CONNECT_OPEN_EVENT = 'sp-connect-open'
+export const openConnectGuide = () => window.dispatchEvent(new Event(CONNECT_OPEN_EVENT))
 
 export type TView = 'active' | 'disabled' | 'expired' | 'expiring' | 'limited' | 'trial'
 
