@@ -45,6 +45,12 @@
     --sp-accent: #3b82f6;
     --sp-accent-hover: #2563eb;
     --sp-on-accent: #ffffff;
+    /* The main button of the screen: a warm coral drop (from the red of the Spofy logo) on the
+       navy + blue page. Only the main button — links and toggles stay blue. Dark label: white on
+       coral is 3:1, the dark one 6:1. Same as the cabinet's cta. */
+    --sp-cta: #ff6242;
+    --sp-cta-hover: #f25334;
+    --sp-on-cta: #1c0d08;
     --sp-success: #22c55e;
     --sp-warning: #f59e0b;
     --sp-error: #ef4444;
@@ -106,29 +112,29 @@
 
 @media (prefers-color-scheme: dark) {
     :root {
-        /* v11 graphite, same as the cabinet: cards stand off the page (was navy on navy),
-           blue is left for actions only. */
-        --sp-bg: #0b0d12;
-        --sp-surface: #15181f;
-        --sp-text: #f3f4f6;
-        --sp-text-2: #9ca3af;
-        --sp-border: rgba(59, 65, 76, 0.5);
-        --sp-border-strong: rgba(83, 89, 101, 0.75);
-        --sp-subtle: rgba(35, 40, 51, 0.55);
-        --sp-subtle-hover: rgba(35, 40, 51, 0.9);
+        /* v11, same as the cabinet: deep navy + blue, with cards that stand off the page
+           (they used to be navy on the same navy) and one warm drop — the coral main button. */
+        --sp-bg: #070d1c;
+        --sp-surface: #10182b;
+        --sp-text: #f1f5f9;
+        --sp-text-2: #94a3b8;
+        --sp-border: rgba(51, 65, 85, 0.55);
+        --sp-border-strong: rgba(71, 85, 105, 0.8);
+        --sp-subtle: rgba(28, 39, 64, 0.6);
+        --sp-subtle-hover: rgba(28, 39, 64, 0.95);
 
-        --sp-surface-2: #1b1f28;
+        --sp-surface-2: #141d33;
         --sp-accent-soft: rgba(59, 130, 246, 0.12);
         --sp-success-soft: rgba(34, 197, 94, 0.12);
         --sp-brand-soft: rgba(255, 64, 64, 0.1);
         --sp-brand-line: rgba(255, 64, 64, 0.24);
-        --sp-icon-tile: #232833;
+        --sp-icon-tile: #1c2740;
 
-        --sp-glass: rgba(25, 29, 38, 0.82);
-        --sp-glass-border: rgba(45, 51, 63, 0.9);
+        --sp-glass: rgba(20, 29, 50, 0.82);
+        --sp-glass-border: rgba(37, 50, 80, 0.9);
         --sp-card-shadow: none;
-        --sp-inner: rgba(35, 40, 51, 0.45);
-        --sp-inner-border: rgba(45, 51, 63, 0.9);
+        --sp-inner: rgba(28, 39, 64, 0.5);
+        --sp-inner-border: rgba(37, 50, 80, 0.9);
         --sp-aurora-opacity: 0.7;
         --sp-grid-line: rgba(255, 255, 255, 0.035);
         --sp-glow-a: 0.65;
@@ -143,11 +149,11 @@
         --sp-trial-soft: rgba(139, 92, 246, 0.16);
         --sp-saving: #3ddc97;
         --sp-saving-soft: rgba(34, 181, 115, 0.14);
-        --sp-row: rgba(35, 40, 51, 0.5);
-        --sp-row-border: rgba(45, 51, 63, 0.9);
-        --sp-sheet: #15181f;
-        --sp-btn-2: rgba(35, 40, 51, 0.8);
-        --sp-btn-2-border: rgba(59, 65, 76, 0.6);
+        --sp-row: rgba(28, 39, 64, 0.55);
+        --sp-row-border: rgba(37, 50, 80, 0.9);
+        --sp-sheet: #10182b;
+        --sp-btn-2: rgba(28, 39, 64, 0.85);
+        --sp-btn-2-border: rgba(51, 65, 85, 0.6);
 
         --sp-accent-text: #60a5fa;
         --sp-success-text: #4ade80;
