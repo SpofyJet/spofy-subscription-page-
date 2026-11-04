@@ -45,12 +45,12 @@
     --sp-accent: #3b82f6;
     --sp-accent-hover: #2563eb;
     --sp-on-accent: #ffffff;
-    /* The main button of the screen: a warm coral drop (from the red of the Spofy logo) on the
-       navy + blue page. Only the main button — links and toggles stay blue. Dark label: white on
-       coral is 3:1, the dark one 6:1. Same as the cabinet's cta. */
-    --sp-cta: #ff6242;
-    --sp-cta-hover: #f25334;
-    --sp-on-cta: #1c0d08;
+    /* The main button of the screen: a drop of orange on the navy + blue page (coral #ff6242
+       read as red next to the blue). Only the main button — links and toggles stay blue. Dark
+       label: white on orange is ~2.4:1, the dark one ~9:1. Same as the cabinet's cta. */
+    --sp-cta: #ff8a2a;
+    --sp-cta-hover: #f2771a;
+    --sp-on-cta: #1f1206;
     --sp-success: #22c55e;
     --sp-warning: #f59e0b;
     --sp-error: #ef4444;
