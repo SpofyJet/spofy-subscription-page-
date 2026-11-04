@@ -3,6 +3,7 @@ import {
     IconArrowsUpDown,
     IconCalendarEvent,
     IconDevices,
+    IconInfinity,
     IconPlus,
     IconPlugConnected,
     IconRefresh,
@@ -21,6 +22,7 @@ import {
     formatDayMonth,
     formatDays,
     formatTimeLeft,
+    plainPlanName,
     toNumber
 } from '../format'
 import { TSpofyKey, useSpofyT } from '../i18n'
@@ -88,13 +90,11 @@ export function StatusCard({ model }: { model: IPageModel }) {
             break
         default:
             title = fresh ? t('stNoDevicesTitle') : t('stActive')
-            // ULTIMA: the plan is named, «навсегда» is its term (never the plan's name)
-            line = model.indefinite
-                ? offer?.subscription.tariff_name
-                    ? t('stIndefinitePlan', { name: offer.subscription.tariff_name })
-                    : t('stIndefinite')
-                : null
+            // ULTIMA says what it is in its own row below (like «Оплачено до» for the rest),
+            // not in a «тариф … · навсегда» line glued under the title.
+            line = null
     }
+    const planName = plainPlanName(offer?.subscription.tariff_name)
 
     // Shield «charge»: share of a month left (a trial counts against three days).
     const hoursLeft = Math.max(0, (new Date(user.expiresAt).getTime() - now) / 3_600_000)
@@ -329,6 +329,31 @@ export function StatusCard({ model }: { model: IPageModel }) {
                                               })}
                                     </span>
                                 </>
+                            }
+                        />
+                    )}
+                    {view !== 'trial' && model.indefinite && (
+                        <StatRow
+                            action={null}
+                            actionLabel=""
+                            icon={<IconInfinity size={18} stroke={1.9} />}
+                            label={planName ? t('rowPlan') : t('rowTerm')}
+                            value={
+                                planName ? (
+                                    <>
+                                        {planName}
+                                        <span className={classes.rowValueSub}>
+                                            {t('rowPlanForever')}
+                                        </span>
+                                    </>
+                                ) : (
+                                    <>
+                                        {t('periodForever')}
+                                        <span className={classes.rowValueSub}>
+                                            {t('rowNothingToRenew')}
+                                        </span>
+                                    </>
+                                )
                             }
                         />
                     )}

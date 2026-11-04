@@ -24,6 +24,19 @@ export const isForeverDays = (days: number) => days >= FOREVER_DAYS
 /** More than two years paid ahead only happens with a «навсегда» plan: nothing to renew. */
 const FOREVER_AHEAD_MS = 731 * 86_400_000
 
+/**
+ * A plan name as a word, not a decoration: the bot names tariffs with an emoji («👑 ULTIMA»),
+ * which in a calm status row reads as a sticker. Pictographs and their joiners go.
+ */
+export function plainPlanName(name: null | string | undefined): null | string {
+    if (!name) return null
+    const plain = name
+        .replace(/[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\uFE0F\u200D]/gu, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+    return plain || null
+}
+
 export function isIndefinite(expiresAt: Date | string): boolean {
     const end = new Date(expiresAt)
     return end.getFullYear() >= 2099 || end.getTime() - Date.now() > FOREVER_AHEAD_MS
