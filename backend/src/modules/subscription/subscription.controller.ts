@@ -8,6 +8,7 @@ import { ClientIp } from '@common/decorators/get-ip';
 import { ResolvedShortUuid } from '@common/decorators/get-resolved-short-uuid';
 import { IsBrowser } from '@common/decorators/is-browser';
 
+import { isLinkPreviewBot } from '@modules/spofy/link-preview';
 import { WebpageService } from '@modules/webpage/webpage.service';
 
 import { SubscriptionService } from './subscription.service';
@@ -31,6 +32,12 @@ export class SubscriptionController {
         @Param('clientType') clientType: string,
         @IsBrowser() isBrowser: boolean,
     ) {
+        // Telegram/WhatsApp/… previews: title and description only, before the panel's response
+        // rules (which treat a crawler's «Accept: */*» as a VPN client and drop it).
+        if (isLinkPreviewBot(request.headers['user-agent'])) {
+            return this.webpageService.serveLinkPreview(response);
+        }
+
         if (isBrowser) {
             return this.webpageService.serveWebpage(
                 clientIp,

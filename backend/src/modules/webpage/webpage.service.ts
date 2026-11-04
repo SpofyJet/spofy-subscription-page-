@@ -21,6 +21,10 @@ import { getAssetsPath, isDevelopment } from '@common/utils';
 import { decryptUuid, encryptUuid } from '@common/utils/crypt-utils';
 
 import { SpofyService } from '@modules/spofy';
+import { renderLinkPreview } from '@modules/spofy/link-preview';
+
+/** Panel edits (meta title/description, guides) reach the page without a restart. */
+const CONFIG_REFRESH_MS = 5 * 60_000;
 
 @Injectable()
 export class WebpageService implements OnApplicationBootstrap {
@@ -89,6 +93,42 @@ export class WebpageService implements OnApplicationBootstrap {
         }
 
         this.logger.log('[OK] Subpage configs are loaded successfully.');
+
+        setInterval(() => void this.refreshSubpageConfigs(), CONFIG_REFRESH_MS).unref();
+    }
+
+    /**
+     * Re-reads the panel's subpage configs. Unlike the start-up load it never exits: a panel
+     * hiccup or an invalid edit keeps the last good config.
+     */
+    private async refreshSubpageConfigs(): Promise<void> {
+        try {
+            const uuids = await this.fetchSubscriptionPageConfigList();
+            for (const uuid of uuids) {
+                const response = await this.axiosService.getSubscriptionPageConfigByUuid(uuid);
+                if (!response.isOk || !response.response) continue;
+                const parsed = await SubscriptionPageRawConfigSchema.safeParseAsync(
+                    response.response.config,
+                );
+                if (!parsed.success) {
+                    this.logger.warn(
+                        `Subpage config ${uuid} is not valid, keeping the previous one`,
+                    );
+                    continue;
+                }
+                this.subpageConfigMap.set(uuid, parsed.data);
+            }
+        } catch (error) {
+            this.logger.warn(`Subpage config refresh failed: ${error}`);
+        }
+    }
+
+    /** A link preview: the default config's title and description, nothing else. */
+    public serveLinkPreview(res: Response): void {
+        const { metaTitle, metaDescription } = this.getBaseSettings(null);
+        res.status(200)
+            .set({ 'cache-control': 'no-store', 'content-type': 'text/html; charset=utf-8' })
+            .send(renderLinkPreview({ title: metaTitle, description: metaDescription }));
     }
 
     public async getSubscriptionPageConfig(
@@ -200,7 +240,10 @@ export class WebpageService implements OnApplicationBootstrap {
                 // non-browser request) is still dropped as before.
                 if (subscriptionDataResponse.notFound) {
                     res.status(404)
-                        .set({ 'cache-control': 'no-store', 'content-type': 'text/html; charset=utf-8' })
+                        .set({
+                            'cache-control': 'no-store',
+                            'content-type': 'text/html; charset=utf-8',
+                        })
                         .send(this.spofyService.renderNotFound(req.headers['accept-language']));
                     return;
                 }
