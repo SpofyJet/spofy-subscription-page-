@@ -117,7 +117,7 @@ export function MoreCard({
                             }}
                             type="button"
                         >
-                            <span aria-hidden className={classes.listIcon}>
+                            <span aria-hidden className={classes.listIcon} data-hue="indigo">
                                 {copied === 'more' ? (
                                     <IconCheck size={20} stroke={2.2} />
                                 ) : (
@@ -144,7 +144,7 @@ export function MoreCard({
                             }}
                             type="button"
                         >
-                            <span aria-hidden className={classes.listIcon} data-hue="blue">
+                            <span aria-hidden className={classes.listIcon} data-hue="sky">
                                 <IconQrcode size={20} stroke={1.9} />
                             </span>
                             <span className={classes.listText}>

@@ -689,7 +689,8 @@
     display: block;
     height: 100%;
     border-radius: inherit;
-    background: var(--sp-accent);
+    /* state colour, like the cabinet: green while there is room (blue is for buttons) */
+    background: var(--sp-success);
 }
 
 .bar[data-tone='warning'] > span {
@@ -794,10 +795,11 @@
     color: var(--sp-success-text);
 }
 
-/* folded for someone who already has a device: a quiet row, not a call to action */
+/* folded for someone who already has a device: a quiet row in the devices colour (sky,
+   as «Мои устройства» in the cabinet), not a call to action */
 .connect:not([data-open]) .connectHeadIcon:not([data-done]) {
-    background: var(--sp-accent-soft);
-    color: var(--sp-accent-text);
+    background: rgba(14, 165, 233, 0.12);
+    color: color-mix(in srgb, rgb(14, 165, 233) 75%, var(--sp-text));
 }
 
 .connectBody {
@@ -1225,8 +1227,9 @@
     height: 40px;
     flex-shrink: 0;
     border-radius: 12px;
-    background: rgba(var(--hue), 0.1);
-    color: color-mix(in srgb, rgb(var(--hue)) 75%, #ffffff);
+    background: rgba(var(--hue), 0.12);
+    /* towards the text colour: lighter on dark, deeper on light (with #fff it washed out on white) */
+    color: color-mix(in srgb, rgb(var(--hue)) 78%, var(--sp-text));
 }
 
 .listIcon[data-hue='violet'] {
@@ -1243,6 +1246,11 @@
 
 .listIcon[data-hue='sky'] {
     --hue: 14, 165, 233;
+}
+
+/* the subscription link = your personal key: the «account» colour of the cabinet */
+.listIcon[data-hue='indigo'] {
+    --hue: 99, 102, 241;
 }
 
 .listText {
