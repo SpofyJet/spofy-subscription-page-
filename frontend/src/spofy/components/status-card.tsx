@@ -230,13 +230,16 @@ export function StatusCard({ model }: { model: IPageModel }) {
                 action={model.renew}
                 external={external}
                 icon={<IconRefresh aria-hidden size={19} stroke={2.1} />}
-                label={bot(
+                label={
                     model.trial && view === 'expired'
-                        ? t('ctaChoosePlan')
+                        ? bot(t('ctaChoosePlan'))
                         : view === 'expiring'
-                          ? t('ctaRenewEarly')
-                          : t('ctaRenewNow')
-                )}
+                          ? bot(t('ctaRenewEarly'))
+                          : // «Продлить и включить VPN в боте» didn't fit one line on a phone
+                            model.inPage
+                            ? t('ctaRenewNow')
+                            : t('ctaRenewNowBot')
+                }
                 variant="primary"
             />
         )
@@ -277,7 +280,15 @@ export function StatusCard({ model }: { model: IPageModel }) {
                             className={clsx(
                                 classes.statusLine,
                                 classes.num,
-                                (view === 'limited' || view === 'active') && classes.statusLineQuiet
+                                // ended / ends soon: the shield and the backdrop already carry
+                                // red/amber; a red line right above the coral button made two warm
+                                // colours fight, so the date reads in plain grey
+                                (view === 'limited' ||
+                                    view === 'active' ||
+                                    view === 'expired' ||
+                                    view === 'disabled' ||
+                                    view === 'expiring') &&
+                                    classes.statusLineQuiet
                             )}
                         >
                             {line}

@@ -344,6 +344,7 @@ const ru = {
 
     ctaRenew: 'Продлить подписку',
     ctaRenewNow: 'Продлить и включить VPN',
+    ctaRenewNowBot: 'Продлить VPN в боте',
     ctaChoosePlan: 'Выбрать тариф',
     ctaRestore: 'Вернуть «Обход»',
     ctaFromMonth: 'от {price}/мес',
@@ -708,6 +709,7 @@ const en: TDict = {
         'Only the «💸 Bypass» servers use it — they help when mobile internet is restricted. Regular servers have no limits.',
     ctaRenew: 'Renew subscription',
     ctaRenewNow: 'Renew and turn the VPN on',
+    ctaRenewNowBot: 'Renew the VPN in the bot',
     ctaChoosePlan: 'Choose a plan',
     ctaRestore: 'Turn «Bypass» back on',
     ctaFromMonth: 'from {price}/mo',
@@ -1073,6 +1075,7 @@ const fr: TDict = {
         'Seuls les serveurs « Contournement » le consomment. Les serveurs normaux sont illimités.',
     ctaRenew: "Prolonger l'abonnement",
     ctaRenewNow: 'Prolonger et réactiver le VPN',
+    ctaRenewNowBot: 'Prolonger le VPN dans le bot',
     ctaChoosePlan: 'Choisir une offre',
     ctaRestore: 'Réactiver « Contournement »',
     ctaFromMonth: 'dès {price}/mois',
