@@ -117,7 +117,7 @@ export function StatusCard({ model }: { model: IPageModel }) {
             : view === 'disabled'
               ? t('heroDisabledText')
               : view === 'limited'
-                ? `${model.indefinite ? t('buyTraffic') + '.' : t('stLimitedNote', { date })}${resetText}`
+                ? `${model.indefinite ? t('buyTraffic') + '.' : t('stLimitedNote')}${resetText}`
                 : fresh
                   ? t('stNoDevicesNote')
                   : view === 'trial'
@@ -308,7 +308,8 @@ export function StatusCard({ model }: { model: IPageModel }) {
 
             {showRows && (
                 <ul className={classes.rows}>
-                    {view !== 'trial' && !model.indefinite && (
+                    {/* trial and expiring already say the term in the title and the line under it */}
+                    {view !== 'trial' && view !== 'expiring' && !model.indefinite && (
                         <StatRow
                             action={renewRow}
                             actionIcon={<IconRefresh aria-hidden size={17} stroke={2.2} />}
@@ -316,7 +317,6 @@ export function StatusCard({ model }: { model: IPageModel }) {
                             external={external}
                             icon={<IconCalendarEvent size={18} stroke={1.9} />}
                             label={t('rowPaidTill')}
-                            tone={view === 'expiring' ? 'warning' : undefined}
                             value={
                                 <>
                                     {date}

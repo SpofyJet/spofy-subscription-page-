@@ -209,7 +209,7 @@ const ru = {
     coWaiting: 'Ждём оплату…',
     coPaid: 'Оплата получена — применяем изменения…',
     coDone: 'Оплачено',
-    stExpiringIn: 'VPN выключится через {left}',
+    stExpiringIn: 'VPN выключится через\u00a0{left}',
     stExpiringToday: 'VPN выключится сегодня',
     stPaidTill: 'оплачено до {date}',
     stTrialFreeUntil: 'бесплатно, до {date}',
@@ -217,10 +217,10 @@ const ru = {
     stDisabledLine: 'подписку отключили',
     stLimitedLine: 'закончился трафик',
     stLimitedNote:
-        'Чтобы вернуть VPN сейчас, докупите трафик — гигабайты добавятся после оплаты. Подписка оплачена до {date}.',
+        'Чтобы вернуть VPN сейчас, докупите трафик\u00a0— гигабайты добавятся после оплаты.',
     stNoDevicesTitle: 'Всё готово к подключению',
     stNoDevicesNote:
-        'Нажмите кнопку ниже и пройдите короткие шаги\u00a0— через пару\u00a0минут VPN\u00a0заработает.',
+        'Нажмите кнопку ниже\u00a0— инструкция проведёт по шагам, и VPN\u00a0заработает.',
     ctaConnect: 'Подключить VPN',
     rowPaidTill: 'Оплачено до',
     inBot: 'в боте',
@@ -592,10 +592,10 @@ const en: TDict = {
     stDisabledLine: 'the subscription was disabled',
     stLimitedLine: 'out of traffic',
     stLimitedNote:
-        'To bring the VPN back now, add traffic — the gigabytes arrive after payment. Your subscription is paid until {date}.',
+        'To bring the VPN back now, add traffic — the gigabytes arrive after payment.',
     stNoDevicesTitle: 'Everything is ready to connect',
     stNoDevicesNote:
-        'Tap the button below and follow the short steps — the VPN works in a couple of minutes.',
+        'Tap the button below — the guide walks you through it, and the VPN starts working.',
     ctaConnect: 'Connect VPN',
     rowPaidTill: 'Paid until',
     inBot: 'in the bot',
@@ -954,10 +954,10 @@ const fr: TDict = {
     stDisabledLine: "l'abonnement a été désactivé",
     stLimitedLine: 'trafic épuisé',
     stLimitedNote:
-        'Pour rétablir le VPN maintenant, ajoutez du trafic — les gigaoctets sont crédités après le paiement. Abonnement payé jusqu’au {date}.',
+        'Pour rétablir le VPN maintenant, ajoutez du trafic — les gigaoctets sont crédités après le paiement.',
     stNoDevicesTitle: 'Tout est prêt pour la connexion',
     stNoDevicesNote:
-        'Appuyez sur le bouton ci-dessous et suivez les courtes étapes — le VPN fonctionne en quelques minutes.',
+        'Appuyez sur le bouton ci-dessous — le guide vous accompagne pas à pas, et le VPN fonctionnera.',
     ctaConnect: 'Connecter le VPN',
     rowPaidTill: "Payé jusqu'au",
     inBot: 'dans le bot',
