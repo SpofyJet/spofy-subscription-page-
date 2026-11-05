@@ -80,12 +80,7 @@
     --sp-inner-border: #dbeafe;
     --sp-aurora-opacity: 0.45;
     --sp-grid-line: rgba(11, 31, 59, 0.05);
-    --sp-glow-a: 0.28;
-    --sp-glow-ok: #138a55;
     --sp-sale: #0e6e40;
-    --sp-glow-warning: #a35f00;
-    --sp-glow-error: #c4262b;
-    --sp-glow-accent: #2563eb;
     --sp-step-mix: 62%;
 
     /* v5: trial and «money saved» colours, calmer surfaces */
@@ -143,12 +138,7 @@
         --sp-inner-border: rgba(96, 165, 250, 0.16);
         --sp-aurora-opacity: 0.7;
         --sp-grid-line: rgba(255, 255, 255, 0.035);
-        --sp-glow-a: 0.65;
-        --sp-glow-ok: #34e08f;
         --sp-sale: #34e08f;
-        --sp-glow-warning: #ffb547;
-        --sp-glow-error: #ff6b70;
-        --sp-glow-accent: #93c5fd;
         --sp-step-mix: 100%;
 
         --sp-track: rgba(96, 165, 250, 0.28);
@@ -183,30 +173,6 @@ body {
     word-spacing: 0.06em;
     -webkit-text-size-adjust: 100%;
     -webkit-font-smoothing: antialiased;
-}
-
-/*
- * Backdrop: one calm light from above in the palette blue. It used to take the colour of the
- * status, but next to a blue page the tints read as dirt; the shield and the title carry the
- * state. Pure CSS, fixed, no grid or pictures.
- */
-:root {
-    --sp-bg-glow-top: rgba(96, 165, 250, 0.16);
-}
-
-@media (prefers-color-scheme: dark) {
-    :root {
-        --sp-bg-glow-top: rgba(96, 165, 250, 0.14);
-    }
-}
-
-body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    background: radial-gradient(120% 46% at 50% -8%, var(--sp-bg-glow-top), transparent 70%);
 }
 
 /* The page itself can never be dragged sideways on a phone (iPhone ignores this on html alone). */

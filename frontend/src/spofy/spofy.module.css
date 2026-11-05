@@ -50,21 +50,15 @@
     flex-shrink: 0;
 }
 
-/* «you are here»: the block a button just brought into view glows for a moment */
+/* «you are here»: the block a button just brought into view tints for a moment */
 .page [data-flash] {
     animation: spFlash 1.6s ease-out;
 }
 
 @keyframes spFlash {
-    0%,
-    100% {
-        outline: 3px solid transparent;
-        outline-offset: 4px;
-    }
     20%,
     55% {
-        outline: 3px solid var(--sp-accent);
-        outline-offset: 4px;
+        background-color: color-mix(in srgb, var(--sp-accent) 14%, var(--sp-surface));
     }
 }
 
@@ -75,7 +69,7 @@
     padding: 16px;
     border-radius: 24px;
     background: var(--sp-glass);
-    border: 1px solid var(--sp-glass-border);
+    border: 0;
 }
 
 @media (min-width: 30em) {
@@ -149,7 +143,6 @@
     transition:
         background-color 0.15s ease,
         border-color 0.15s ease,
-        box-shadow 0.2s ease,
         transform 0.1s ease;
 }
 
@@ -216,7 +209,6 @@
 
 .btnSecondary {
     background: var(--sp-btn-2);
-    border-color: var(--sp-btn-2-border);
     color: var(--sp-text);
 }
 
@@ -361,7 +353,7 @@
     height: 44px;
     padding: 0 14px;
     border-radius: 14px;
-    border: 1px solid var(--sp-btn-2-border);
+    border: 0;
     background: var(--sp-btn-2);
     color: var(--sp-text);
     font: inherit;
@@ -373,10 +365,6 @@
     -webkit-tap-highlight-color: transparent;
 }
 
-.pill:hover {
-    border-color: var(--sp-border-strong);
-}
-
 .pillCompact {
     min-width: 44px;
     padding: 0 12px;
@@ -385,7 +373,7 @@
 
 .menuDropdown {
     background: var(--sp-sheet) !important;
-    border: 1px solid var(--sp-border-strong) !important;
+    border: 0 !important;
     border-radius: 14px !important;
     padding: 4px !important;
 }
@@ -578,7 +566,7 @@
     list-style: none;
     border-radius: 16px;
     background: var(--sp-row);
-    border: 1px solid var(--sp-row-border);
+    border: 0;
 }
 
 .row {
@@ -733,7 +721,7 @@
     padding: 12px;
     border-radius: 16px;
     background: var(--sp-warning-soft);
-    border: 1px solid var(--sp-warning-line);
+    border: 0;
 }
 
 .calloutIcon {
@@ -816,7 +804,7 @@
     padding: 6px 6px 6px 12px;
     border-radius: 16px;
     background: var(--sp-row);
-    border: 1px solid var(--sp-row-border);
+    border: 0;
 }
 
 .deviceLineText {
@@ -882,7 +870,7 @@
     min-height: 48px;
     padding: 6px 10px;
     border-radius: 14px;
-    border: 1px solid var(--sp-glass-border);
+    border: 0;
     background: var(--sp-row);
     color: var(--sp-text);
     font: inherit;
@@ -929,12 +917,7 @@
     }
 }
 
-.chip:hover {
-    border-color: var(--sp-border-strong);
-}
-
 .chip[aria-checked='true'] {
-    border-color: color-mix(in srgb, var(--sp-accent) 70%, transparent);
     background: var(--sp-accent-soft);
 }
 
@@ -1028,7 +1011,7 @@
     width: 100%;
     min-height: 52px;
     padding: 8px 12px;
-    border: 1px dashed var(--sp-border-strong);
+    border: 0;
     border-radius: 14px;
     background: transparent;
     color: var(--sp-text);
@@ -1091,7 +1074,7 @@
     height: 32px;
     flex-shrink: 0;
     border-radius: 50%;
-    border: 1.5px solid var(--sp-border-strong);
+    border: 0;
     background: var(--sp-surface);
     color: var(--sp-text-2);
     font-size: 15px;
@@ -1099,14 +1082,11 @@
 }
 
 .step[data-state='current'] .stepMarker {
-    border-color: var(--sp-accent);
     background: var(--sp-accent);
     color: #ffffff;
-    box-shadow: 0 0 0 4px var(--sp-accent-soft);
 }
 
 .step[data-state='done'] .stepMarker {
-    border-color: var(--sp-success);
     background: var(--sp-success);
     color: #ffffff;
 }
@@ -1279,7 +1259,7 @@
 
 .modalContent {
     background: var(--sp-sheet) !important;
-    border: 1px solid var(--sp-glass-border) !important;
+    border: 0 !important;
     border-radius: 24px !important;
     color: var(--sp-text);
     font-family: var(--sp-font);
@@ -1339,7 +1319,7 @@
     align-items: stretch;
     width: 100%;
     border-radius: 18px;
-    border: 1px solid rgba(37, 99, 235, 0.35);
+    border: 0;
     background: var(--sp-accent-soft);
     color: var(--sp-text);
 }
@@ -1388,7 +1368,7 @@
     margin-bottom: 12px;
     padding: 12px;
     border-radius: 14px;
-    border: 1px solid var(--sp-warning-line);
+    border: 0;
     background: var(--sp-warning-soft);
     color: var(--sp-text);
     font-size: 15.5px;
@@ -1413,7 +1393,6 @@
 }
 
 .coStatusDone {
-    border-color: rgba(34, 181, 115, 0.45);
     background: var(--sp-success-soft);
 }
 
@@ -1445,7 +1424,8 @@
 /* ───────── purchase sheet ───────── */
 .sheetContent {
     background: var(--sp-sheet) !important;
-    border: 1px solid var(--sp-glass-border) !important;
+    border: 0 !important;
+    box-shadow: none !important;
     color: var(--sp-text);
     font-family: var(--sp-font);
     /* a finished inner scroll must never chain into the page behind (iOS Safari
@@ -1569,7 +1549,7 @@
     padding: 4px;
     border-radius: 14px;
     background: var(--sp-row);
-    border: 1px solid var(--sp-row-border);
+    border: 0;
 }
 
 .coTab {
@@ -1593,7 +1573,6 @@
 .coTab[aria-selected='true'] {
     background: var(--sp-surface);
     color: var(--sp-text);
-    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.12);
 }
 
 /* option rows: periods, traffic packages, payment methods */
@@ -1611,7 +1590,7 @@
     min-height: 56px;
     padding: 8px 14px 8px 12px;
     border-radius: 14px;
-    border: 1px solid var(--sp-row-border);
+    border: 0;
     background: var(--sp-row);
     color: var(--sp-text);
     font: inherit;
@@ -1624,25 +1603,17 @@
         background-color 0.15s ease;
 }
 
-.opt:hover {
-    border-color: var(--sp-border-strong);
-}
-
 /* the best deal is green before anyone taps it */
 .opt[data-best] {
-    border-color: color-mix(in srgb, var(--sp-success) 55%, transparent);
     background: var(--sp-saving-soft);
 }
 
 .opt[aria-checked='true'] {
-    border-color: color-mix(in srgb, var(--sp-accent) 70%, transparent);
     background: var(--sp-accent-soft);
 }
 
 .opt[data-best][aria-checked='true'] {
-    border-color: var(--sp-success);
     background: var(--sp-saving-soft);
-    box-shadow: inset 0 0 0 1px var(--sp-success);
 }
 
 .optRadio {
@@ -1651,26 +1622,22 @@
     height: 22px;
     flex-shrink: 0;
     border-radius: 50%;
-    border: 2px solid var(--sp-border-strong);
+    background: var(--sp-border-strong);
 }
 
 .opt[aria-checked='true'] .optRadio {
-    border-color: var(--sp-accent);
+    background: var(--sp-accent);
 }
 
 .opt[aria-checked='true'] .optRadio::after {
     content: '';
     position: absolute;
-    inset: 3px;
+    inset: 7px;
     border-radius: 50%;
-    background: var(--sp-accent);
+    background: #ffffff;
 }
 
 .opt[data-best][aria-checked='true'] .optRadio {
-    border-color: var(--sp-success);
-}
-
-.opt[data-best][aria-checked='true'] .optRadio::after {
     background: var(--sp-success);
 }
 
@@ -1821,7 +1788,7 @@
     min-height: 132px;
     padding: 11px 10px;
     border-radius: 14px;
-    border: 1px solid var(--sp-row-border);
+    border: 0;
     background: var(--sp-row);
     color: var(--sp-text);
     font: inherit;
@@ -1835,10 +1802,6 @@
         transform 0.1s ease;
 }
 
-.periodCard:hover {
-    border-color: var(--sp-border-strong);
-}
-
 .periodCard:active {
     transform: scale(0.98);
 }
@@ -1849,7 +1812,6 @@
 }
 
 .periodCard[aria-checked='true'] {
-    border-color: color-mix(in srgb, var(--sp-accent) 70%, transparent);
     background: var(--sp-accent-soft);
 }
 
@@ -1976,7 +1938,6 @@
     width: 100%;
     padding: 12px 12px 12px 14px;
     border-radius: 14px;
-    border: 1px solid color-mix(in srgb, var(--sp-trial) 45%, transparent);
     background: var(--sp-trial-soft);
     color: var(--sp-text);
     font: inherit;
@@ -2019,7 +1980,7 @@
     padding: 14px 12px;
     border-radius: 16px;
     background: var(--sp-row);
-    border: 1px solid var(--sp-row-border);
+    border: 0;
     text-align: center;
 }
 
@@ -2039,7 +2000,7 @@
     width: 52px;
     height: 52px;
     border-radius: 50%;
-    border: 1px solid var(--sp-glass-border);
+    border: 0;
     background: var(--sp-surface);
     color: var(--sp-text);
     cursor: pointer;
@@ -2151,7 +2112,7 @@
     padding: 14px;
     border-radius: 16px;
     background: var(--sp-row);
-    border: 1px solid var(--sp-row-border);
+    border: 0;
 }
 
 .coRowText {
@@ -2187,7 +2148,7 @@
     padding: 12px 14px;
     border-radius: 14px;
     background: var(--sp-error-soft);
-    border: 1px solid var(--sp-error-line);
+    border: 0;
     color: var(--sp-error-text);
     font-size: 15px;
     font-weight: 650;
@@ -2267,19 +2228,17 @@
     height: 24px;
     flex-shrink: 0;
     border-radius: 50%;
-    border: 1.5px solid var(--sp-border-strong);
+    border: 0;
     font-size: 13px;
     font-weight: 700;
 }
 
 .coStep[data-state='done'] .coStepDot {
-    border-color: var(--sp-success);
     background: var(--sp-success);
     color: #ffffff;
 }
 
 .coStep[data-state='active'] .coStepDot {
-    border-color: var(--sp-accent);
     color: var(--sp-accent-text);
 }
 
@@ -2315,12 +2274,10 @@
     border-radius: 50%;
     background: var(--sp-success);
     color: #ffffff;
-    box-shadow: 0 10px 30px -8px rgba(34, 181, 115, 0.8);
 }
 
 .coSuccessIconWarn {
     background: var(--sp-warning);
-    box-shadow: 0 10px 30px -8px rgba(240, 163, 58, 0.8);
 }
 
 .coSuccessTitle {
@@ -2493,7 +2450,7 @@
 /* the only support entry on the page, at the very bottom */
 .btn.supportBtn {
     width: 100%;
-    border: 1px solid var(--sp-glass-border);
+    border: 0;
     background: var(--sp-glass);
     color: var(--sp-text);
     min-height: 64px;
@@ -2532,7 +2489,7 @@
     padding: 12px 14px;
     border-radius: 14px;
     background: var(--sp-warning-soft);
-    border: 1px solid var(--sp-warning-line);
+    border: 0;
     font-size: 15px;
 }
 
@@ -2550,7 +2507,7 @@
     margin-top: 10px;
     padding: 12px;
     border-radius: 14px;
-    border: 1px solid var(--sp-warning-line);
+    border: 0;
     background: var(--sp-warning-soft);
 }
 
@@ -2571,7 +2528,7 @@
     width: 100%;
     padding: 10px 12px;
     border-radius: 10px;
-    border: 1px solid var(--sp-border-strong);
+    border: 0;
     background: var(--sp-bg);
     color: var(--sp-text);
     font: inherit;
