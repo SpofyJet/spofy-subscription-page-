@@ -123,6 +123,16 @@ export class WebpageService implements OnApplicationBootstrap {
         }
     }
 
+    /** A person with a dead or malformed link gets an explanation. */
+    public serveNotFound(req: Request, res: Response): void {
+        res.status(404)
+            .set({
+                'cache-control': 'no-store',
+                'content-type': 'text/html; charset=utf-8',
+            })
+            .send(this.spofyService.renderNotFound(req.headers['accept-language']));
+    }
+
     /** A link preview: the default config's title and description, nothing else. */
     public serveLinkPreview(res: Response): void {
         const { metaTitle, metaDescription } = this.getBaseSettings(null);
@@ -239,12 +249,7 @@ export class WebpageService implements OnApplicationBootstrap {
                 // A person with a dead link gets an explanation; any other failure (and every
                 // non-browser request) is still dropped as before.
                 if (subscriptionDataResponse.notFound) {
-                    res.status(404)
-                        .set({
-                            'cache-control': 'no-store',
-                            'content-type': 'text/html; charset=utf-8',
-                        })
-                        .send(this.spofyService.renderNotFound(req.headers['accept-language']));
+                    this.serveNotFound(req, res);
                     return;
                 }
                 res.socket?.destroy();

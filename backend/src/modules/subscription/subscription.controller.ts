@@ -13,6 +13,9 @@ import { WebpageService } from '@modules/webpage/webpage.service';
 
 import { SubscriptionService } from './subscription.service';
 
+/** Short UUID shape; anything else (scanners, a pasted newline) must not cost a panel request. */
+const SHORT_UUID = /^[A-Za-z0-9_-]{6,64}$/;
+
 @Controller()
 export class SubscriptionController {
     private readonly logger = new Logger(SubscriptionController.name);
@@ -36,6 +39,12 @@ export class SubscriptionController {
         // rules (which treat a crawler's «Accept: */*» as a VPN client and drop it).
         if (isLinkPreviewBot(request.headers['user-agent'])) {
             return this.webpageService.serveLinkPreview(response);
+        }
+
+        if (!SHORT_UUID.test(resolvedShortUuid ?? shortUuid)) {
+            if (isBrowser) return this.webpageService.serveNotFound(request, response);
+            response.socket?.destroy();
+            return;
         }
 
         if (isBrowser) {

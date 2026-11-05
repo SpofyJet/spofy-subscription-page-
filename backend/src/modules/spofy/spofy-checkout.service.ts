@@ -12,6 +12,8 @@ import { TypedConfigService } from '@common/config/app-config';
 import { isCheckoutAllowed, parseAllowlist } from './spofy.service';
 
 const OFFER_TTL_MS = 20_000;
+/** A provider can take longer than the default 15 s to create an invoice. */
+const CHECKOUT_TIMEOUT_MS = 40_000;
 const ACTIVE_CHECK_EVERY_MS = 10_000;
 const WINDOW_MS = 10 * 60_000;
 const CHECKOUTS_PER_SUBSCRIPTION = 6;
@@ -332,7 +334,13 @@ export class SpofyCheckoutService {
             throw new HttpException({ code: 'checkout_disabled' }, HttpStatus.NOT_FOUND);
         }
         try {
-            const response = await this.http.request({ method, url: path, data, params });
+            const response = await this.http.request({
+                method,
+                url: path,
+                data,
+                params,
+                ...(method === 'post' ? { timeout: CHECKOUT_TIMEOUT_MS } : {}),
+            });
             return response.data;
         } catch (error) {
             if (error instanceof AxiosError && error.response) {
