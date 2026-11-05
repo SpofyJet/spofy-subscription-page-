@@ -1229,7 +1229,7 @@
     border-radius: 12px;
     background: var(--sp-accent-soft);
     /* one blue for every row icon; only the green "ok" row keeps its own hue */
-    color: var(--sp-accent);
+    color: var(--sp-accent-text);
 }
 
 .listIcon[data-hue='violet'] {
