@@ -42,7 +42,7 @@ const ru = {
 
     heroExpiredTitle: 'Подписка закончилась',
     heroExpiredText:
-        'Вы уже всё настроили. Продлите подписку — и снова пользуйтесь VPN в том же приложении, без повторной настройки.',
+        'Продлите подписку — VPN снова заработает в том же приложении, без настройки.',
     heroDisabledTitle: 'Подписка отключена',
     heroDisabledText:
         'Продлите подписку, чтобы вернуть VPN в том же приложении. Если отключение неожиданное, напишите нам — разберёмся.',
@@ -155,7 +155,7 @@ const ru = {
     stripHit: 'Выгодно',
     perMonthShort: '{price}/мес',
     trafficBuy: 'Купить {gb} за {price}',
-    coSubExpired: 'VPN снова заработает после оплаты — в том же приложении, без настройки',
+    coSubExpired: 'VPN заработает сразу после оплаты',
     coMethodMore: 'Другой способ оплаты',
     coMethodLess: 'Скрыть',
     heroRenewFrom: 'Продлить от {price}/мес',
@@ -310,9 +310,9 @@ const ru = {
     stTrialLeft: 'осталось {left}',
     stTrialTitle: 'Осталось {left}',
     stTrialPitch:
-        'Вы уже настроили VPN. Выберите тариф до конца пробного периода — и продолжите пользоваться им в том же приложении, без перерыва и повторной настройки.',
+        'Выберите тариф до конца пробного периода — VPN продолжит работать без перерыва и новой настройки.',
     stExpiringPitch:
-        'Не ждите отключения: продлите сейчас, и новые дни добавятся к оставшимся. Приложение и настройки останутся прежними.',
+        'Продлите сейчас: новые дни добавятся к оставшимся, настройки останутся.',
     stBypassOff:
         'Обычные серверы работают, а для «Обхода» закончился трафик. Добавьте гигабайты — и он снова заработает.',
     stTrafficLow:
@@ -378,8 +378,8 @@ const ru = {
     moreCopyHint: 'Это ваш личный ключ — никому его не пересылайте',
     moreCabinet: 'Личный кабинет',
     moreSupport: 'Поддержка',
-    moreSupportTg: 'Застряли на каком-то шаге? Напишите в Telegram — поможем подключиться',
-    moreSupportOther: 'Застряли на каком-то шаге? Напишите нам — поможем разобраться',
+    moreSupportTg: 'Поможем подключиться в Telegram',
+    moreSupportOther: 'Напишите нам — поможем разобраться',
 
     coContinue: 'Выбрать способ оплаты',
     coBackShort: 'Назад',
@@ -428,7 +428,7 @@ const en: TDict = {
     buyTraffic: 'Buy more traffic',
     heroExpiredTitle: 'Your subscription has ended',
     heroExpiredText:
-        'You have already done the setup. Renew and use the VPN in the same app again — no need to set anything up twice.',
+        'Renew and the VPN works again in the same app, no setup needed.',
     heroDisabledTitle: 'Your subscription is disabled',
     heroDisabledText:
         'Renew to bring the VPN back in the same app. If this was unexpected, write to us — we will help you sort it out.',
@@ -678,9 +678,9 @@ const en: TDict = {
     stTrialLeft: '{left} left',
     stTrialTitle: '{left} left',
     stTrialPitch:
-        'You have already set up the VPN. Choose a plan before the trial ends and keep using it in the same app — no interruption, no repeated setup.',
+        'Choose a plan before the trial ends and the VPN keeps working, no new setup.',
     stExpiringPitch:
-        'Do not wait for the VPN to turn off: renew now and the new days are added to the ones you have left. Your app and settings stay the same.',
+        'Renew now: new days add to the ones you have left, settings stay.',
     stBypassOff:
         'Regular servers still work; «Bypass» is out of traffic. Add gigabytes and it will work again.',
     stTrafficLow:
@@ -741,8 +741,8 @@ const en: TDict = {
     moreCopyHint: 'This is your personal key — do not share it',
     moreCabinet: 'Web cabinet',
     moreSupport: 'Support',
-    moreSupportTg: 'Stuck on a step? Write to us in Telegram — we will help you connect',
-    moreSupportOther: 'Stuck on a step? Write to us — we will help you sort it out',
+    moreSupportTg: 'We will help you connect in Telegram',
+    moreSupportOther: 'Write to us and we will sort it out',
     coContinue: 'Choose payment method',
     coBackShort: 'Back',
     coBestValue: 'Best value',

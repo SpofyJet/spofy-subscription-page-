@@ -7,7 +7,7 @@ import {
     IconPlus,
     IconPlugConnected,
     IconRefresh,
-    IconSparkles
+    IconCreditCard
 } from '@tabler/icons-react'
 import clsx from 'clsx'
 import { useId, useState } from 'react'
@@ -209,7 +209,7 @@ export function StatusCard({ model }: { model: IPageModel }) {
             <ActionButton
                 action={model.renew}
                 external={external}
-                icon={<IconSparkles aria-hidden size={19} stroke={2} />}
+                icon={<IconCreditCard aria-hidden size={19} stroke={2} />}
                 label={bot(t('ctaChoosePlan'))}
                 variant={fresh ? 'secondary' : 'primary'}
             />

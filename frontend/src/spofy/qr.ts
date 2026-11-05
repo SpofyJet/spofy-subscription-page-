@@ -8,7 +8,7 @@ export function useQrDataUrl(text: null | string): string {
         let alive = true
         import('uqr').then(({ renderSVG }) => {
             if (!alive) return
-            const svg = renderSVG(text, { whiteColor: '#FFFFFF', blackColor: '#0B1220' })
+            const svg = renderSVG(text, { whiteColor: '#FFFFFF', blackColor: '#0B1F3B' })
             setSrc(`data:image/svg+xml;utf8,${encodeURIComponent(svg)}`)
         })
         return () => {

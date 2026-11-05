@@ -33,30 +33,29 @@
 :root {
     color-scheme: light dark;
 
-    --sp-bg: #f3f5f9;
+    --sp-bg: #f0f7ff;
     --sp-surface: #ffffff;
-    --sp-text: #0b1220;
-    --sp-text-2: #5b6475;
-    --sp-border: rgba(11, 18, 32, 0.08);
-    --sp-border-strong: rgba(11, 18, 32, 0.16);
-    --sp-subtle: rgba(11, 18, 32, 0.04);
-    --sp-subtle-hover: rgba(11, 18, 32, 0.07);
+    --sp-text: #0b1f3b;
+    --sp-text-2: #3d5a80;
+    --sp-border: #dbeafe;
+    --sp-border-strong: #bfdbfe;
+    --sp-subtle: rgba(37, 99, 235, 0.06);
+    --sp-subtle-hover: rgba(37, 99, 235, 0.1);
 
-    --sp-accent: #3b82f6;
-    --sp-accent-hover: #2563eb;
+    --sp-accent: #2563eb;
+    --sp-accent-hover: #1d4ed8;
     --sp-on-accent: #ffffff;
-    /* The main button of the screen: a drop of orange on the navy + blue page (coral #ff6242
-       read as red next to the blue). Only the main button — links and toggles stay blue. Dark
-       label: white on orange is ~2.4:1, the dark one ~9:1. Same as the cabinet's cta. */
-    --sp-cta: #ff8a2a;
-    --sp-cta-hover: #f2771a;
-    --sp-on-cta: #1f1206;
+    /* The main button of the screen. The palette has one hue, so the button stands out by
+       lightness, not by colour: Accent with a white label (5.2:1). Same as the cabinet's cta. */
+    --sp-cta: #2563eb;
+    --sp-cta-hover: #1d4ed8;
+    --sp-on-cta: #ffffff;
     --sp-success: #22c55e;
     --sp-warning: #f59e0b;
     --sp-error: #ef4444;
 
     /* text-safe variants (AA on surface/background); fills keep the brand values */
-    --sp-accent-text: #2563eb;
+    --sp-accent-text: #1d4ed8;
     --sp-success-text: #137a4b;
     --sp-warning-text: #9a5b00;
     --sp-error-text: #c4262b;
@@ -65,41 +64,42 @@
     --sp-error-soft: rgba(229, 72, 77, 0.08);
     --sp-error-line: rgba(229, 72, 77, 0.4);
 
-    --sp-surface-2: #f7f8fb;
-    --sp-accent-soft: rgba(59, 130, 246, 0.1);
+    --sp-surface-2: #f7fbff;
+    --sp-accent-soft: #dbeafe;
     --sp-success-soft: rgba(34, 181, 115, 0.12);
     --sp-brand: #ff4040;
     --sp-brand-soft: rgba(255, 64, 64, 0.08);
     --sp-brand-line: rgba(255, 64, 64, 0.2);
-    --sp-icon-tile: #151c2b;
+    --sp-icon-tile: #0b1f3b;
 
     /* cabinet-style glass surfaces */
     --sp-glass: #ffffff;
-    --sp-glass-border: rgba(11, 18, 32, 0.09);
+    --sp-glass-border: #dbeafe;
     --sp-card-shadow: none;
-    --sp-inner: rgba(11, 18, 32, 0.03);
-    --sp-inner-border: rgba(11, 18, 32, 0.07);
+    --sp-inner: #f7fbff;
+    --sp-inner-border: #dbeafe;
     --sp-aurora-opacity: 0.45;
-    --sp-grid-line: rgba(11, 18, 32, 0.05);
+    --sp-grid-line: rgba(11, 31, 59, 0.05);
     --sp-glow-a: 0.28;
     --sp-glow-ok: #138a55;
     --sp-sale: #0e6e40;
     --sp-glow-warning: #a35f00;
     --sp-glow-error: #c4262b;
-    --sp-glow-accent: #2457e0;
+    --sp-glow-accent: #2563eb;
     --sp-step-mix: 62%;
 
     /* v5: trial and «money saved» colours, calmer surfaces */
-    --sp-trial: #8b5cf6;
-    --sp-trial-text: #6d3fd8;
-    --sp-trial-soft: rgba(139, 92, 246, 0.1);
-    --sp-saving: #138a55;
+    --sp-track: #dbeafe;
+    --sp-trial: #2563eb;
+    --sp-trial-text: #1d4ed8;
+    --sp-trial-soft: rgba(37, 99, 235, 0.1);
+    --sp-saving: #0b6339;
     --sp-saving-soft: rgba(34, 181, 115, 0.12);
-    --sp-row: rgba(11, 18, 32, 0.035);
-    --sp-row-border: rgba(11, 18, 32, 0.07);
+    --sp-row: #f7fbff;
+    --sp-row-border: #dbeafe;
     --sp-sheet: #ffffff;
-    --sp-btn-2: rgba(11, 18, 32, 0.05);
-    --sp-btn-2-border: rgba(11, 18, 32, 0.08);
+    --sp-btn-2: #dbeafe;
+    --sp-btn-2-border: transparent;
 
     --sp-radius-lg: 16px;
     --sp-radius-md: 12px;
@@ -112,29 +112,35 @@
 
 @media (prefers-color-scheme: dark) {
     :root {
-        /* v11, same as the cabinet: deep navy + blue, with cards that stand off the page
-           (they used to be navy on the same navy) and one warm drop — the coral main button. */
-        --sp-bg: #070d1c;
-        --sp-surface: #10182b;
-        --sp-text: #f1f5f9;
-        --sp-text-2: #94a3b8;
-        --sp-border: rgba(51, 65, 85, 0.55);
-        --sp-border-strong: rgba(71, 85, 105, 0.8);
-        --sp-subtle: rgba(28, 39, 64, 0.6);
-        --sp-subtle-hover: rgba(28, 39, 64, 0.95);
+        /* v12, same as the cabinet: the owner's palette on navy — Primary #0B1F3B is the page,
+           cards are one step lighter. */
+        --sp-bg: #0b1f3b;
+        --sp-surface: #142d52;
+        --sp-text: #f0f7ff;
+        --sp-text-2: #a9c2e3;
+        --sp-border: rgba(96, 165, 250, 0.18);
+        --sp-border-strong: rgba(96, 165, 250, 0.32);
+        --sp-subtle: rgba(26, 54, 98, 0.6);
+        --sp-subtle-hover: rgba(26, 54, 98, 0.95);
 
-        --sp-surface-2: #141d33;
-        --sp-accent-soft: rgba(59, 130, 246, 0.12);
+        /* Main button on navy: Secondary with a navy label (6.5:1). Accent #2563EB on a dark card
+           is only 2.5:1, it would sink exactly where it has to stand out. */
+        --sp-cta: #60a5fa;
+        --sp-cta-hover: #93c5fd;
+        --sp-on-cta: #0b1f3b;
+
+        --sp-surface-2: #17315a;
+        --sp-accent-soft: rgba(96, 165, 250, 0.14);
         --sp-success-soft: rgba(34, 197, 94, 0.12);
         --sp-brand-soft: rgba(255, 64, 64, 0.1);
         --sp-brand-line: rgba(255, 64, 64, 0.24);
-        --sp-icon-tile: #1c2740;
+        --sp-icon-tile: #1a3662;
 
-        --sp-glass: rgba(20, 29, 50, 0.82);
-        --sp-glass-border: rgba(37, 50, 80, 0.9);
+        --sp-glass: #142d52;
+        --sp-glass-border: rgba(96, 165, 250, 0.18);
         --sp-card-shadow: none;
-        --sp-inner: rgba(28, 39, 64, 0.5);
-        --sp-inner-border: rgba(37, 50, 80, 0.9);
+        --sp-inner: rgba(26, 54, 98, 0.55);
+        --sp-inner-border: rgba(96, 165, 250, 0.16);
         --sp-aurora-opacity: 0.7;
         --sp-grid-line: rgba(255, 255, 255, 0.035);
         --sp-glow-a: 0.65;
@@ -142,18 +148,19 @@
         --sp-sale: #34e08f;
         --sp-glow-warning: #ffb547;
         --sp-glow-error: #ff6b70;
-        --sp-glow-accent: #86a6ff;
+        --sp-glow-accent: #93c5fd;
         --sp-step-mix: 100%;
 
-        --sp-trial-text: #b39cff;
-        --sp-trial-soft: rgba(139, 92, 246, 0.16);
+        --sp-track: rgba(96, 165, 250, 0.28);
+        --sp-trial-text: #93c5fd;
+        --sp-trial-soft: rgba(96, 165, 250, 0.16);
         --sp-saving: #3ddc97;
         --sp-saving-soft: rgba(34, 181, 115, 0.14);
-        --sp-row: rgba(28, 39, 64, 0.55);
-        --sp-row-border: rgba(37, 50, 80, 0.9);
-        --sp-sheet: #10182b;
-        --sp-btn-2: rgba(28, 39, 64, 0.85);
-        --sp-btn-2-border: rgba(51, 65, 85, 0.6);
+        --sp-row: rgba(26, 54, 98, 0.55);
+        --sp-row-border: rgba(96, 165, 250, 0.16);
+        --sp-sheet: #142d52;
+        --sp-btn-2: #1a3662;
+        --sp-btn-2-border: rgba(96, 165, 250, 0.18);
 
         --sp-accent-text: #60a5fa;
         --sp-success-text: #4ade80;
@@ -172,45 +179,25 @@ body {
     background: var(--sp-bg) !important;
     color: var(--sp-text);
     font-family: var(--sp-font);
+    font-variant-numeric: tabular-nums;
+    word-spacing: 0.06em;
     -webkit-text-size-adjust: 100%;
     -webkit-font-smoothing: antialiased;
 }
 
 /*
- * Backdrop: light falling on the page from above. The wide glow behind the status card takes the
- * colour of the status itself (works — green, ends soon — amber, ended — red, trial — violet), so
- * the page tells its state before a word is read; it used to be a flat blue wash that made the
- * whole page one colour. A faint Spofy-red one in the corner, a neutral one low. Pure CSS, fixed
- * (it does not scroll away or repaint), no grid/mesh/pictures; cards stay readable on top of it.
+ * Backdrop: one calm light from above in the palette blue. It used to take the colour of the
+ * status, but next to a blue page the tints read as dirt; the shield and the title carry the
+ * state. Pure CSS, fixed, no grid or pictures.
  */
 :root {
-    --sp-bg-glow-top: rgba(34, 197, 94, 0.12);
-    --sp-bg-glow-brand: rgba(255, 64, 64, 0.08);
-    --sp-bg-glow-low: rgba(148, 163, 184, 0.08);
+    --sp-bg-glow-top: rgba(96, 165, 250, 0.16);
 }
 
 @media (prefers-color-scheme: dark) {
     :root {
-        --sp-bg-glow-top: rgba(34, 197, 94, 0.16);
-        --sp-bg-glow-brand: rgba(255, 64, 64, 0.14);
-        --sp-bg-glow-low: rgba(148, 163, 184, 0.06);
+        --sp-bg-glow-top: rgba(96, 165, 250, 0.14);
     }
-}
-
-:root:has([aria-labelledby='sp-status'][data-tone='warning']) {
-    --sp-bg-glow-top: rgba(245, 158, 11, 0.16);
-}
-
-:root:has([aria-labelledby='sp-status'][data-tone='error']) {
-    --sp-bg-glow-top: rgba(239, 68, 68, 0.16);
-}
-
-:root:has([aria-labelledby='sp-status'][data-tone='trial']) {
-    --sp-bg-glow-top: rgba(139, 92, 246, 0.18);
-}
-
-:root:has([aria-labelledby='sp-status'][data-tone='muted']) {
-    --sp-bg-glow-top: rgba(148, 163, 184, 0.1);
 }
 
 body::before {
@@ -219,10 +206,7 @@ body::before {
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    background:
-        radial-gradient(110% 50% at 15% -8%, var(--sp-bg-glow-top), transparent 65%),
-        radial-gradient(70% 38% at 108% 4%, var(--sp-bg-glow-brand), transparent 70%),
-        radial-gradient(90% 45% at 90% 108%, var(--sp-bg-glow-low), transparent 70%);
+    background: radial-gradient(120% 46% at 50% -8%, var(--sp-bg-glow-top), transparent 70%);
 }
 
 /* The page itself can never be dragged sideways on a phone (iPhone ignores this on html alone). */

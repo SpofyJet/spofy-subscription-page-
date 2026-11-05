@@ -32,16 +32,16 @@ export const spofyTheme = createTheme({
             '#010409'
         ],
         spofy: [
-            '#eaf0ff',
-            '#d3dfff',
-            '#a6bfff',
-            '#759cff',
-            '#4d7ffb',
-            '#356df7',
-            '#2b63f5',
-            '#2052d8',
-            '#1a46ba',
-            '#123793'
+            '#f0f7ff',
+            '#dbeafe',
+            '#bfdbfe',
+            '#93c5fd',
+            '#60a5fa',
+            '#3b82f6',
+            '#2563eb',
+            '#1d4ed8',
+            '#1e40af',
+            '#1e3a8a'
         ]
     },
     radius: { xs: '6px', sm: '10px', md: '12px', lg: '16px', xl: '20px' }

@@ -20,7 +20,6 @@ import {
     IconPlus,
     IconQrcode,
     IconRefresh,
-    IconSparkles,
     IconStar,
     IconWallet
 } from '@tabler/icons-react'
@@ -130,7 +129,7 @@ export default function CheckoutSheet({
             : trial
               ? 'coTariffTitle'
               : 'coRenewTitle'
-    const Icon = showPayment ? IconWallet : trial && tab === 'renew' ? IconSparkles : TAB_ICON[tab]
+    const Icon = showPayment ? IconWallet : trial && tab === 'renew' ? IconCreditCard : TAB_ICON[tab]
     // What the person gets, not how payment works; urgency only when it is true.
     const daysLeft = subscription.user.daysLeft
     const ending =
