@@ -16,17 +16,26 @@ detector.init({
 function detectLanguage(
     supportedLocales: TSubscriptionPageLanguageCode[]
 ): TSubscriptionPageLanguageCode {
-    const detected = detector.detect()
+    const supported = (code: string | undefined) =>
+        code && supportedLocales.includes(code as TSubscriptionPageLanguageCode)
+            ? (code as TSubscriptionPageLanguageCode)
+            : null
 
-    const lang = Array.isArray(detected) ? detected[0] : detected
-    const shortLang = lang?.split('-')[0]
+    // Spofy: a language picked on this page wins; otherwise walk the whole browser list
+    // (uk-UA, ru-RU → ru), and anything we don't have falls back to Russian, not to the first
+    // locale of the panel config.
+    const stored = detector.detect(['localStorage'])
+    const storedLang = supported((Array.isArray(stored) ? stored[0] : stored)?.split('-')[0])
+    if (storedLang) return storedLang
 
-    if (shortLang && supportedLocales.includes(shortLang as TSubscriptionPageLanguageCode)) {
-        detector.cacheUserLanguage(shortLang)
-        return shortLang as TSubscriptionPageLanguageCode
+    const browserLangs =
+        typeof navigator === 'undefined' ? [] : (navigator.languages ?? [navigator.language])
+    for (const lang of browserLangs) {
+        const match = supported(lang?.toLowerCase().split('-')[0])
+        if (match) return match
     }
 
-    return supportedLocales[0]!
+    return supported('ru') ?? supportedLocales[0]!
 }
 
 const initialState: IState = {

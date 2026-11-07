@@ -12,16 +12,18 @@
         <link rel="icon" type="image/svg+xml" href="/assets/spofy-favicon.svg" />
         <link rel="icon" sizes="32x32" type="image/png" href="/assets/spofy-favicon-32x32.png" />
         <link rel="apple-touch-icon" sizes="180x180" href="/assets/spofy-favicon-180x180.png" />
+        <!-- outside /assets: browsers fetch the manifest without cookies -->
+        <link rel="manifest" href="/spofy-public/manifest.webmanifest" />
         <style>
             html,
             body {
                 margin: 0;
-                background: #f3f5f9;
+                background: #f0f7ff;
             }
             @media (prefers-color-scheme: dark) {
                 html,
                 body {
-                    background: #070b13;
+                    background: #0b1f3b;
                 }
             }
         </style>
@@ -42,6 +44,15 @@
                 </svg>
             </div>
         </div>
+        <noscript>
+            <div style="max-width: 420px; margin: 0 auto; padding: 24px 20px; font: 16px/1.5 system-ui, sans-serif">
+                <p>Для страницы подписки нужен JavaScript. Включите его в браузере или откройте ссылку в другом браузере.</p>
+                <p>
+                    Подписка и покупки — в боте <a href="https://t.me/spofyvpnbot">@spofyvpnbot</a>, помощь —
+                    <a href="https://t.me/spofysup">@spofysup</a>.
+                </p>
+            </div>
+        </noscript>
         <script type="module" src="./src/main.tsx"></script>
 
         <div id="sbpg" data-panel="<%- panelData %>"></div>

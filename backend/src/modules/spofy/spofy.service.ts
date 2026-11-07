@@ -6,6 +6,7 @@ import { AxiosService } from '@common/axios';
 import { TypedConfigService } from '@common/config/app-config';
 
 import { renderNotFoundPage } from './not-found.page';
+import { renderUnavailablePage } from './spofy-page';
 
 export interface ISpofyPageData {
     renewUrl: string | null;
@@ -132,6 +133,15 @@ export class SpofyService {
     /** HTML for a dead subscription link opened in a browser. */
     public renderNotFound(acceptLanguage?: string): string {
         return renderNotFoundPage({
+            acceptLanguage,
+            botUrl: this.renewUrl,
+            supportUrl: this.supportUrl,
+        });
+    }
+
+    /** HTML for a browser when the panel is unreachable or the page failed to render. */
+    public renderUnavailable(acceptLanguage?: string): string {
+        return renderUnavailablePage({
             acceptLanguage,
             botUrl: this.renewUrl,
             supportUrl: this.supportUrl,

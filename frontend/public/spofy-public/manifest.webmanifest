@@ -1,0 +1,13 @@
+{
+  "name": "Spofy VPN",
+  "short_name": "Spofy VPN",
+  "description": "Ваша подписка и подключение VPN",
+  "lang": "ru",
+  "display": "browser",
+  "background_color": "#0B1F3B",
+  "theme_color": "#0B1F3B",
+  "icons": [
+    { "src": "/spofy-public/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/spofy-public/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

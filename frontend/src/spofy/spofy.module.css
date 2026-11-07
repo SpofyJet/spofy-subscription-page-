@@ -1421,6 +1421,47 @@
     opacity: 0.9;
 }
 
+/* «could not show the page»: crash or a load that never finished */
+.fallback {
+    min-height: 100vh;
+    max-width: 420px;
+    margin: 0 auto;
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    font-family: var(--sp-font);
+    color: var(--sp-text);
+}
+
+.fallbackLogo {
+    width: 44px;
+    height: 44px;
+    margin-bottom: 18px;
+    color: var(--sp-brand);
+}
+
+.fallbackTitle {
+    margin: 0 0 8px;
+    font-size: 23px;
+    font-weight: 800;
+    line-height: 1.25;
+}
+
+.fallbackText {
+    margin: 0;
+    color: var(--sp-text-2);
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+.fallbackActions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 22px;
+}
+
 /* ───────── purchase sheet ───────── */
 .sheetContent {
     background: var(--sp-sheet) !important;

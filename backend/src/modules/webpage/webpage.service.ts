@@ -21,7 +21,12 @@ import { getAssetsPath, isDevelopment } from '@common/utils';
 import { decryptUuid, encryptUuid } from '@common/utils/crypt-utils';
 
 import { SpofyService } from '@modules/spofy';
-import { renderLinkPreview } from '@modules/spofy/link-preview';
+import {
+    PREVIEW_FALLBACK_DESCRIPTION,
+    PREVIEW_FALLBACK_TITLE,
+    previewOrigin,
+    renderLinkPreview,
+} from '@modules/spofy/link-preview';
 
 /** Panel edits (meta title/description, guides) reach the page without a restart. */
 const CONFIG_REFRESH_MS = 5 * 60_000;
@@ -133,12 +138,36 @@ export class WebpageService implements OnApplicationBootstrap {
             .send(this.spofyService.renderNotFound(req.headers['accept-language']));
     }
 
-    /** A link preview: the default config's title and description, nothing else. */
-    public serveLinkPreview(res: Response): void {
+    /** A link preview: the default config's title and description plus the Spofy card image. */
+    public serveLinkPreview(req: Request, res: Response): void {
         const { metaTitle, metaDescription } = this.getBaseSettings(null);
         res.status(200)
             .set({ 'cache-control': 'no-store', 'content-type': 'text/html; charset=utf-8' })
-            .send(renderLinkPreview({ title: metaTitle, description: metaDescription }));
+            .send(
+                renderLinkPreview({
+                    title: metaTitle,
+                    description: metaDescription,
+                    origin: previewOrigin(req.headers.host),
+                }),
+            );
+    }
+
+    /**
+     * The panel did not answer or the page failed to render. serveWebpage is only reached by
+     * browsers, so a person gets «try again in a minute» instead of the proxy's empty 502.
+     */
+    public serveUnavailable(req: Request, res: Response): void {
+        if (res.headersSent) {
+            res.socket?.destroy();
+            return;
+        }
+        res.status(503)
+            .set({
+                'cache-control': 'no-store',
+                'content-type': 'text/html; charset=utf-8',
+                'retry-after': '60',
+            })
+            .send(this.spofyService.renderUnavailable(req.headers['accept-language']));
     }
 
     public async getSubscriptionPageConfig(
@@ -190,8 +219,8 @@ export class WebpageService implements OnApplicationBootstrap {
 
         if (!subpageConfig) {
             return {
-                metaTitle: 'Subscription Page',
-                metaDescription: 'Subscription Page',
+                metaTitle: PREVIEW_FALLBACK_TITLE,
+                metaDescription: PREVIEW_FALLBACK_DESCRIPTION,
                 showConnectionKeys: false,
                 hideGetLinkButton: false,
             };
@@ -252,7 +281,7 @@ export class WebpageService implements OnApplicationBootstrap {
                     this.serveNotFound(req, res);
                     return;
                 }
-                res.socket?.destroy();
+                this.serveUnavailable(req, res);
                 return;
             }
 
@@ -262,7 +291,7 @@ export class WebpageService implements OnApplicationBootstrap {
             );
 
             if (!subpageConfigResponse.isOk || !subpageConfigResponse.response) {
-                res.socket?.destroy();
+                this.serveUnavailable(req, res);
                 return;
             }
 
@@ -301,7 +330,7 @@ export class WebpageService implements OnApplicationBootstrap {
         } catch (error) {
             this.logger.error(`Error in returnWebpage: ${error}`);
 
-            res.socket?.destroy();
+            this.serveUnavailable(req, res);
             return;
         }
     }

@@ -3,7 +3,7 @@ import { APP_CONFIG_ROUTE_LEADING_PATH } from '@remnawave/subscription-page-type
 import { TSubscriptionPageRawConfig } from '@remnawave/subscription-page-types'
 import { GetSubscriptionInfoByShortUuidCommand } from '@remnawave/backend-contract'
 import { Outlet } from 'react-router'
-import { useLayoutEffect } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 import consola from 'consola/browser'
 import { ofetch } from 'ofetch'
 
@@ -13,6 +13,10 @@ import {
 } from '@entities/subscription-info-store'
 import { useAppConfigStoreActions, useIsConfigLoaded } from '@entities/app-config-store'
 import { isUsableConfig, SpofyShell, useSpofyStore } from '../../../spofy'
+import { SpofyFallback } from '../../../spofy/spofy-fallback'
+
+/** How long the shield may stay before we admit the load failed. */
+const STALLED_AFTER_MS = 8000
 
 import classes from './root.module.css'
 
@@ -22,6 +26,15 @@ export function RootLayout() {
 
     const { subscription } = useSubscriptionInfoStoreInfo()
     const isConfigLoaded = useIsConfigLoaded()
+    const isReady = isConfigLoaded && !!subscription
+    const [stalled, setStalled] = useState(false)
+
+    // Config fetch failed or the page data was broken: say so instead of an endless shield.
+    useEffect(() => {
+        if (isReady) return undefined
+        const timer = window.setTimeout(() => setStalled(true), STALLED_AFTER_MS)
+        return () => window.clearTimeout(timer)
+    }, [isReady])
 
     useLayoutEffect(() => {
         const subPageDiv = document.getElementById('sbpg')
@@ -75,7 +88,8 @@ export function RootLayout() {
         fetchConfig()
     }, [])
 
-    if (!isConfigLoaded || !subscription) {
+    if (!isReady) {
+        if (stalled) return <SpofyFallback kind="stalled" />
         return (
             <div className={classes.root}>
                 <div className="animated-background"></div>

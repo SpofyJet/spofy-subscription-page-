@@ -117,6 +117,17 @@ async function bootstrap(): Promise<void> {
 
     app.use(noRobotsMiddleware, getRealIp, headerFilterMiddleware);
 
+    // Spofy: files that must load WITHOUT the session cookie — link-preview image (crawlers
+    // never have the cookie), web manifest and its icons (fetched without credentials), and
+    // the fonts/icon of the server-rendered dead-link / unavailable pages.
+    app.use(
+        '/spofy-public',
+        sirv(path.join(getAssetsPath(), 'spofy-public'), {
+            maxAge: 86400,
+            etag: false,
+        }),
+    );
+
     app.use(
         '/assets',
         sirv(path.join(getAssetsPath(), 'assets'), {

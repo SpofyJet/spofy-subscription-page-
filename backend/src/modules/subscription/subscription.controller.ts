@@ -38,7 +38,7 @@ export class SubscriptionController {
         // Telegram/WhatsApp/… previews: title and description only, before the panel's response
         // rules (which treat a crawler's «Accept: */*» as a VPN client and drop it).
         if (isLinkPreviewBot(request.headers['user-agent'])) {
-            return this.webpageService.serveLinkPreview(response);
+            return this.webpageService.serveLinkPreview(request, response);
         }
 
         if (!SHORT_UUID.test(resolvedShortUuid ?? shortUuid)) {
