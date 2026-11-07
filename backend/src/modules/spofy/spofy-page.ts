@@ -54,7 +54,7 @@ export function renderSpofyPage(options: {
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f0f7ff" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0b1f3b" media="(prefers-color-scheme: dark)">
-<title>Spofy VPN · ${t.title}</title>
+<title>${t.title.includes('Spofy') ? t.title : `Spofy VPN · ${t.title}`}</title>
 <link rel="icon" href="/spofy-public/favicon.svg" type="image/svg+xml">
 <style>
 @font-face{font-family:'Manrope Variable';font-display:swap;font-weight:200 800;src:url(/spofy-public/fonts/manrope-cyrillic.woff2) format('woff2-variations');unicode-range:U+0400-045F,U+0490-0491,U+2116}
