@@ -6,8 +6,6 @@
  * moment. So: wait for the lock to go, scroll, check where we ended up and jump if needed — and
  * flash the block, which also answers the tap when it was already on screen.
  */
-import { telegramViewportHeight } from './telegram'
-
 const GAP = 12
 const flashTimers = new WeakMap<HTMLElement, number>()
 
@@ -48,9 +46,8 @@ export function revealBlock(el: HTMLElement | null, options: { flash?: boolean }
     run(0)
 }
 
-/** Height of what the person actually sees: in a Telegram sheet the page is taller than that. */
-const visibleHeight = () =>
-    telegramViewportHeight() ?? window.visualViewport?.height ?? window.innerHeight
+/** Height of what the person actually sees (in-app browsers overlay their bars on the page). */
+const visibleHeight = () => window.visualViewport?.height ?? window.innerHeight
 
 /**
  * A guide just unfolded under its head: scroll only as much as it takes for the start of the
