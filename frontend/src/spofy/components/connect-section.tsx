@@ -40,7 +40,7 @@ import { formatLink, useLinkTemplates } from '../link-template'
 import { CONNECT_ID, CONNECT_OPEN_EVENT } from '../page-model'
 import { prefs } from '../prefs'
 import { useQrStore } from '../qr-store'
-import { revealBlock } from '../scroll'
+import { revealBlock, revealUnfolded } from '../scroll'
 import classes from '../spofy.module.css'
 import { ManualCopy } from './manual-copy'
 
@@ -236,12 +236,9 @@ export function ConnectSection({
         } else {
             setOpen(true)
             // a head low on the screen would unfold the guide below the fold, and the tap would
-            // look dead until the person scrolls: lift the card to a quarter of the screen — not to
-            // the very top, or the page above it jumps away
+            // look dead: once it is drawn, scroll just enough for the steps to start showing
             const section = sectionRef.current
-            if (section && section.getBoundingClientRect().top > window.innerHeight / 2) {
-                window.requestAnimationFrame(() => revealBlock(section, { flash: false, at: 0.25 }))
-            }
+            window.requestAnimationFrame(() => revealUnfolded(section))
         }
     }
     const selectApp = (index: number) => {

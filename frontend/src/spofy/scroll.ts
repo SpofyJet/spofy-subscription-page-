@@ -6,6 +6,8 @@
  * moment. So: wait for the lock to go, scroll, check where we ended up and jump if needed — and
  * flash the block, which also answers the tap when it was already on screen.
  */
+import { telegramViewportHeight } from './telegram'
+
 const GAP = 12
 const flashTimers = new WeakMap<HTMLElement, number>()
 
@@ -13,13 +15,9 @@ const locked = () =>
     document.body.hasAttribute('data-scroll-locked') ||
     getComputedStyle(document.body).overflow === 'hidden'
 
-const targetTop = (el: HTMLElement, gap = GAP) => el.getBoundingClientRect().top + window.scrollY - gap
+const targetTop = (el: HTMLElement) => el.getBoundingClientRect().top + window.scrollY - GAP
 
-/** `at` — where the block's top should land, as a share of the screen height (default: at the top) */
-export function revealBlock(
-    el: HTMLElement | null,
-    options: { flash?: boolean; at?: number } = {}
-): void {
+export function revealBlock(el: HTMLElement | null, options: { flash?: boolean } = {}): void {
     if (!el) return
     const run = (attempt: number) => {
         if (locked() && attempt < 10) {
@@ -27,11 +25,10 @@ export function revealBlock(
             return
         }
         const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-        const gap = options.at ? Math.max(GAP, Math.round(window.innerHeight * options.at)) : GAP
-        window.scrollTo({ top: targetTop(el, gap), behavior: reduce ? 'auto' : 'smooth' })
+        window.scrollTo({ top: targetTop(el), behavior: reduce ? 'auto' : 'smooth' })
         window.setTimeout(() => {
             const maxTop = document.documentElement.scrollHeight - window.innerHeight
-            const want = Math.min(Math.max(0, targetTop(el, gap)), maxTop)
+            const want = Math.min(Math.max(0, targetTop(el)), maxTop)
             // the smooth scroll was swallowed (momentum, lock): go there at once
             if (Math.abs(window.scrollY - want) > 24)
                 window.scrollTo({ top: want, behavior: 'auto' })
@@ -47,6 +44,37 @@ export function revealBlock(
                 window.setTimeout(() => delete el.dataset.flash, 1_600)
             )
         }
+    }
+    run(0)
+}
+
+/** Height of what the person actually sees: in a Telegram sheet the page is taller than that. */
+const visibleHeight = () =>
+    telegramViewportHeight() ?? window.visualViewport?.height ?? window.innerHeight
+
+/**
+ * A guide just unfolded under its head: scroll only as much as it takes for the start of the
+ * steps to show, and never past the head itself. If they already show, nothing moves.
+ */
+export function revealUnfolded(section: HTMLElement | null): void {
+    if (!section) return
+    const run = (attempt: number) => {
+        if (locked() && attempt < 10) {
+            window.setTimeout(() => run(attempt + 1), 60)
+            return
+        }
+        const height = visibleHeight()
+        const head = section.getBoundingClientRect().top
+        const steps = (section.querySelector('ol') ?? section).getBoundingClientRect().top
+        const by = Math.min(steps + Math.min(220, height * 0.35) - height, head - GAP)
+        if (by <= 8) return
+        const top = window.scrollY + by
+        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        window.scrollTo({ top, behavior: reduce ? 'auto' : 'smooth' })
+        window.setTimeout(() => {
+            // the smooth scroll was swallowed (momentum, lock): go there at once
+            if (Math.abs(window.scrollY - top) > 24) window.scrollTo({ top, behavior: 'auto' })
+        }, 700)
     }
     run(0)
 }

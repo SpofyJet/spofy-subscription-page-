@@ -14,6 +14,7 @@ import { detectPlatform } from './format'
 import { usePageModel } from './page-model'
 import { SpofyShell } from './spofy-shell'
 import { useSpofyData } from './spofy-store'
+import { setupTelegramView } from './telegram'
 import classes from './spofy.module.css'
 
 // The purchase sheet (Drawer/Modal, forms, payment step) is not needed for the first paint.
@@ -36,6 +37,8 @@ export function SpofyMainPage() {
     useEffect(() => {
         document.documentElement.lang = lang
     }, [lang])
+    // opened from the bot: full height at once, so nothing hides below the Telegram sheet
+    useEffect(setupTelegramView, [])
 
     const detected = useMemo(
         () => detectPlatform(navigator.userAgent, navigator.maxTouchPoints ?? 0),
