@@ -236,10 +236,11 @@ export function ConnectSection({
         } else {
             setOpen(true)
             // a head low on the screen would unfold the guide below the fold, and the tap would
-            // look dead until the person scrolls: bring the card up
+            // look dead until the person scrolls: lift the card to a quarter of the screen — not to
+            // the very top, or the page above it jumps away
             const section = sectionRef.current
             if (section && section.getBoundingClientRect().top > window.innerHeight / 2) {
-                window.requestAnimationFrame(() => revealBlock(section, { flash: false }))
+                window.requestAnimationFrame(() => revealBlock(section, { flash: false, at: 0.25 }))
             }
         }
     }

@@ -13,9 +13,13 @@ const locked = () =>
     document.body.hasAttribute('data-scroll-locked') ||
     getComputedStyle(document.body).overflow === 'hidden'
 
-const targetTop = (el: HTMLElement) => el.getBoundingClientRect().top + window.scrollY - GAP
+const targetTop = (el: HTMLElement, gap = GAP) => el.getBoundingClientRect().top + window.scrollY - gap
 
-export function revealBlock(el: HTMLElement | null, options: { flash?: boolean } = {}): void {
+/** `at` — where the block's top should land, as a share of the screen height (default: at the top) */
+export function revealBlock(
+    el: HTMLElement | null,
+    options: { flash?: boolean; at?: number } = {}
+): void {
     if (!el) return
     const run = (attempt: number) => {
         if (locked() && attempt < 10) {
@@ -23,10 +27,11 @@ export function revealBlock(el: HTMLElement | null, options: { flash?: boolean }
             return
         }
         const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-        window.scrollTo({ top: targetTop(el), behavior: reduce ? 'auto' : 'smooth' })
+        const gap = options.at ? Math.max(GAP, Math.round(window.innerHeight * options.at)) : GAP
+        window.scrollTo({ top: targetTop(el, gap), behavior: reduce ? 'auto' : 'smooth' })
         window.setTimeout(() => {
             const maxTop = document.documentElement.scrollHeight - window.innerHeight
-            const want = Math.min(Math.max(0, targetTop(el)), maxTop)
+            const want = Math.min(Math.max(0, targetTop(el, gap)), maxTop)
             // the smooth scroll was swallowed (momentum, lock): go there at once
             if (Math.abs(window.scrollY - want) > 24)
                 window.scrollTo({ top: want, behavior: 'auto' })
