@@ -233,7 +233,15 @@ export function ConnectSection({
             if (section && section.getBoundingClientRect().top < 0) {
                 window.requestAnimationFrame(() => revealBlock(section, { flash: false }))
             }
-        } else setOpen(true)
+        } else {
+            setOpen(true)
+            // a head low on the screen would unfold the guide below the fold, and the tap would
+            // look dead until the person scrolls: bring the card up
+            const section = sectionRef.current
+            if (section && section.getBoundingClientRect().top > window.innerHeight / 2) {
+                window.requestAnimationFrame(() => revealBlock(section, { flash: false }))
+            }
+        }
     }
     const selectApp = (index: number) => {
         vibrate('selection')
