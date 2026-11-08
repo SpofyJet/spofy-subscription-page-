@@ -8,7 +8,7 @@ if [ -n "$(git status --porcelain)" ]; then
     exit 1
 fi
 SHA=$(git rev-parse --short=12 HEAD)
-NODE=node:24.22-trixie-slim
+NODE=node:26.13-trixie-slim
 
 # frontend/dist is copied into the image (same as upstream's CI)
 docker run --rm -e NPM_CONFIG_UPDATE_NOTIFIER=false -v "$PWD":/src -w /src/frontend "$NODE" \
