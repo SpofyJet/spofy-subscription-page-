@@ -108,7 +108,17 @@ export function StatusCard({ model }: { model: IPageModel }) {
                 : Math.max(0.08, Math.min(1, daysLeft / 30))
 
     /* ── a sentence for the situation ── */
-    const resetText = resetSentence(user.trafficLimitStrategy, lang, t)
+    // The bot resets the limit on the purchase day and says when; the panel strategy (NO_RESET
+    // for these subscriptions) is the fallback for a bot that does not send the date.
+    const resetAt = nextReset(offer?.subscription.traffic_reset_at)
+    const resetText = resetAt
+        ? ` ${t('stTrafficResets', { date: formatDayMonth(resetAt, lang) })}`
+        : resetSentence(user.trafficLimitStrategy, lang, t)
+    // three days or less to a free reset: buying is no longer the only way out
+    const waitText =
+        resetAt && resetAt.getTime() - now <= 3 * 86_400_000
+            ? ` ${t('stTrafficWait', { date: formatDayMonth(resetAt, lang) })}`
+            : resetText
     const note: null | string =
         view === 'expired'
             ? model.trial
@@ -117,7 +127,7 @@ export function StatusCard({ model }: { model: IPageModel }) {
             : view === 'disabled'
               ? t('heroDisabledText')
               : view === 'limited'
-                ? `${model.indefinite ? t('buyTraffic') + '.' : t('stLimitedNote')}${resetText}`
+                ? `${model.indefinite ? t('buyTraffic') + '.' : t('stLimitedNote')}${waitText}`
                 : fresh
                   ? t('stNoDevicesNote')
                   : view === 'trial'
@@ -163,7 +173,7 @@ export function StatusCard({ model }: { model: IPageModel }) {
         if (restore) {
             moment = {
                 key: 'bypass',
-                text: t('stBypassOff'),
+                text: `${t('stBypassOff')}${resetAt ? waitText : ''}`,
                 action: restore,
                 label: bot(t('ctaRestore')),
                 price: model.inPage ? trafficFrom : null,
@@ -172,7 +182,7 @@ export function StatusCard({ model }: { model: IPageModel }) {
         } else if (model.traffic && trafficShare >= 0.85 && trafficShare < 1) {
             moment = {
                 key: 'traffic',
-                text: `${t('stTrafficLow', { left: formatBytes(Math.max(0, trafficLimit - trafficUsed), lang) })}${resetText}`,
+                text: `${t('stTrafficLow', { left: formatBytes(Math.max(0, trafficLimit - trafficUsed), lang) })}${waitText}`,
                 action: model.traffic,
                 label: bot(t('buyTraffic')),
                 price: model.inPage ? trafficFrom : null,
@@ -410,6 +420,13 @@ export function StatusCard({ model }: { model: IPageModel }) {
     )
 }
 
+/** The bot's next reset as a date, or null: no field, not a date, or already in the past. */
+function nextReset(value: null | string | undefined): Date | null {
+    if (!value) return null
+    const date = new Date(value)
+    return Number.isNaN(date.getTime()) || date.getTime() <= Date.now() ? null : date
+}
+
 /** «Лимит обновится 1 ноября.» for a monthly reset; the strategy's own sentence otherwise. */
 function resetSentence(
     strategy: string | undefined,
@@ -439,6 +456,7 @@ function StatRow(props: {
 }) {
     const [open, setOpen] = useState(false)
     const hintId = useId()
+    const lastWordAt = props.label.lastIndexOf(' ') + 1
     return (
         <li className={classes.row} data-tone={props.tone}>
             <div className={classes.rowMain}>
@@ -447,14 +465,17 @@ function StatRow(props: {
                 </span>
                 <span className={classes.rowText}>
                     <span className={classes.rowLabel}>
-                        {props.label}
-                        {props.hint && (
-                            <HintToggle
-                                controls={hintId}
-                                onToggle={() => setOpen((v) => !v)}
-                                open={open}
-                            />
-                        )}
+                        {props.label.slice(0, lastWordAt)}
+                        <span className={classes.rowLabelTail}>
+                            {props.label.slice(lastWordAt)}
+                            {props.hint && (
+                                <HintToggle
+                                    controls={hintId}
+                                    onToggle={() => setOpen((v) => !v)}
+                                    open={open}
+                                />
+                            )}
+                        </span>
                     </span>
                     <span className={clsx(classes.rowValue, classes.num)}>{props.value}</span>
                 </span>
@@ -495,7 +516,12 @@ function TrafficRow({
     const limit = toNumber(user.trafficLimitBytes)
     const hasReset = !!user.trafficLimitStrategy && user.trafficLimitStrategy !== 'NO_RESET'
     const resetKey = `trafficReset${user.trafficLimitStrategy}` as TSpofyKey
-    const hint = hasReset ? `${t('hintTraffic')} ${t(resetKey)}.` : t('hintTraffic')
+    const resetAt = nextReset(useCheckoutStore((s) => s.offer)?.subscription.traffic_reset_at)
+    const hint = resetAt
+        ? `${t('hintTraffic')} ${t('stTrafficResets', { date: formatDayMonth(resetAt, lang) })}`
+        : hasReset
+          ? `${t('hintTraffic')} ${t(resetKey)}.`
+          : t('hintTraffic')
 
     if (limit <= 0) {
         return (

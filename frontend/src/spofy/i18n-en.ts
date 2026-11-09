@@ -148,7 +148,7 @@ const en: TDict = {
     coUpsell: '{period} — {price}/mo, save\u00A0{saving}',
     coUpsellCta: 'Choose',
     coTrafficWhat:
-        'Traffic is only for the «💸 Bypass» servers. Regular servers have no limits. Bought gigabytes do not expire on the 1st.',
+        'Traffic is only for the «💸 Bypass» servers. Regular servers have no limits. Bought gigabytes last until the limit reset day — the day you bought the subscription.',
     coTrafficTrialHint: 'Extra traffic unlocks after you choose a plan — pick one below.',
     coPerGb: '{price} per GB',
     coBestGb: 'Best value',
@@ -213,7 +213,7 @@ const en: TDict = {
     coSubTrafficAdd:
         'Gigabytes are added after payment — you can get straight back to using the VPN',
     coTrafficWhatLimited:
-        'Traffic is used up, so the VPN is stopped. It works again right after payment. Bought gigabytes do not expire on the 1st.',
+        'Traffic is used up, so the VPN is stopped. It works again right after payment. Bought gigabytes last until the limit reset day — the day you bought the subscription.',
     coTrafficAfter: 'After the purchase you will have {gb}',
     coRecommended: 'Recommended',
     coDoneHint: 'Refresh the page to see your new term and limits.',
@@ -286,6 +286,7 @@ const en: TDict = {
     stTrafficLow:
         'Only {left} is left for «Bypass». Add traffic now so it does not turn off when you need it.',
     stTrafficResets: 'The limit resets on {date}.',
+    stTrafficWait: 'Or wait until {date}: the limit resets for free.',
     stDevicesFull:
         'All {n} are already connected. Add a slot and connect the next device using the same guide.',
     stDeviceFullOne:

@@ -10,6 +10,8 @@ export interface ISnapshot {
     tariff_id: null | number
     tariff_name: null | string
     traffic_limit_gb: number
+    /** next free traffic reset (ISO, UTC); absent from a bot that does not send it yet */
+    traffic_reset_at?: null | string
 }
 
 export interface IPeriodOption {

@@ -624,7 +624,10 @@ function Steps(props: {
                 rel="noopener noreferrer"
                 target="_blank"
             >
-                {button.svgIconKey && svgLibrary[button.svgIconKey] ? (
+                {/* the panel marks these buttons with its own «external link» icon; the arrow
+                    after the text already says that, so the same icon is not drawn twice */}
+                {/external/i.test(button.svgIconKey ?? '') ? null : button.svgIconKey &&
+                  svgLibrary[button.svgIconKey] ? (
                     <SvgIcon className={classes.btnIcon} svg={svgLibrary[button.svgIconKey]} />
                 ) : (
                     <IconDownload aria-hidden size={18} stroke={2} />
