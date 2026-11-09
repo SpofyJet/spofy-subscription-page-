@@ -181,10 +181,6 @@ body {
     overflow-x: clip;
 }
 
-.animated-background {
-    display: none;
-}
-
 /* Mantine surfaces used by the language menu and the QR modal */
 :root,
 :root[data-mantine-color-scheme='dark'],
@@ -194,6 +190,12 @@ body {
     --mantine-color-dimmed: var(--sp-text-2);
     --mantine-font-family: var(--sp-font);
     --mantine-font-family-headings: var(--sp-font);
+    /* what the eagerly loaded baseline reads; the full variable file comes with the windows */
+    --mantine-scale: 1;
+    --mantine-font-size-md: 1rem;
+    --mantine-line-height: 1.55;
+    --mantine-webkit-font-smoothing: antialiased;
+    --mantine-moz-font-smoothing: grayscale;
 }
 
 @media (prefers-reduced-motion: reduce) {

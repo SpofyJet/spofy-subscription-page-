@@ -115,6 +115,20 @@ async function bootstrap(): Promise<void> {
     app.use('/assets', cookieParser());
     app.use('/assets', checkAssetsCookieMiddleware);
 
+    // Before the header filter: it drops Accept-Encoding, and sirv needs it to pick the .br / .gz
+    // files made at build time.
+    app.use(
+        '/assets',
+        noRobotsMiddleware,
+        sirv(path.join(getAssetsPath(), 'assets'), {
+            maxAge: 604800, // 7 days
+            immutable: true,
+            brotli: true,
+            gzip: true,
+            etag: false,
+        }),
+    );
+
     app.use(noRobotsMiddleware, getRealIp, headerFilterMiddleware);
 
     // Spofy: files that must load WITHOUT the session cookie — link-preview image (crawlers
@@ -125,16 +139,6 @@ async function bootstrap(): Promise<void> {
         sirv(path.join(getAssetsPath(), 'spofy-public'), {
             maxAge: 86400,
             etag: false,
-        }),
-    );
-
-    app.use(
-        '/assets',
-        sirv(path.join(getAssetsPath(), 'assets'), {
-            maxAge: 604800, // 7 days
-            immutable: true,
-            etag: false,
-            // dev: isDevelopment(),
         }),
     );
 

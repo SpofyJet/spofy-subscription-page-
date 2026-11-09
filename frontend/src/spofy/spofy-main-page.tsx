@@ -1,5 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 
+import { whenIdle } from '@shared/utils/when-idle'
+
 import { useAppConfig, useCurrentLang } from '@entities/app-config-store'
 import { useSubscription } from '@entities/subscription-info-store'
 
@@ -72,8 +74,7 @@ export function SpofyMainPage() {
     // Fetch the sheet's code once prices are in, while the person is still reading.
     useEffect(() => {
         if (!checkout || !offerReady) return
-        const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 300))
-        idle(() => void loadSheet())
+        whenIdle(() => void loadSheet().catch(() => undefined))
     }, [checkout, offerReady])
 
     // First paint waits for the bot's answer (tariff name, trial flag, prices) — otherwise the

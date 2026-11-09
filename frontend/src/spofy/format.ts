@@ -125,8 +125,7 @@ export function formatPeriod(days: number, lang: TSubscriptionPageLanguageCode):
 }
 
 const BYTE_UNITS: Partial<Record<TSubscriptionPageLanguageCode, string[]>> = {
-    ru: ['Б', 'КБ', 'МБ', 'ГБ', 'ТБ'],
-    fr: ['o', 'Ko', 'Mo', 'Go', 'To']
+    ru: ['Б', 'КБ', 'МБ', 'ГБ', 'ТБ']
 }
 const BYTE_UNITS_DEFAULT = ['B', 'KB', 'MB', 'GB', 'TB']
 

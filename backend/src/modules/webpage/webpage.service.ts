@@ -1,6 +1,7 @@
 import ejs from 'ejs';
 import { Request, Response } from 'express';
 import { nanoid } from 'nanoid';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { exit } from 'node:process';
@@ -31,12 +32,35 @@ import {
 /** Panel edits (meta title/description, guides) reach the page without a restart. */
 const CONFIG_REFRESH_MS = 5 * 60_000;
 
+/** The panel's icon library is several times larger than the set a config refers to. */
+function withUsedIconsOnly(config: TSubscriptionPageRawConfig): TSubscriptionPageRawConfig {
+    const used = new Set<string>();
+    const collect = (value: unknown): void => {
+        if (Array.isArray(value)) {
+            value.forEach(collect);
+        } else if (value && typeof value === 'object') {
+            for (const [key, inner] of Object.entries(value)) {
+                if (key === 'svgIconKey' && typeof inner === 'string') used.add(inner);
+                else collect(inner);
+            }
+        }
+    };
+    collect(config);
+    return {
+        ...config,
+        svgLibrary: Object.fromEntries(
+            Object.entries(config.svgLibrary).filter(([key]) => used.has(key)),
+        ),
+    };
+}
+
 @Injectable()
 export class WebpageService implements OnApplicationBootstrap {
     private readonly logger = new Logger(WebpageService.name);
     private readonly internalJwtSecret: string;
     private readonly subpageConfigUuid: string;
     private readonly subpageConfigMap: Map<string, TSubscriptionPageRawConfig> = new Map();
+    private readonly subpageConfigVersions: Map<string, string> = new Map();
     private indexTemplate: ejs.TemplateFunction;
 
     constructor(
@@ -89,7 +113,7 @@ export class WebpageService implements OnApplicationBootstrap {
             }
 
             this.logger.log(`[OK] ${config}`);
-            this.subpageConfigMap.set(config, parsedConfig.data);
+            this.rememberConfig(config, parsedConfig.data);
         }
 
         if (this.subpageConfigMap.size === 0) {
@@ -100,6 +124,16 @@ export class WebpageService implements OnApplicationBootstrap {
         this.logger.log('[OK] Subpage configs are loaded successfully.');
 
         setInterval(() => void this.refreshSubpageConfigs(), CONFIG_REFRESH_MS).unref();
+    }
+
+    /** Keeps a config with only the icons it uses, and the hash its address is versioned by. */
+    private rememberConfig(uuid: string, rawConfig: TSubscriptionPageRawConfig): void {
+        const config = withUsedIconsOnly(rawConfig);
+        this.subpageConfigMap.set(uuid, config);
+        this.subpageConfigVersions.set(
+            uuid,
+            createHash('sha256').update(JSON.stringify(config)).digest('hex').slice(0, 12),
+        );
     }
 
     /**
@@ -121,7 +155,7 @@ export class WebpageService implements OnApplicationBootstrap {
                     );
                     continue;
                 }
-                this.subpageConfigMap.set(uuid, parsed.data);
+                this.rememberConfig(uuid, parsed.data);
             }
         } catch (error) {
             this.logger.warn(`Subpage config refresh failed: ${error}`);
@@ -172,7 +206,7 @@ export class WebpageService implements OnApplicationBootstrap {
 
     public async getSubscriptionPageConfig(
         encryptedSubpageConfigUuid: string,
-    ): Promise<object | void> {
+    ): Promise<{ config: object; version: string | undefined }> {
         const decryptedSubpageConfigUuid = decryptUuid(
             encryptedSubpageConfigUuid,
             this.internalJwtSecret,
@@ -190,7 +224,10 @@ export class WebpageService implements OnApplicationBootstrap {
             throw new NotFoundException();
         }
 
-        return subpageConfig;
+        return {
+            config: subpageConfig,
+            version: this.subpageConfigVersions.get(decryptedSubpageConfigUuid),
+        };
     }
 
     private async fetchSubscriptionPageConfigList(): Promise<string[]> {
@@ -318,12 +355,24 @@ export class WebpageService implements OnApplicationBootstrap {
                 maxAge: 1_800_000, // 30 minutes
             });
 
+            const spofyData = await spofyDataPromise;
+
+            // Relative, like the page's own call (see checkout/api.ts): the first card waits for
+            // these prices, so the request starts with the HTML instead of after the scripts.
+            const offerHref = spofyData.checkoutEnabled
+                ? `spofy-api/${encodeURIComponent(shortUuid)}/offer`
+                : '';
+
             res.type('html').send(
                 this.indexTemplate({
+                    offerHref,
                     metaTitle: baseSettings.metaTitle,
                     metaDescription: baseSettings.metaDescription,
+                    configVersion: this.subpageConfigVersions.get(
+                        this.getFinalSubpageConfigUuid(subpageConfig.subpageConfigUuid),
+                    ),
                     panelData: Buffer.from(
-                        JSON.stringify({ ...subscriptionData, spofy: await spofyDataPromise }),
+                        JSON.stringify({ ...subscriptionData, spofy: spofyData }),
                     ).toString('base64'),
                 }),
             );

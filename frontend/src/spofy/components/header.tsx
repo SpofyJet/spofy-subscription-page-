@@ -1,13 +1,13 @@
-import { Menu } from '@mantine/core'
 import { TSubscriptionPageLanguageCode } from '@remnawave/subscription-page-types'
 // deep import: the package entry is CommonJS and pulls in every zod schema
 import { getLanguageInfo } from '@remnawave/subscription-page-types/build/backend/constants'
 import { IconCheck, IconWorld } from '@tabler/icons-react'
 import clsx from 'clsx'
+import { KeyboardEvent as ReactKeyboardEvent, useEffect, useRef, useState } from 'react'
 
 import { useAppConfig, useAppConfigStoreActions, useCurrentLang } from '@entities/app-config-store'
 
-import { useSpofyT } from '../i18n'
+import { ensureLocale, useSpofyT } from '../i18n'
 import { SpofyShield } from '../spofy-shield'
 import classes from '../spofy.module.css'
 
@@ -49,7 +49,7 @@ export function Header({ account }: { account: null | string }) {
                     currentLang={currentLang}
                     label={t('language')}
                     locales={config.locales}
-                    onChange={setLanguage}
+                    onChange={(lang) => void ensureLocale(lang).then(() => setLanguage(lang))}
                 />
             )}
         </header>
@@ -63,42 +63,80 @@ function LanguageMenu(props: {
     onChange: (lang: TSubscriptionPageLanguageCode) => void
 }) {
     const { currentLang, label, locales, onChange } = props
+    const [open, setOpen] = useState(false)
+    const root = useRef<HTMLDivElement>(null)
+    const trigger = useRef<HTMLButtonElement>(null)
+
+    useEffect(() => {
+        if (!open) return undefined
+        const onPointerDown = (event: PointerEvent) => {
+            if (!root.current?.contains(event.target as Node)) setOpen(false)
+        }
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape') return
+            setOpen(false)
+            trigger.current?.focus()
+        }
+        document.addEventListener('pointerdown', onPointerDown)
+        document.addEventListener('keydown', onKeyDown)
+        return () => {
+            document.removeEventListener('pointerdown', onPointerDown)
+            document.removeEventListener('keydown', onKeyDown)
+        }
+    }, [open])
+
+    const moveFocus = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+        if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+        event.preventDefault()
+        const items = [
+            ...(root.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])
+        ]
+        const step = event.key === 'ArrowDown' ? 1 : -1
+        const current = items.indexOf(document.activeElement as HTMLElement)
+        const next = current === -1 && step === -1 ? items.length - 1 : current + step
+        items[(next + items.length) % items.length]?.focus()
+    }
 
     return (
-        <Menu
-            classNames={{ dropdown: classes.menuDropdown, item: classes.menuItem }}
-            position="bottom-end"
-            width={190}
-            withinPortal
-        >
-            <Menu.Target>
-                <button
-                    aria-label={`${label}: ${getLanguageInfo(currentLang)?.nativeName ?? currentLang}`}
-                    className={clsx(classes.pill, classes.pillCompact)}
-                    type="button"
-                >
-                    <IconWorld aria-hidden size={16} stroke={1.9} />
-                    {currentLang.toUpperCase()}
-                </button>
-            </Menu.Target>
-            <Menu.Dropdown>
-                {locales.map((locale) => (
-                    <Menu.Item
-                        aria-current={locale === currentLang ? 'true' : undefined}
-                        className={clsx(locale === currentLang && classes.menuItemActive)}
-                        key={locale}
-                        lang={locale}
-                        onClick={() => onChange(locale)}
-                        rightSection={
-                            locale === currentLang ? (
+        <div className={classes.menuRoot} onKeyDown={moveFocus} ref={root}>
+            <button
+                aria-expanded={open}
+                aria-haspopup="menu"
+                aria-label={`${label}: ${getLanguageInfo(currentLang)?.nativeName ?? currentLang}`}
+                className={clsx(classes.pill, classes.pillCompact)}
+                onClick={() => setOpen((value) => !value)}
+                ref={trigger}
+                type="button"
+            >
+                <IconWorld aria-hidden size={16} stroke={1.9} />
+                {currentLang.toUpperCase()}
+            </button>
+            {open && (
+                <div className={classes.menuDropdown} role="menu">
+                    {locales.map((locale) => (
+                        <button
+                            aria-current={locale === currentLang ? 'true' : undefined}
+                            className={clsx(
+                                classes.menuItem,
+                                locale === currentLang && classes.menuItemActive
+                            )}
+                            key={locale}
+                            lang={locale}
+                            onClick={() => {
+                                setOpen(false)
+                                onChange(locale)
+                            }}
+                            role="menuitem"
+                            type="button"
+                        >
+                            {getLanguageInfo(locale)?.nativeName ?? locale}
+                            {locale === currentLang && (
                                 <IconCheck aria-hidden size={16} stroke={2.5} />
-                            ) : null
-                        }
-                    >
-                        {getLanguageInfo(locale)?.nativeName ?? locale}
-                    </Menu.Item>
-                ))}
-            </Menu.Dropdown>
-        </Menu>
+                            )}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
     )
 }

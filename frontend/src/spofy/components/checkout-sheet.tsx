@@ -28,6 +28,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { vibrate } from '@shared/utils/vibrate'
 
+import { MantineScope } from '../mantine-scope'
+
 import { useSubscription } from '@entities/subscription-info-store'
 
 import {
@@ -225,14 +227,18 @@ export default function CheckoutSheet({
         transitionProps: { duration: 200 }
     }
 
-    return isDesktop ? (
-        <Modal {...common} centered radius="lg" size={480}>
-            {body}
-        </Modal>
-    ) : (
-        <Drawer {...common} position="bottom" size="auto">
-            {body}
-        </Drawer>
+    return (
+        <MantineScope>
+            {isDesktop ? (
+                <Modal {...common} centered radius="lg" size={480}>
+                    {body}
+                </Modal>
+            ) : (
+                <Drawer {...common} position="bottom" size="auto">
+                    {body}
+                </Drawer>
+            )}
+        </MantineScope>
     )
 }
 

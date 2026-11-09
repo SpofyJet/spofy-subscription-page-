@@ -78,12 +78,6 @@
     }
 }
 
-.sectionHead {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
 .sectionTitle {
     margin: 0;
     font-size: 17px;
@@ -371,23 +365,52 @@
     font-size: 14px;
 }
 
+.menuRoot {
+    position: relative;
+    flex: none;
+}
+
 .menuDropdown {
-    background: var(--sp-sheet) !important;
-    border: 0 !important;
-    border-radius: 14px !important;
-    padding: 4px !important;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 300;
+    width: 190px;
+    background: var(--sp-sheet);
+    border-radius: 14px;
+    padding: 4px;
+    animation: menuIn 150ms ease;
+}
+
+@keyframes menuIn {
+    from {
+        opacity: 0;
+    }
 }
 
 .menuItem {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
     min-height: 44px;
-    border-radius: 10px !important;
-    color: var(--sp-text) !important;
-    font-family: var(--sp-font) !important;
-    font-size: 16px !important;
+    padding: 6.67px 12px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--sp-text);
+    font-family: var(--sp-font);
+    font-size: 16px;
+    line-height: 1.55;
+    text-align: left;
+    cursor: pointer;
+    user-select: none;
 }
 
-.menuItem[data-hovered] {
-    background: var(--sp-subtle-hover) !important;
+.menuItem:hover,
+.menuItem:focus-visible {
+    outline: none;
+    background: var(--sp-subtle-hover);
 }
 
 .menuItemActive {
@@ -1737,20 +1760,7 @@
     font-weight: 700;
 }
 
-.badgeRecommended {
-    display: inline-flex;
-    padding: 2px 8px;
-    border-radius: 6px;
-    background: var(--sp-accent);
-    color: #ffffff;
-    font-size: 13.5px;
-    font-weight: 700;
-    line-height: 1.35;
-    white-space: nowrap;
-}
-
-.badgeBest,
-.badgePopular {
+.badgeBest {
     display: inline-flex;
     padding: 2px 7px;
     border-radius: 6px;
@@ -1758,16 +1768,8 @@
     font-weight: 700;
     line-height: 1.35;
     white-space: nowrap;
-}
-
-.badgeBest {
     background: var(--sp-success);
     color: #04140c;
-}
-
-.badgePopular {
-    background: var(--sp-accent-soft);
-    color: var(--sp-accent-text);
 }
 
 .methodIcon {
@@ -2101,17 +2103,6 @@
     height: 18px;
     background: linear-gradient(180deg, transparent, var(--sp-sheet));
     pointer-events: none;
-}
-
-.coSaving {
-    align-self: center;
-    padding: 4px 10px;
-    border-radius: 8px;
-    background: var(--sp-saving-soft);
-    color: var(--sp-saving);
-    font-size: 14.5px;
-    font-weight: 700;
-    text-align: center;
 }
 
 .coPayBtn {

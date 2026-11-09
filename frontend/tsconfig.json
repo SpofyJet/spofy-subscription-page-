@@ -38,15 +38,6 @@
       "@entities/*": [
         "./src/entities/*"
       ],
-      "@features/*": [
-        "./src/features/*"
-      ],
-      "@pages/*": [
-        "./src/pages/*"
-      ],
-      "@widgets/*": [
-        "./src/widgets/*"
-      ],
       "@public/*": [
         "./public/*"
       ],

@@ -2,18 +2,30 @@ import {
     TSubscriptionPageLanguageCode,
     TSubscriptionPageRawConfig
 } from '@remnawave/subscription-page-types'
-import LanguageDetector from 'i18next-browser-languagedetector'
 import { create } from 'zustand'
 
 import { IActions, IState } from './interfaces'
 
-const detector = new LanguageDetector()
-detector.init({
-    order: ['localStorage', 'navigator', 'htmlTag'],
-    caches: ['localStorage']
-})
+/** Same key as before, so a language people already picked stays picked. */
+const LANGUAGE_KEY = 'i18nextLng'
 
-function detectLanguage(
+function readStoredLanguage(): null | string {
+    try {
+        return window.localStorage.getItem(LANGUAGE_KEY)
+    } catch {
+        return null
+    }
+}
+
+function storeLanguage(lang: string): void {
+    try {
+        window.localStorage.setItem(LANGUAGE_KEY, lang)
+    } catch {
+        // private mode: the choice just lasts until the page is closed
+    }
+}
+
+export function detectLanguage(
     supportedLocales: TSubscriptionPageLanguageCode[]
 ): TSubscriptionPageLanguageCode {
     const supported = (code: string | undefined) =>
@@ -24,8 +36,7 @@ function detectLanguage(
     // Spofy: a language picked on this page wins; otherwise walk the whole browser list
     // (uk-UA, ru-RU → ru), and anything we don't have falls back to Russian, not to the first
     // locale of the panel config.
-    const stored = detector.detect(['localStorage'])
-    const storedLang = supported((Array.isArray(stored) ? stored[0] : stored)?.split('-')[0])
+    const storedLang = supported(readStoredLanguage()?.split('-')[0])
     if (storedLang) return storedLang
 
     const browserLangs =
@@ -58,7 +69,7 @@ export const useAppConfigStore = create<IActions & IState>()((set) => ({
         },
 
         setLanguage: (lang: TSubscriptionPageLanguageCode) => {
-            detector.cacheUserLanguage(lang)
+            storeLanguage(lang)
             set({ currentLang: lang })
         },
 
