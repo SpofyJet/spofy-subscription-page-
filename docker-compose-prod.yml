@@ -8,6 +8,11 @@ services:
       - .env
     ports:
       - '127.0.0.1:3010:3010'
+    logging:
+      driver: json-file
+      options:
+        max-size: 50m
+        max-file: '5'
     networks:
       - remnawave-network
 

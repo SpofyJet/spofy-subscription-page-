@@ -352,6 +352,7 @@ export class WebpageService implements OnApplicationBootstrap {
             res.cookie('session', this.generateJwtForCookie(subpageConfig.subpageConfigUuid), {
                 httpOnly: true,
                 secure: !isDevelopment(),
+                sameSite: 'lax',
                 maxAge: 1_800_000, // 30 minutes
             });
 
@@ -363,6 +364,9 @@ export class WebpageService implements OnApplicationBootstrap {
                 ? `spofy-api/${encodeURIComponent(shortUuid)}/offer`
                 : '';
 
+            // The page carries personal data and a fresh session cookie: a browser may keep it only
+            // for itself and has to revalidate, a proxy on the way may not keep it at all.
+            res.set('cache-control', 'private, no-cache');
             res.type('html').send(
                 this.indexTemplate({
                     offerHref,
