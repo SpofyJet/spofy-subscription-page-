@@ -7,6 +7,10 @@
  * flash the block, which also answers the tap when it was already on screen.
  */
 const GAP = 12
+/** The steps count as visible when they start this far above the bottom edge. */
+const STEPS_MARGIN = 120
+/** How much of the steps to bring into view when they start off the screen. */
+const STEPS_SHOWN = 180
 const flashTimers = new WeakMap<HTMLElement, number>()
 
 const locked = () =>
@@ -22,6 +26,7 @@ export function revealBlock(el: HTMLElement | null, options: { flash?: boolean }
             window.setTimeout(() => run(attempt + 1), 60)
             return
         }
+        if (locked()) return // a window is still open: the page must not move under it
         const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
         window.scrollTo({ top: targetTop(el), behavior: reduce ? 'auto' : 'smooth' })
         window.setTimeout(() => {
@@ -50,28 +55,25 @@ export function revealBlock(el: HTMLElement | null, options: { flash?: boolean }
 const visibleHeight = () => window.visualViewport?.height ?? window.innerHeight
 
 /**
- * A guide just unfolded under its head: scroll only as much as it takes for the start of the
- * steps to show, and never past the head itself. If they already show, nothing moves.
+ * A guide just unfolded under its head. It opens in place: the page moves only when the steps
+ * would start off the screen, and then just enough to show the first one. Never under an open
+ * window: the person is looking at the window, not at the page.
  */
 export function revealUnfolded(section: HTMLElement | null): void {
     if (!section) return
     const run = (attempt: number) => {
-        if (locked() && attempt < 10) {
-            window.setTimeout(() => run(attempt + 1), 60)
+        if (locked()) {
+            if (attempt < 10) window.setTimeout(() => run(attempt + 1), 60)
             return
         }
         const height = visibleHeight()
         const head = section.getBoundingClientRect().top
         const steps = (section.querySelector('ol') ?? section).getBoundingClientRect().top
-        const by = Math.min(steps + Math.min(220, height * 0.35) - height, head - GAP)
+        if (steps < height - STEPS_MARGIN) return
+        const by = Math.min(steps + STEPS_SHOWN - height, head - GAP)
         if (by <= 8) return
-        const top = window.scrollY + by
         const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-        window.scrollTo({ top, behavior: reduce ? 'auto' : 'smooth' })
-        window.setTimeout(() => {
-            // the smooth scroll was swallowed (momentum, lock): go there at once
-            if (Math.abs(window.scrollY - top) > 24) window.scrollTo({ top, behavior: 'auto' })
-        }, 700)
+        window.scrollTo({ top: window.scrollY + by, behavior: reduce ? 'auto' : 'smooth' })
     }
     run(0)
 }

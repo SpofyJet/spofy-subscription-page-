@@ -5,18 +5,8 @@ import './global.css'
 import { ErrorBoundary } from 'react-error-boundary'
 
 import { RootLayout } from './app/layouts/root/root.layout'
-import { whenIdle } from '@shared/utils/when-idle'
 import { SpofyMainPage } from './spofy'
 import { SpofyFallback } from './spofy/spofy-fallback'
-
-// Only browsers with no native vibration (iPhone) need the polyfill.
-if (!('vibrate' in navigator)) {
-    whenIdle(() => {
-        import('ios-vibrator-pro-max')
-            .then(({ enableMainThreadBlocking }) => enableMainThreadBlocking(false))
-            .catch(() => undefined)
-    })
-}
 
 export function App() {
     return (
