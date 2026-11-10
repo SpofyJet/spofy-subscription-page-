@@ -80,6 +80,7 @@
 
 .sectionTitle {
     margin: 0;
+    font-family: var(--sp-font-display);
     font-size: 17px;
     font-weight: 700;
     line-height: 1.25;
@@ -125,8 +126,8 @@
     border-radius: 16px;
     border: 1px solid transparent;
     font: inherit;
-    font-size: 15.5px;
-    font-weight: 650;
+    font-size: 15px;
+    font-weight: 600;
     line-height: 1.2;
     text-align: center;
     text-decoration: none;
@@ -187,7 +188,7 @@
 }
 
 .btnPrice s {
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 600;
     opacity: 0.7;
 }
@@ -334,7 +335,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     color: var(--sp-text-2);
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 500;
     line-height: 1.3;
 }
@@ -463,6 +464,7 @@
 
 .statusTitle {
     margin: 0;
+    font-family: var(--sp-font-display);
     font-size: 21px;
     font-weight: 700;
     line-height: 1.2;
@@ -487,7 +489,7 @@
     border-radius: 999px;
     background: var(--sp-trial-soft);
     color: var(--sp-trial-text);
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 700;
 }
 
@@ -495,7 +497,7 @@
     position: relative;
     margin: 0;
     color: var(--sp-text-2);
-    font-size: 14.5px;
+    font-size: 14px;
 }
 
 .statusActions {
@@ -587,8 +589,9 @@
     margin: 0;
     padding: 0;
     list-style: none;
-    border-radius: 16px;
-    background: var(--sp-row);
+    /* 11.11: no panel inside the status card — the rows are split by lines only */
+    border-radius: 0;
+    background: transparent;
     border: 0;
 }
 
@@ -596,7 +599,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    padding: 10px 10px 10px 12px;
+    padding: 10px 0;
 }
 
 .row + .row {
@@ -642,7 +645,7 @@
 .rowLabel {
     display: block;
     color: var(--sp-text-2);
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 600;
     line-height: 1.3;
 }
@@ -656,10 +659,11 @@
 
 .rowValue {
     display: flex;
+    font-family: var(--sp-font-display);
     flex-wrap: wrap;
     align-items: baseline;
     gap: 0 8px;
-    font-size: 16.5px;
+    font-size: 16px;
     font-weight: 700;
     line-height: 1.3;
 }
@@ -673,6 +677,7 @@
 }
 
 .rowValueSub {
+    font-family: var(--sp-font);
     color: var(--sp-text-2);
     font-size: 14px;
     font-weight: 600;
@@ -683,13 +688,13 @@
     padding: 0 10px 0 8px;
     gap: 5px;
     border-radius: 12px;
-    font-size: 15.5px;
+    font-size: 15px;
 }
 
 .rowHint {
     margin: 0 0 2px 46px;
     color: var(--sp-text-2);
-    font-size: 14.5px;
+    font-size: 14px;
 }
 
 .bar {
@@ -705,8 +710,8 @@
     display: block;
     height: 100%;
     border-radius: inherit;
-    /* state colour, like the cabinet: green while there is room (blue is for buttons) */
-    background: var(--sp-success);
+    /* like the cabinet (11.11): blue while there is room; green is kept for the «VPN works» status */
+    background: var(--sp-accent-text);
 }
 
 .bar[data-tone='warning'] > span {
@@ -763,7 +768,7 @@
     align-items: flex-start;
     gap: 10px;
     min-width: 0;
-    font-size: 15.5px;
+    font-size: 15px;
     font-weight: 600;
 }
 
@@ -784,7 +789,7 @@
     margin: -4px;
     padding: 4px;
     border: 0;
-    border-radius: 18px;
+    border-radius: 16px;
     background: none;
     color: inherit;
     font: inherit;
@@ -797,24 +802,17 @@
 .connectHeadIcon {
     display: grid;
     place-items: center;
-    width: 44px;
+    /* 11.11: icon without a tile, the same 24px open or folded — the title never jumps sideways */
+    width: 24px;
     height: 44px;
     flex-shrink: 0;
-    border-radius: 14px;
-    background: var(--sp-accent);
-    color: var(--sp-on-accent);
+    background: transparent;
+    color: var(--sp-accent-text);
 }
 
 /* every step done on this device */
 .connectHeadIcon[data-done] {
-    background: var(--sp-success-soft);
     color: var(--sp-success-text);
-}
-
-/* folded for someone who already has a device: a quiet row in the palette blue, not a call to action */
-.connect:not([data-open]) .connectHeadIcon:not([data-done]) {
-    background: var(--sp-accent-soft);
-    color: var(--sp-accent-text);
 }
 
 .connectBody {
@@ -850,7 +848,7 @@
 }
 
 .deviceLineName {
-    font-size: 15.5px;
+    font-size: 15px;
     font-weight: 700;
     line-height: 1.3;
 }
@@ -860,7 +858,7 @@
     gap: 6px;
     margin: -6px 0 -4px;
     color: var(--sp-text-2);
-    font-size: 14.5px;
+    font-size: 14px;
 }
 
 .collapsedText {
@@ -1005,7 +1003,7 @@
     height: 30px;
     flex-shrink: 0;
     overflow: hidden;
-    border-radius: 9px;
+    border-radius: 10px;
     background: var(--sp-icon-tile);
     color: #ffffff;
 }
@@ -1049,8 +1047,8 @@
     background: transparent;
     color: var(--sp-text);
     font: inherit;
-    font-size: 15.5px;
-    font-weight: 650;
+    font-size: 15px;
+    font-weight: 600;
     text-align: left;
     cursor: pointer;
 }
@@ -1135,7 +1133,7 @@
 
 .stepTitle {
     margin: 0;
-    font-size: 16.5px;
+    font-size: 16px;
     font-weight: 700;
     line-height: 1.3;
 }
@@ -1236,11 +1234,12 @@
     --hue: 37, 99, 235;
     display: grid;
     place-items: center;
-    width: 44px;
+    width: 24px;
     height: 44px;
     flex-shrink: 0;
     border-radius: 12px;
-    background: var(--sp-accent-soft);
+    /* 11.11: icon without a tile — the tile under every row icon was noise */
+    background: transparent;
     /* one blue for every row icon; only the green "ok" row keeps its own hue */
     color: var(--sp-accent-text);
 }
@@ -1276,13 +1275,13 @@
 }
 
 .listTitle {
-    font-size: 15.5px;
-    font-weight: 650;
+    font-size: 15px;
+    font-weight: 600;
 }
 
 .listCaption {
     color: var(--sp-text-2);
-    font-size: 13.5px;
+    font-size: 13px;
     overflow-wrap: anywhere;
 }
 
@@ -1304,9 +1303,9 @@
 }
 
 .modalTitle {
-    font-family: var(--sp-font) !important;
+    font-family: var(--sp-font-display) !important;
     font-size: 18px !important;
-    font-weight: 800 !important;
+    font-weight: 700 !important;
 }
 
 .modalClose {
@@ -1324,7 +1323,7 @@
     max-width: 280px;
     aspect-ratio: 1;
     margin: 0 auto;
-    border-radius: 18px;
+    border-radius: 16px;
     background: #ffffff;
 }
 
@@ -1351,7 +1350,7 @@
     display: flex;
     align-items: stretch;
     width: 100%;
-    border-radius: 18px;
+    border-radius: 16px;
     border: 0;
     background: var(--sp-accent-soft);
     color: var(--sp-text);
@@ -1404,7 +1403,7 @@
     border: 0;
     background: var(--sp-warning-soft);
     color: var(--sp-text);
-    font-size: 15.5px;
+    font-size: 15px;
     line-height: 1.4;
 }
 
@@ -1477,7 +1476,7 @@
 .fallbackTitle {
     margin: 0 0 8px;
     font-size: 23px;
-    font-weight: 800;
+    font-weight: 700;
     line-height: 1.25;
 }
 
@@ -1557,7 +1556,7 @@
     flex-shrink: 0;
     width: 40px;
     height: 40px;
-    border-radius: 13px;
+    border-radius: 12px;
     background: var(--sp-accent-soft);
     color: var(--sp-accent-text);
 }
@@ -1614,7 +1613,7 @@
 .coHint {
     margin: 0;
     color: var(--sp-text-2);
-    font-size: 14.5px;
+    font-size: 14px;
     line-height: 1.45;
 }
 
@@ -1731,8 +1730,8 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 4px 8px;
-    font-size: 16.5px;
-    font-weight: 750;
+    font-size: 16px;
+    font-weight: 700;
     line-height: 1.25;
 }
 
@@ -1764,7 +1763,7 @@
 
 .optPrice s {
     color: var(--sp-text-2);
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 600;
 }
 
@@ -1792,7 +1791,7 @@
     width: 36px;
     height: 36px;
     flex-shrink: 0;
-    border-radius: 11px;
+    border-radius: 12px;
     background: rgba(var(--hue), 0.16);
     color: rgb(var(--hue));
 }
@@ -1882,7 +1881,7 @@
 .periodName {
     min-width: 0;
     font-size: 15px;
-    font-weight: 750;
+    font-weight: 700;
     line-height: 1.25;
 }
 
@@ -2078,7 +2077,7 @@
 }
 
 .coWillBe {
-    font-size: 15.5px;
+    font-size: 15px;
     font-weight: 700;
 }
 
@@ -2122,7 +2121,7 @@
     width: 100%;
     min-height: 56px;
     border-radius: 16px;
-    font-size: 16.5px;
+    font-size: 16px;
 }
 
 .coSecure {
@@ -2145,7 +2144,7 @@
     background: none;
     color: var(--sp-accent-text);
     font: inherit;
-    font-size: 15.5px;
+    font-size: 15px;
     font-weight: 700;
     cursor: pointer;
 }
@@ -2169,7 +2168,7 @@
 }
 
 .coRowTitle {
-    font-size: 16.5px;
+    font-size: 16px;
     font-weight: 700;
 }
 
@@ -2196,7 +2195,7 @@
     border: 0;
     color: var(--sp-error-text);
     font-size: 15px;
-    font-weight: 650;
+    font-weight: 600;
 }
 
 .coErrorText {
@@ -2257,8 +2256,8 @@
     align-items: center;
     gap: 12px;
     color: var(--sp-text-2);
-    font-size: 15.5px;
-    font-weight: 650;
+    font-size: 15px;
+    font-weight: 600;
 }
 
 .coStep[data-state='active'] {
@@ -2326,6 +2325,7 @@
 }
 
 .coSuccessTitle {
+    font-family: var(--sp-font-display);
     font-size: 20px;
     font-weight: 700;
 }
@@ -2481,7 +2481,7 @@
     }
 
     .brand {
-        font-size: 16.5px;
+        font-size: 16px;
     }
 
     .periodGrid {
@@ -2514,7 +2514,7 @@
 
 .supportCaption {
     color: var(--sp-text-2);
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 400;
 }
 
@@ -2559,7 +2559,7 @@
 .manualCopyHead {
     display: flex;
     gap: 8px;
-    font-size: 15.5px;
+    font-size: 15px;
     font-weight: 700;
     line-height: 1.4;
 }
