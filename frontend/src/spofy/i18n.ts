@@ -332,6 +332,7 @@ const ru = {
     rowDevices: 'Устройства',
     rowTraffic: 'Трафик для «Обхода»',
     rowOf: '{used} из {limit}',
+    rowBypassOver: 'закончился',
     rowUnlimited: 'без лимита',
     rowUsed: 'израсходовано {used}',
     rowAdd: 'Добавить',

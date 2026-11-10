@@ -298,6 +298,7 @@ const en: TDict = {
     rowDevices: 'Devices',
     rowTraffic: 'Traffic for «Bypass»',
     rowOf: '{used} of {limit}',
+    rowBypassOver: 'used up',
     rowUnlimited: 'unlimited',
     rowUsed: '{used} used',
     rowAdd: 'Add',

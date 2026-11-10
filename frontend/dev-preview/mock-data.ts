@@ -379,7 +379,8 @@ export function panelPayload(scenario: TScenario, shortUuid: string) {
             })
             break
         case 'bypass':
-            Object.assign(user, { trafficUsedBytes: String(100 * GB) })
+            // как на проде: в Bypass-Off бот снимает лимит в панели, квота — только в ответе бота
+            Object.assign(user, { trafficUsedBytes: String(100 * GB), trafficLimitBytes: '0' })
             Object.assign(spofy, { bypassDisabled: true })
             break
         case 'lowtraffic':

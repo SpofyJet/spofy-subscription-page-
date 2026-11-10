@@ -2604,3 +2604,8 @@
     scroll-margin-top: 12px;
     scroll-margin-bottom: 140px;
 }
+
+/* Описание тарифа в боте записано по строкам: здесь переносы те же, а не одна сплошная фраза. */
+.preLine {
+    white-space: pre-line;
+}

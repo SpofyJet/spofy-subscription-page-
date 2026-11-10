@@ -111,8 +111,10 @@ export function usePageModel(): IPageModel {
     })
     const link = (url: null | string): IAction | null => (url ? { href: url } : null)
 
-    // The panel's limit is what the person sees counted on this page — the only source used here.
-    const hasTrafficLimit = toNumber(user.trafficLimitBytes) > 0
+    // The panel's limit is what the person sees counted on this page. Exception: with «Обход»
+    // used up the bot lifts the panel limit (regular servers count ×0) — the quota is in the offer.
+    const bypassQuotaGb = spofy.bypassDisabled ? (offer?.subscription.traffic_limit_gb ?? 0) : 0
+    const hasTrafficLimit = toNumber(user.trafficLimitBytes) > 0 || bypassQuotaGb > 0
 
     const renew: IAction | null = inPage ? sheet('renew') : link(spofy.renewUrl)
 

@@ -1111,7 +1111,9 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                                         <span className={classes.optMain}>
                                             <span className={classes.optTitle}>{x.name}</span>
                                             {about && (
-                                                <span className={classes.optMeta}>{about}</span>
+                                                <span className={clsx(classes.optMeta, classes.preLine)}>
+                                                    {about}
+                                                </span>
                                             )}
                                         </span>
                                         {xFrom !== null ? (
@@ -1148,7 +1150,9 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                                     : t('coUnlimited')}
                             </span>
                         </div>
-                        {(tariff.description ?? '').trim() && <p>{tariff.description!.trim()}</p>}
+                        {(tariff.description ?? '').trim() && (
+                            <p className={classes.preLine}>{tariff.description!.trim()}</p>
+                        )}
                     </div>
                     {periodList(tariff.periods, tariffPeriod, setTariffPeriod)}
                 </>

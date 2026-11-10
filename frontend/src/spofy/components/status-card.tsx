@@ -512,8 +512,17 @@ function TrafficRow({
 }) {
     const { user } = useSubscription()
     const { t, lang } = useSpofyT()
-    const used = toNumber(user.trafficUsedBytes)
-    const limit = toNumber(user.trafficLimitBytes)
+    const bypassOff = useSpofyData().bypassDisabled
+    const quotaGb = useCheckoutStore((s) => s.offer)?.subscription.traffic_limit_gb ?? 0
+    let used = toNumber(user.trafficUsedBytes)
+    let limit = toNumber(user.trafficLimitBytes)
+    // «Обход» used up: the bot lifts the panel limit, so the row would say «без лимита».
+    // Show the quota from the bot as fully used instead.
+    const quotaGone = bypassOff && limit <= 0
+    if (quotaGone && quotaGb > 0) {
+        limit = quotaGb * 1024 ** 3
+        used = Math.max(used, limit)
+    }
     const hasReset = !!user.trafficLimitStrategy && user.trafficLimitStrategy !== 'NO_RESET'
     const resetKey = `trafficReset${user.trafficLimitStrategy}` as TSpofyKey
     const resetAt = nextReset(useCheckoutStore((s) => s.offer)?.subscription.traffic_reset_at)
@@ -522,6 +531,21 @@ function TrafficRow({
         : hasReset
           ? `${t('hintTraffic')} ${t(resetKey)}.`
           : t('hintTraffic')
+
+    if (quotaGone && limit <= 0) {
+        return (
+            <StatRow
+                action={action}
+                actionLabel={t('rowBuy')}
+                external={external}
+                hint={hint}
+                icon={<IconArrowsUpDown size={18} stroke={1.9} />}
+                label={t('rowTraffic')}
+                tone="error"
+                value={t('rowBypassOver')}
+            />
+        )
+    }
 
     if (limit <= 0) {
         return (
