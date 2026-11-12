@@ -55,7 +55,7 @@ const ru = {
 
     connectTitle: 'Подключите устройство',
     platform: 'Платформа',
-    recommended: 'Рекомендуем',
+    recommended: 'Советуем',
     install: 'Установить',
     addSubscription: 'Добавить подписку',
     howTo: 'Как подключиться',

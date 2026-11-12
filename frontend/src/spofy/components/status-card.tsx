@@ -558,9 +558,12 @@ function TrafficRow({
                 value={
                     <>
                         {t('rowUnlimited')}
-                        <span className={classes.rowValueSub}>
-                            {t('rowUsed', { used: formatBytes(used, lang) })}
-                        </span>
+                        {/* nothing spent yet: «израсходовано 0 Б» says nothing, leave it out */}
+                        {used > 0 && (
+                            <span className={classes.rowValueSub}>
+                                {t('rowUsed', { used: formatBytes(used, lang) })}
+                            </span>
+                        )}
                     </>
                 }
             />

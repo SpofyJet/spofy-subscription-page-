@@ -144,50 +144,50 @@
 
 @media (prefers-color-scheme: dark) {
     :root {
-        /* v12, same as the cabinet: the owner's palette on navy — Primary #0B1F3B is the page,
-           cards are one step lighter. */
-        --sp-bg: #0b1f3b;
-        --sp-surface: #142d52;
-        --sp-text: #f0f7ff;
-        --sp-text-2: #a9c2e3;
-        --sp-border: rgba(96, 165, 250, 0.18);
-        --sp-border-strong: rgba(96, 165, 250, 0.32);
-        --sp-subtle: rgba(26, 54, 98, 0.6);
-        --sp-subtle-hover: rgba(26, 54, 98, 0.95);
+        /* «Ink» (12.11), same as the cabinet: a near-black blue page and neutral cards one step
+           lighter, so the blue on the screen is the main button and the links, not the walls. */
+        --sp-bg: #070d1a;
+        --sp-surface: #101729;
+        --sp-text: #f3f6fb;
+        --sp-text-2: #a4b3ca;
+        --sp-border: rgba(143, 176, 224, 0.12);
+        --sp-border-strong: rgba(143, 176, 224, 0.24);
+        --sp-subtle: rgba(26, 39, 64, 0.6);
+        --sp-subtle-hover: rgba(26, 39, 64, 0.95);
 
-        /* Main button on navy: Secondary with a navy label (6.5:1). Accent #2563EB on a dark card
-           is only 2.5:1, it would sink exactly where it has to stand out. */
+        /* Main button on a dark page: Secondary with a navy label (6.5:1). Accent #2563EB on a
+           dark card is only 2.7:1 and loses the blur test (0.33 against 0.41), so it stays light. */
         --sp-cta: #60a5fa;
         --sp-cta-hover: #93c5fd;
         --sp-on-cta: #0b1f3b;
 
-        --sp-surface-2: #17315a;
+        --sp-surface-2: #141f34;
         --sp-accent-soft: rgba(96, 165, 250, 0.14);
         --sp-success-soft: rgba(34, 197, 94, 0.12);
         --sp-brand-soft: rgba(255, 64, 64, 0.1);
         --sp-brand-line: rgba(255, 64, 64, 0.24);
-        --sp-icon-tile: #1a3662;
+        --sp-icon-tile: #1a2740;
 
-        --sp-glass: #142d52;
-        --sp-glass-border: rgba(96, 165, 250, 0.18);
+        --sp-glass: #101729;
+        --sp-glass-border: rgba(143, 176, 224, 0.12);
         --sp-card-shadow: none;
-        --sp-inner: rgba(26, 54, 98, 0.55);
-        --sp-inner-border: rgba(96, 165, 250, 0.16);
+        --sp-inner: rgba(26, 39, 64, 0.55);
+        --sp-inner-border: rgba(143, 176, 224, 0.12);
         --sp-aurora-opacity: 0.7;
         --sp-grid-line: rgba(255, 255, 255, 0.035);
         --sp-sale: #34e08f;
         --sp-step-mix: 100%;
 
-        --sp-track: rgba(96, 165, 250, 0.28);
+        --sp-track: rgba(143, 176, 224, 0.2);
         --sp-trial-text: #93c5fd;
         --sp-trial-soft: rgba(96, 165, 250, 0.16);
         --sp-saving: #3ddc97;
         --sp-saving-soft: rgba(34, 181, 115, 0.14);
-        --sp-row: rgba(26, 54, 98, 0.55);
-        --sp-row-border: rgba(96, 165, 250, 0.16);
-        --sp-sheet: #142d52;
-        --sp-btn-2: #1a3662;
-        --sp-btn-2-border: rgba(96, 165, 250, 0.18);
+        --sp-row: rgba(26, 39, 64, 0.55);
+        --sp-row-border: rgba(143, 176, 224, 0.12);
+        --sp-sheet: #101729;
+        --sp-btn-2: #1a2740;
+        --sp-btn-2-border: rgba(143, 176, 224, 0.12);
 
         --sp-accent-text: #60a5fa;
         --sp-success-text: #4ade80;
@@ -198,10 +198,10 @@
         --sp-error-soft: rgba(239, 68, 68, 0.08);
         --sp-error-line: rgba(239, 68, 68, 0.3);
 
+        /* one blue glow from the top (the cabinet has the same); the cyan one from below is gone */
         --sp-glow:
-            radial-gradient(140% 70% at 110% 105%, rgba(34, 211, 238, 0.22), transparent 60%),
-            radial-gradient(120% 75% at -15% 88%, rgba(37, 99, 235, 0.45), transparent 64%),
-            radial-gradient(90% 45% at 60% -10%, rgba(30, 64, 175, 0.25), transparent 70%);
+            radial-gradient(120% 55% at 50% -12%, rgba(37, 99, 235, 0.4), transparent 64%),
+            radial-gradient(90% 40% at 105% 108%, rgba(37, 99, 235, 0.14), transparent 62%);
     }
 }
 

@@ -53,14 +53,14 @@ export function renderSpofyPage(options: {
 <meta name="robots" content="noindex,nofollow">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f0f7ff" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0b1f3b" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#070d1a" media="(prefers-color-scheme: dark)">
 <title>${t.title.includes('Spofy') ? t.title : `Spofy VPN · ${t.title}`}</title>
 <link rel="icon" href="/spofy-public/favicon.svg" type="image/svg+xml">
 <style>
 @font-face{font-family:'Manrope Variable';font-display:swap;font-weight:200 800;src:url(/spofy-public/fonts/manrope-cyrillic.woff2) format('woff2-variations');unicode-range:U+0400-045F,U+0490-0491,U+2116}
 @font-face{font-family:'Manrope Variable';font-display:swap;font-weight:200 800;src:url(/spofy-public/fonts/manrope-latin.woff2) format('woff2-variations');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
 :root{--bg:#f0f7ff;--card:#fff;--text:#0b1f3b;--muted:#3d5a80;--cta:#2563eb;--on-cta:#fff;--btn2:#dbeafe;--btn2t:#0b1f3b;--err:#c4262b;--info:#2563eb}
-@media(prefers-color-scheme:dark){:root{--bg:#0b1f3b;--card:#142d52;--text:#f0f7ff;--muted:#a9c2e3;--cta:#60a5fa;--on-cta:#0b1f3b;--btn2:#1a3662;--btn2t:#f0f7ff;--err:#f87171;--info:#60a5fa}}
+@media(prefers-color-scheme:dark){:root{--bg:#070d1a;--card:#101729;--text:#f3f6fb;--muted:#a4b3ca;--cta:#60a5fa;--on-cta:#0b1f3b;--btn2:#1a2740;--btn2t:#f3f6fb;--err:#f87171;--info:#60a5fa}}
 *{box-sizing:border-box}
 body{margin:0;min-height:100dvh;background:var(--bg);color:var(--text);font:16px/1.5 'Manrope Variable',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;-webkit-text-size-adjust:100%}
 .w{width:100%;max-width:560px;margin:0 auto;padding:calc(8px + env(safe-area-inset-top)) 14px 28px}

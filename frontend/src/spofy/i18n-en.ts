@@ -39,7 +39,7 @@ const en: TDict = {
     bypassText: 'Bypass servers are off — traffic limit reached. Regular servers still work.',
     connectTitle: 'Connect your device',
     platform: 'Platform',
-    recommended: 'Recommended',
+    recommended: 'Our pick',
     install: 'Install',
     addSubscription: 'Add subscription',
     howTo: 'How to connect',

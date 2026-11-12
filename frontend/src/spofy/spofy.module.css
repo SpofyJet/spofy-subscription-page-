@@ -920,7 +920,7 @@
     padding: 8px 4px;
 }
 
-/* an app: icon on the left, the name and «Рекомендуем» stacked on the right */
+/* an app: icon on the left, the name and «Советуем» stacked on the right */
 .chipApp {
     justify-content: flex-start;
     min-height: 56px;
@@ -936,7 +936,7 @@
     min-width: 0;
 }
 
-/* a phone narrower than 390: one app per row, so «Рекомендуем» always fits
+/* a phone narrower than 390: one app per row, so the badge always fits
    (at 360 the badge is wider than half a row and ran over the next tile) */
 @media (max-width: 389px) {
     .chips[data-variant='app'] {

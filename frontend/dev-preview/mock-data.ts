@@ -302,6 +302,7 @@ export type TScenario =
     | 'trial'
     | 'ultima'
     | 'unlimited'
+    | 'unused'
 
 export const SCENARIOS: TScenario[] = [
     'active',
@@ -314,6 +315,7 @@ export const SCENARIOS: TScenario[] = [
     'devicesfull',
     'nodevices',
     'unlimited',
+    'unused',
     'ultima',
     'nocheckout'
 ]
@@ -400,6 +402,11 @@ export function panelPayload(scenario: TScenario, shortUuid: string) {
             })
             Object.assign(spofy, { devicesLimit: 5, devicesUsed: 1 })
             break
+        case 'unused':
+            // a fresh «Стандартный»: no limit and nothing spent yet
+            Object.assign(user, { trafficLimitBytes: '0', trafficUsedBytes: '0' })
+            Object.assign(spofy, { devicesLimit: 3, devicesUsed: 1 })
+            break
         case 'ultima':
             Object.assign(user, {
                 daysLeft: 2222,
@@ -476,7 +483,9 @@ const TRAFFIC_PACKS = [
     { gb: 150, price_kopeks: 45_000 }
 ]
 
-export function offer(scenario: TScenario) {
+export function offer(requested: TScenario) {
+    // «unused» is the unlimited tariff with zero usage: same offer
+    const scenario: TScenario = requested === 'unused' ? 'unlimited' : requested
     const trial = scenario === 'trial'
     const now = Date.now()
     const end = endOf(scenario, now)

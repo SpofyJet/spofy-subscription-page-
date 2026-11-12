@@ -391,7 +391,7 @@ export function ConnectSection({
 /**
  * Choice tiles (radio group), all visible at once — no sideways scrolling: on a phone a swipe on
  * a scrolling row dragged the whole page into the empty space on the right.
- * Systems are tiles (icon above the name), apps are two halves (icon + name + «Рекомендуем»).
+ * Systems are tiles (icon above the name), apps are two halves (icon + name + «Советуем»).
  */
 function ChipGroup(props: {
     items: { icon: React.ReactNode; key: string; label: string; tag?: string }[]
