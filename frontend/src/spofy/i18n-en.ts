@@ -215,7 +215,7 @@ const en: TDict = {
     coTrafficWhatLimited:
         'Traffic is used up, so the VPN is stopped. It works again right after payment. Bought gigabytes last until the limit reset day — the day you bought the subscription.',
     coTrafficAfter: 'After the purchase you will have {gb}',
-    coRecommended: 'Recommended',
+    coRecommended: 'Our pick',
     coDoneHint: 'Refresh the page to see your new term and limits.',
     coRefresh: 'Refresh page',
     coTimeout: 'If you have paid, the subscription will update automatically within a few minutes.',

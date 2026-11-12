@@ -59,7 +59,7 @@ export function cheapestPerMonth(
 }
 
 /**
- * The period to preselect and mark «Рекомендуем»: the one the bot marks with a star, else 3 months
+ * The period to preselect and mark «Советуем»: the one the bot marks with a star, else 3 months
  * (owner's decision 23.10.2026), else 1 month, else the first. Never the shortest by accident —
  * 14 days is the dearest per month.
  */

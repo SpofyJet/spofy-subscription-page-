@@ -540,7 +540,7 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
             o.original_price_kopeks ? Math.max(0, o.original_price_kopeks - o.price_kopeks) : 0
         )
     }
-    // one badge: «Рекомендуем» on the period the bot stars, else 3 months (owner's decision)
+    // one badge: «Советуем» on the period the bot stars, else 3 months (owner's decision)
     const recommended = periodOptions.length > 1 ? defaultPeriod(periodOptions)?.period_days : null
     const saving = tab === 'renew' ? savingOf(selectedPeriod) : 0
 

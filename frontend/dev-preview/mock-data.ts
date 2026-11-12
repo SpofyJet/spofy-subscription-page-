@@ -10,7 +10,7 @@ const DAY = 86_400_000
 export function endOf(scenario: string, now = Date.now()): number {
     if (scenario === 'expired') return now - 3 * DAY
     if (scenario === 'expiring') return now + 2 * DAY + 3600_000
-    if (scenario === 'trial') return now + 2 * DAY + 5 * 3600_000
+    if (scenario === 'trial' || scenario === 'trialnew') return now + 2 * DAY + 5 * 3600_000
     // ULTIMA «навсегда»: the bot writes it as 2222 days
     if (scenario === 'ultima') return now + 2222 * DAY
     return now + 24 * DAY + 3 * 3600_000
@@ -300,6 +300,7 @@ export type TScenario =
     | 'nocheckout'
     | 'nodevices'
     | 'trial'
+    | 'trialnew'
     | 'ultima'
     | 'unlimited'
     | 'unused'
@@ -307,6 +308,7 @@ export type TScenario =
 export const SCENARIOS: TScenario[] = [
     'active',
     'trial',
+    'trialnew',
     'expiring',
     'expired',
     'limited',
@@ -358,6 +360,16 @@ export function panelPayload(scenario: TScenario, shortUuid: string) {
                 trafficLimitBytes: '0'
             })
             Object.assign(spofy, { devicesLimit: 1, devicesUsed: 1 })
+            break
+        case 'trialnew':
+            // a trial opened right after registration: nothing connected, nothing spent
+            Object.assign(user, {
+                daysLeft: 2,
+                expiresAt: new Date(endOf(scenario, now)).toISOString(),
+                trafficUsedBytes: '0',
+                trafficLimitBytes: '0'
+            })
+            Object.assign(spofy, { devicesLimit: 1, devicesUsed: 0 })
             break
         case 'expiring':
             Object.assign(user, {
@@ -484,8 +496,9 @@ const TRAFFIC_PACKS = [
 ]
 
 export function offer(requested: TScenario) {
-    // «unused» is the unlimited tariff with zero usage: same offer
-    const scenario: TScenario = requested === 'unused' ? 'unlimited' : requested
+    // «unused» is the unlimited tariff with zero usage, «trialnew» a trial with no device: same offers
+    const scenario: TScenario =
+        requested === 'unused' ? 'unlimited' : requested === 'trialnew' ? 'trial' : requested
     const trial = scenario === 'trial'
     const now = Date.now()
     const end = endOf(scenario, now)

@@ -2,9 +2,9 @@
  * Local preview stand — every subscription state without a panel or a bot.
  *
  *   npx vite --config dev-preview/vite.preview.config.ts
- *   open http://localhost:3334/active/demo7Kx2pQ9mZ4aB   (active | trial | expiring | expired |
- *     limited | bypass | lowtraffic | devicesfull | nodevices | unlimited | unused | nocheckout |
- *     invalid)
+ *   open http://localhost:3334/active/demo7Kx2pQ9mZ4aB   (active | trial | trialnew | expiring |
+ *     expired | limited | bypass | lowtraffic | devicesfull | nodevices | unlimited | unused |
+ *     nocheckout | invalid)
  *
  * Dev-only: not used by `npm run start:build` and not copied into the Docker image.
  */
