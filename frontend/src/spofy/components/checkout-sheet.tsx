@@ -363,10 +363,11 @@ function methodKind(m: IOffer['payment_methods'][number]): TMethodKind {
     if (/heleket|crypt|ton|usdt|bitcoin|cashera/.test(id)) return 'crypto'
     if (id.includes('star')) return 'stars'
     if (optionIds.includes('sbp') && !optionIds.some((o) => o.includes('card'))) return 'sbp'
-    if (id.includes('sbp')) return 'sbp'
+    // WATA takes SBP payments only — the SBP sign, not the card one
+    if (id.includes('sbp') || id.includes('wata')) return 'sbp'
     if (
         optionIds.some((o) => o.includes('card') || o === 'sbp') ||
-        /card|yookassa|pal24|platega|wata|mulen|freekassa|cloudpayments|tribute/.test(id)
+        /card|yookassa|pal24|platega|mulen|freekassa|cloudpayments|tribute/.test(id)
     )
         return 'card'
     return 'other'
