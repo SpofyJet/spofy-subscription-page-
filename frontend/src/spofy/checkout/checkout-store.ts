@@ -89,6 +89,28 @@ export function saveMethod(id: string) {
     }
 }
 
+/**
+ * «no_session» on the very first request means the browser showed this page from its own copy
+ * without asking the server — an iPhone does it when it brings a tab back hours later. The copy
+ * is old and its 30-minute session cookie is gone, so nothing here can work until the page is
+ * loaded for real. Do that once: a real load gets fresh data and a fresh cookie.
+ * Never a loop — at most one reload a minute, and none when the mark cannot be stored.
+ */
+const RELOADED_KEY = 'spofy.subpage.reloaded'
+const RELOAD_EVERY_MS = 60_000
+function reloadForSession(): boolean {
+    try {
+        const last = Number(sessionStorage.getItem(RELOADED_KEY) ?? 0)
+        if (Date.now() - last < RELOAD_EVERY_MS) return false
+        sessionStorage.setItem(RELOADED_KEY, String(Date.now()))
+        if (!sessionStorage.getItem(RELOADED_KEY)) return false
+    } catch {
+        return false
+    }
+    window.location.reload()
+    return true
+}
+
 /** What to tell the person. `phase` = loading the options or creating the payment. */
 export const errorKey = (error: unknown, phase: 'checkout' | 'offer' = 'checkout'): TSpofyKey => {
     if (!(error instanceof CheckoutError)) return phase === 'offer' ? 'coErrLoad' : 'coErrGeneric'
@@ -178,6 +200,15 @@ export const useCheckoutStore = create<IStore>()((set, get) => ({
         checkoutApi
             .offer(shortUuid)
             .then((next) => set({ offer: next, offerLoading: false }))
-            .catch((error) => set({ offerError: errorKey(error, 'offer'), offerLoading: false }))
+            .catch((error) => {
+                // a page from the browser's copy: reload it (the loading state stays meanwhile)
+                if (
+                    error instanceof CheckoutError &&
+                    error.code === 'no_session' &&
+                    reloadForSession()
+                )
+                    return
+                set({ offerError: errorKey(error, 'offer'), offerLoading: false })
+            })
     }
 }))

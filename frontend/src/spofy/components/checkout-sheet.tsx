@@ -267,12 +267,15 @@ function ErrorBox({
     renewUrl: null | string
 }) {
     const { t } = useSpofyT()
+    // The session is gone: asking again answers the same — only loading the page anew helps.
+    const sessionGone = key === 'coErrSession'
     const botFallback =
         !!renewUrl &&
         (key === 'coErrDisabled' ||
             key === 'coErrBot' ||
             key === 'coErrNotInBot' ||
-            key === 'coErrLoad')
+            key === 'coErrLoad' ||
+            sessionGone)
     return (
         <div className={classes.coError} role="alert">
             <IconAlertCircle aria-hidden size={20} />
@@ -280,17 +283,32 @@ function ErrorBox({
                 {t(key)}
                 {detail ? ` (${detail})` : ''}
             </span>
-            {(onRetry || botFallback) && (
+            {(onRetry || botFallback || sessionGone) && (
                 <div className={classes.coErrorActions}>
-                    {onRetry && (
+                    {sessionGone ? (
                         <button
                             className={clsx(classes.btn, classes.btnSecondary, classes.btnSmall)}
-                            onClick={onRetry}
+                            onClick={() => window.location.reload()}
                             type="button"
                         >
                             <IconRefresh aria-hidden size={16} />
-                            {t('coRetry')}
+                            {t('coReload')}
                         </button>
+                    ) : (
+                        onRetry && (
+                            <button
+                                className={clsx(
+                                    classes.btn,
+                                    classes.btnSecondary,
+                                    classes.btnSmall
+                                )}
+                                onClick={onRetry}
+                                type="button"
+                            >
+                                <IconRefresh aria-hidden size={16} />
+                                {t('coRetry')}
+                            </button>
+                        )
                     )}
                     {botFallback && (
                         <a
