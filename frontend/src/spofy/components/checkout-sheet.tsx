@@ -520,6 +520,29 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
         return () => window.clearTimeout(id)
     }, [stage, tab])
 
+    // The message about a failed payment appears below the list of methods — on a phone that is
+    // under the pay button, so the tap looked like it did nothing. Lift it into view.
+    const errorBox = useRef<HTMLDivElement>(null)
+    useEffect(() => {
+        if (!error) return
+        const id = window.setTimeout(() => {
+            const box = errorBox.current
+            const scroller = box?.closest<HTMLElement>(
+                '[class*="mantine-Drawer-content"], [class*="mantine-Modal-content"]'
+            )
+            if (!box || !scroller) return
+            const footer = scroller.querySelector<HTMLElement>(`.${classes.coFooter}`)
+            const visibleBottom =
+                scroller.getBoundingClientRect().bottom -
+                (footer?.getBoundingClientRect().height ?? 0) -
+                12
+            const overflow = box.getBoundingClientRect().bottom - visibleBottom
+            if (overflow > 0)
+                scroller.scrollTo({ top: scroller.scrollTop + overflow, behavior: 'auto' })
+        }, 60)
+        return () => window.clearTimeout(id)
+    }, [error, errorDetail])
+
     const deviceQuote = deviceQuotes.find((q) => q.devices === devices)
     const deviceFree = tab === 'devices' && !!deviceQuote && deviceQuote.total_price_kopeks === 0
 
@@ -1013,7 +1036,11 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                     )}
                 </div>
 
-                {error && <ErrorBox detail={errorDetail} errorKey={error} renewUrl={renewUrl} />}
+                {error && (
+                    <div ref={errorBox}>
+                        <ErrorBox detail={errorDetail} errorKey={error} renewUrl={renewUrl} />
+                    </div>
+                )}
 
                 <div className={classes.coFooter}>
                     <button
