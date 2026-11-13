@@ -4,13 +4,11 @@ import {
     IconAlertCircle,
     IconArrowLeft,
     IconArrowsUpDown,
-    IconBolt,
     IconCalendarCheck,
     IconCheck,
     IconChevronDown,
     IconClock,
     IconCreditCard,
-    IconCurrencyBitcoin,
     IconDevices,
     IconExternalLink,
     IconLoader2,
@@ -20,15 +18,12 @@ import {
     IconPlus,
     IconQrcode,
     IconRefresh,
-    IconStar,
     IconWallet
 } from '@tabler/icons-react'
 import clsx from 'clsx'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { vibrate } from '@shared/utils/vibrate'
-
-import { MantineScope } from '../mantine-scope'
 
 import { useSubscription } from '@entities/subscription-info-store'
 
@@ -71,10 +66,12 @@ import {
     toNumber
 } from '../format'
 import { TSpofyKey, useSpofyT } from '../i18n'
+import { MantineScope } from '../mantine-scope'
 import { useBackToClose, useSwipeToClose } from '../overlay'
 import { useQrDataUrl } from '../qr'
 import { useSpofyData } from '../spofy-store'
 import classes from '../spofy.module.css'
+import { PaymentMark, paymentMark } from './payment-mark'
 
 const DAY_MS = 86_400_000
 const GIB = 1024 ** 3
@@ -132,7 +129,11 @@ export default function CheckoutSheet({
             : trial
               ? 'coTariffTitle'
               : 'coRenewTitle'
-    const Icon = showPayment ? IconWallet : trial && tab === 'renew' ? IconCreditCard : TAB_ICON[tab]
+    const Icon = showPayment
+        ? IconWallet
+        : trial && tab === 'renew'
+          ? IconCreditCard
+          : TAB_ICON[tab]
     // What the person gets, not how payment works; urgency only when it is true.
     const daysLeft = subscription.user.daysLeft
     const ending =
@@ -348,14 +349,6 @@ const choiceLabel = (name: string) => {
 }
 
 type TMethodKind = 'card' | 'crypto' | 'other' | 'sbp' | 'stars'
-
-const METHOD_ICON: Record<TMethodKind, typeof IconWallet> = {
-    card: IconCreditCard,
-    sbp: IconBolt,
-    crypto: IconCurrencyBitcoin,
-    stars: IconStar,
-    other: IconWallet
-}
 
 function methodKind(m: IOffer['payment_methods'][number]): TMethodKind {
     const id = m.id.toLowerCase()
@@ -936,7 +929,6 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                                     ? 'sbp'
                                     : 'card'
                                 : methodKind(m)
-                            const ChoiceIcon = METHOD_ICON[kind]
                             const checked = m.id === methodId && (!o || o.id === optionId)
                             const name =
                                 kind === 'crypto' ? t('coCrypto') : choiceLabel(o ? o.name : m.name)
@@ -955,13 +947,10 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                                     type="button"
                                 >
                                     {radio}
-                                    <span
-                                        aria-hidden
-                                        className={classes.methodIcon}
-                                        data-kind={kind}
-                                    >
-                                        <ChoiceIcon size={20} stroke={1.9} />
-                                    </span>
+                                    <PaymentMark
+                                        className={classes.methodMark}
+                                        kind={paymentMark(m.id, o?.id)}
+                                    />
                                     <span className={classes.optMain}>
                                         <span className={classes.optTitle}>{name}</span>
                                         {about && kind !== 'card' && kind !== 'sbp' && (
@@ -972,50 +961,39 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                             )
                         })}
                         {allMethods &&
-                            others.map((m) => {
-                                const kind = methodKind(m)
-                                const MethodIcon = METHOD_ICON[kind]
-                                return (
-                                    <button
-                                        aria-checked={m.id === methodId}
-                                        className={classes.opt}
-                                        key={m.id}
-                                        onClick={() => {
-                                            vibrate('tap')
-                                            setMethodId(m.id)
-                                            setSelectedOptionId(m.options?.[0]?.id ?? null)
-                                        }}
-                                        role="radio"
-                                        type="button"
-                                    >
-                                        {radio}
-                                        <span
-                                            aria-hidden
-                                            className={classes.methodIcon}
-                                            data-kind={kind}
-                                        >
-                                            <MethodIcon size={20} stroke={1.9} />
-                                        </span>
-                                        <span className={classes.optMain}>
-                                            <span className={classes.optTitle}>
-                                                {plain(m.name)}
+                            others.map((m) => (
+                                <button
+                                    aria-checked={m.id === methodId}
+                                    className={classes.opt}
+                                    key={m.id}
+                                    onClick={() => {
+                                        vibrate('tap')
+                                        setMethodId(m.id)
+                                        setSelectedOptionId(m.options?.[0]?.id ?? null)
+                                    }}
+                                    role="radio"
+                                    type="button"
+                                >
+                                    {radio}
+                                    <PaymentMark
+                                        className={classes.methodMark}
+                                        kind={paymentMark(m.id)}
+                                    />
+                                    <span className={classes.optMain}>
+                                        <span className={classes.optTitle}>{plain(m.name)}</span>
+                                        {(m.down || plain(m.description)) && (
+                                            <span
+                                                className={clsx(
+                                                    classes.optMeta,
+                                                    m.down && classes.optMetaWarn
+                                                )}
+                                            >
+                                                {m.down ? t('coDownShort') : plain(m.description)}
                                             </span>
-                                            {(m.down || plain(m.description)) && (
-                                                <span
-                                                    className={clsx(
-                                                        classes.optMeta,
-                                                        m.down && classes.optMetaWarn
-                                                    )}
-                                                >
-                                                    {m.down
-                                                        ? t('coDownShort')
-                                                        : plain(m.description)}
-                                                </span>
-                                            )}
-                                        </span>
-                                    </button>
-                                )
-                            })}
+                                        )}
+                                    </span>
+                                </button>
+                            ))}
                     </div>
                     {downNote.map((m) => (
                         <p className={classes.coHint} key={`down-${m.id}`}>
@@ -1048,11 +1026,7 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
 
                 <div className={classes.coFooter}>
                     <button
-                        className={clsx(
-                            classes.btn,
-                            classes.btnPrimary,
-                                        classes.coPayBtn
-                        )}
+                        className={clsx(classes.btn, classes.btnPrimary, classes.coPayBtn)}
                         disabled={busy || price <= 0 || !method}
                         onClick={() => void payAndOpen()}
                         type="button"
@@ -1160,7 +1134,12 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                                         <span className={classes.optMain}>
                                             <span className={classes.optTitle}>{x.name}</span>
                                             {about && (
-                                                <span className={clsx(classes.optMeta, classes.preLine)}>
+                                                <span
+                                                    className={clsx(
+                                                        classes.optMeta,
+                                                        classes.preLine
+                                                    )}
+                                                >
                                                     {about}
                                                 </span>
                                             )}
@@ -1353,7 +1332,7 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
                         className={clsx(
                             classes.btn,
                             classes.btnPrimary,
-                                        classes.btnSplit,
+                            classes.btnSplit,
                             classes.coPayBtn
                         )}
                         disabled={price <= 0}

@@ -1,0 +1,16 @@
+# Third-party material
+
+## Payment marks (`frontend/src/spofy/components/payment-mark.tsx`)
+
+Trademarks belong to their owners and are shown only to name a way to pay.
+
+- Faster Payments System (СБП) — the official sign from the SBP site (https://sbp.nspk.ru, the
+  header logo for phones), © NSPK JSC.
+- Telegram Stars — the star from the open Telegram Web A client
+  (https://github.com/Ajaxy/telegram-tt, `src/assets/icons/star/GoldStarFill.svg`, GPL-3.0).
+- xRocket — the sign from the service's site (https://xrocket.exchange).
+- Visa, Tether — outlines from Simple Icons 16.37.0 (https://simpleicons.org, CC0 1.0), brand
+  colours. Mastercard — two circles in the brand colours.
+
+Changes (2026-11-13): the signs are fitted into a 40×40 field on a white tile, without captions.
+The same set is used in the web cabinet (bedolaga-cabinet, `src/components/PaymentMethodIcon.tsx`).

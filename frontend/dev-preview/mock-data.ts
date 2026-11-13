@@ -445,39 +445,54 @@ export function panelPayload(scenario: TScenario, shortUuid: string) {
     }
 }
 
+/* The methods the bot offers (GET …/spofy-subpage/<id>/offer on 13.11.2026): names and descriptions
+   as people see them, so that the preview shows the real list. */
 const methods = [
     {
-        id: 'platega',
-        name: '💳 Карта / СБП',
-        description: 'Банковская карта или СБП',
-        min_amount_kopeks: 10_000,
-        max_amount_kopeks: 10_000_000,
-        options: [
-            { id: 'sbp', name: 'СБП' },
-            { id: 'card', name: 'Карта' }
-        ]
+        id: 'platega_m2',
+        name: 'Карта / СБП',
+        description: 'СБП или карта российского банка',
+        min_amount_kopeks: 100,
+        max_amount_kopeks: 5_000_000,
+        options: null
     },
     {
-        id: 'heleket',
-        name: '🪙 Криптовалюта Heleket',
-        description: 'USDT, TON, BTC',
-        min_amount_kopeks: 10_000,
-        max_amount_kopeks: 10_000_000,
+        id: 'platega_m12',
+        name: 'Международные карты',
+        description: 'Visa / Mastercard (EUR)',
+        min_amount_kopeks: 100,
+        max_amount_kopeks: 5_000_000,
         options: null
     },
     {
         id: 'telegram_stars',
-        name: '⭐ Telegram Stars',
-        description: 'Оплата звёздами в Telegram',
+        name: 'Telegram Stars',
+        description: 'Оплата звёздами Telegram',
         min_amount_kopeks: 100,
+        max_amount_kopeks: 1_000_000,
+        options: null
+    },
+    {
+        id: 'pay2328',
+        name: '2328.io',
+        description: 'USDT, TRX, LTC и другие',
+        min_amount_kopeks: 1_000,
         max_amount_kopeks: 10_000_000,
         options: null
     },
     {
-        id: 'yookassa',
-        name: 'ЮKassa',
-        description: 'Карты РФ, SberPay',
-        min_amount_kopeks: 10_000,
+        id: 'wata',
+        name: 'СБП (WATA)',
+        description: 'В приложении вашего банка',
+        min_amount_kopeks: 1_000,
+        max_amount_kopeks: 10_000_000,
+        options: null
+    },
+    {
+        id: 'xrocket',
+        name: 'xRocket',
+        description: 'USDT, TON, BTC, ETH',
+        min_amount_kopeks: 1_000,
         max_amount_kopeks: 10_000_000,
         options: null
     }

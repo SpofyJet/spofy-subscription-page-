@@ -1784,32 +1784,14 @@
     color: #04140c;
 }
 
-.methodIcon {
-    --hue: 37, 99, 235;
-    display: grid;
-    place-items: center;
+/* payment mark: the official sign on its own white tile (payment-mark.tsx), brand colours as they are */
+.methodMark {
+    display: block;
     width: 36px;
     height: 36px;
     flex-shrink: 0;
-    border-radius: 12px;
-    background: rgba(var(--hue), 0.16);
-    color: rgb(var(--hue));
-}
-
-.methodIcon[data-kind='card'] {
-    --hue: 37, 99, 235;
-}
-
-.methodIcon[data-kind='sbp'] {
-    --hue: 37, 99, 235;
-}
-
-.methodIcon[data-kind='crypto'] {
-    --hue: 245, 158, 11;
-}
-
-.methodIcon[data-kind='stars'] {
-    --hue: 234, 179, 8;
+    border-radius: 10px;
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.06);
 }
 
 .coMore {
