@@ -59,6 +59,7 @@ import {
     perMonthKopeks
 } from '../checkout/offer-utils'
 import { markPayOpened, TPhase } from '../checkout/pending'
+import { rememberReturnAddress } from '../checkout/return'
 import {
     countOf,
     formatBytes,
@@ -660,6 +661,8 @@ function Chooser({ offer, renewUrl }: { offer: IOffer; renewUrl: null | string }
             })
             vibrate('tap')
             saveMethod(method.id)
+            // before the payment page opens: its «return» comes back to this page's address
+            rememberReturnAddress()
             setPending({
                 createdAt: Date.now(),
                 kind,

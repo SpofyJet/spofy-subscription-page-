@@ -19,10 +19,13 @@ const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (c) => `&#${c.ch
 export const PREVIEW_FALLBACK_TITLE = 'Spofy VPN — ваша подписка';
 export const PREVIEW_FALLBACK_DESCRIPTION = 'Статус подписки и подключение VPN за минуту';
 
+/** The page's public address when the request does not say it (the header filter drops Host). */
+export const SITE_ORIGIN = 'https://sub.spofyltd.ru';
+
 /** Origin for absolute og:image/og:url, from the Host the proxy passed; never trusted blindly. */
 export function previewOrigin(host: string | undefined): string {
     const clean = (host ?? '').trim().toLowerCase();
-    return /^[a-z0-9.-]+(:\d{1,5})?$/.test(clean) ? `https://${clean}` : 'https://sub.spofyltd.ru';
+    return /^[a-z0-9.-]+(:\d{1,5})?$/.test(clean) ? `https://${clean}` : SITE_ORIGIN;
 }
 
 /**

@@ -34,4 +34,16 @@ for ua in 'Happ/3.2.1/ios CFNetwork/1568.100.1 Darwin/24.0.0' 'v2rayNG/1.10.16' 
     fi
 done
 rm -f /tmp/verify-raw.$$
+
+# 4. the address a payment provider returns to: a browser gets the Spofy screen with the
+#    «go back to the page» script and no session cookie; a VPN app is dropped like on any unknown path
+RET="https://sub.spofyltd.ru/spofy-api/payment/return"
+ret=$("${C[@]}" "${BROWSER[@]}" "$RET?method=platega&status=success")
+if grep -q 'spofy.subpage.return' <<<"$ret" && grep -q '<h1>' <<<"$ret" && ! grep -q 'data-panel=' <<<"$ret"; then
+    ok "payment return screen (${#ret} bytes)"
+else
+    bad "payment return screen missing"
+fi
+code=$("${C[@]}" -o /dev/null -w '%{http_code}' -A 'Happ/3.2.1/ios CFNetwork/1568.100.1 Darwin/24.0.0' "$RET")
+[ "$code" != 200 ] && ok "payment return is not served to VPN apps ($code)" || bad "payment return served to a VPN app"
 exit $fail

@@ -9,6 +9,8 @@ import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 
 import { TypedConfigService } from '@common/config/app-config';
 
+import { SITE_ORIGIN } from './link-preview';
+import { returnUrl } from './return.page';
 import { isCheckoutAllowed, parseAllowlist } from './spofy.service';
 
 const OFFER_TTL_MS = 20_000;
@@ -106,8 +108,11 @@ export class SpofyCheckoutService {
     private readonly eventHits = new Map<string, number[]>();
     private readonly lastActiveCheck = new Map<string, { expiresAt: number }>();
     private readonly methodFailures = new Map<string, number[]>();
+    /** Where the provider sends the person after paying: this site's neutral route, no token. */
+    private readonly returnUrl: string;
 
     constructor(private readonly configService: TypedConfigService) {
+        this.returnUrl = returnUrl(SITE_ORIGIN, this.configService.get('CUSTOM_SUB_PREFIX'));
         const url = this.configService.get('SPOFY_BOT_API_URL')?.trim();
         const key = this.configService.get('SPOFY_BOT_API_KEY')?.trim();
         const ip = this.configService.get('SPOFY_BOT_API_IP')?.trim();
@@ -199,11 +204,11 @@ export class SpofyCheckoutService {
         const slots = keys.map(([key]) => [key, this.hit(this.rateHits, key)] as const);
         this.offerCache.delete(shortUuid);
         try {
-            const result = await this.call(
-                'post',
-                `/${encodeURIComponent(shortUuid)}/checkout`,
-                body,
-            );
+            // A bot that does not know `return_url` yet ignores it and returns to the cabinet.
+            const result = await this.call('post', `/${encodeURIComponent(shortUuid)}/checkout`, {
+                ...body,
+                return_url: this.returnUrl,
+            });
             this.methodFailures.delete(body.payment_method);
             return result;
         } catch (error) {

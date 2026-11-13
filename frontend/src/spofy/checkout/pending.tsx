@@ -11,6 +11,7 @@ import classes from '../spofy.module.css'
 import { CheckoutError, checkoutApi, isApplied, trackOnce } from './api'
 import { useCheckoutStore } from './checkout-store'
 import { useMoney } from './money'
+import { rememberReturnAddress } from './return'
 
 /* Kept out of the lazily loaded sheet: a payment started earlier is watched from page load. */
 
@@ -20,6 +21,8 @@ const GIVE_UP_MS = 15 * 60_000
 /** Remember (per payment) that the payment page was opened, to count a «return». */
 const OPENED_KEY = 'spofy.subpage.payopened'
 export function markPayOpened(paymentId: string): void {
+    // the provider's page returns here (last page to open a payment wins)
+    rememberReturnAddress()
     try {
         sessionStorage.setItem(OPENED_KEY, paymentId)
     } catch {

@@ -6,6 +6,7 @@ import { AxiosService } from '@common/axios';
 import { TypedConfigService } from '@common/config/app-config';
 
 import { renderNotFoundPage } from './not-found.page';
+import { renderReturnPage, TReturnStatus } from './return.page';
 import { renderUnavailablePage } from './spofy-page';
 
 export interface ISpofyPageData {
@@ -135,6 +136,16 @@ export class SpofyService {
         return renderNotFoundPage({
             acceptLanguage,
             botUrl: this.renewUrl,
+            supportUrl: this.supportUrl,
+        });
+    }
+
+    /** HTML for the address a payment provider returns to (see return.page.ts). */
+    public renderReturn(acceptLanguage: string | undefined, status: TReturnStatus): string {
+        return renderReturnPage({
+            acceptLanguage,
+            botUrl: this.renewUrl,
+            status,
             supportUrl: this.supportUrl,
         });
     }

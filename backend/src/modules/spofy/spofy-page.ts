@@ -36,6 +36,8 @@ export interface ISpofyPageText {
 /** Icon shown above the title: «error» for a dead link, «info» for neutral messages. */
 export function renderSpofyPage(options: {
     botUrl: null | string;
+    /** trusted markup for the end of <head> (the return screen's «go back» script) */
+    head?: string;
     lang: 'en' | 'ru';
     supportUrl: null | string;
     text: ISpofyPageText;
@@ -74,7 +76,7 @@ p{margin:0 0 10px;color:var(--muted);font-size:16px}
 .a{display:flex;flex-direction:column;gap:10px;margin-top:20px}
 a{display:flex;align-items:center;justify-content:center;min-height:52px;padding:0 18px;border-radius:14px;font-weight:700;font-size:16.5px;text-decoration:none;touch-action:manipulation}
 .p{background:var(--cta);color:var(--on-cta)}.q{background:var(--btn2);color:var(--btn2t)}
-</style></head><body><div class="w">
+</style>${options.head ?? ''}</head><body><div class="w">
 <header>${shield('b')}<span>Spofy VPN</span></header>
 <main>${shield(`s ${options.tone}`)}
 <h1>${t.title}</h1><p>${t.text}</p>${t.hint ? `<p>${t.hint}</p>` : ''}

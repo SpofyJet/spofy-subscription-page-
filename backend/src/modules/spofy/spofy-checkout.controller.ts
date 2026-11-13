@@ -1,4 +1,4 @@
-import { Request } from 'express';
+import { Request, Response } from 'express';
 
 import {
     Controller,
@@ -9,14 +9,19 @@ import {
     NotFoundException,
     Param,
     Post,
+    Query,
     Req,
+    Res,
     UnprocessableEntityException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
 import { ClientIp } from '@common/decorators/get-ip';
 
+import { RETURN_ROUTE, returnStatus } from './return.page';
 import { ICheckoutBody, SpofyCheckoutService } from './spofy-checkout.service';
+import { wantsHtmlPage } from './spofy-page';
+import { SpofyService } from './spofy.service';
 
 const SHORT_UUID = /^[A-Za-z0-9_-]{6,64}$/;
 const METHOD = /^[a-z0-9_]{1,40}$/;
@@ -69,7 +74,25 @@ export class SpofyCheckoutController {
     constructor(
         private readonly checkout: SpofyCheckoutService,
         private readonly jwtService: JwtService,
+        private readonly spofy: SpofyService,
     ) {}
+
+    /**
+     * The address a payment provider returns the person to (see return.page.ts). No session,
+     * no subscription token: the browser itself remembers which page to go back to. Anything
+     * but a browser asking for a page gets the usual dropped connection.
+     */
+    @Get(RETURN_ROUTE)
+    getReturn(
+        @Req() req: Request,
+        @Res() res: Response,
+        @Query('status') status: string | undefined,
+    ) {
+        if (!wantsHtmlPage(req.headers)) throw new NotFoundException();
+        res.status(200)
+            .set({ 'cache-control': 'no-store', 'content-type': 'text/html; charset=utf-8' })
+            .send(this.spofy.renderReturn(req.headers['accept-language'], returnStatus(status)));
+    }
 
     @Get(':shortUuid/offer')
     async getOffer(@Req() req: Request, @Param('shortUuid') shortUuid: string) {

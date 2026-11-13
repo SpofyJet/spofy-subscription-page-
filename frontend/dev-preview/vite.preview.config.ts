@@ -5,6 +5,8 @@
  *   open http://localhost:3334/active/demo7Kx2pQ9mZ4aB   (active | trial | trialnew | expiring |
  *     expired | limited | bypass | lowtraffic | devicesfull | nodevices | unlimited | unused |
  *     nocheckout | invalid)
+ *   open http://localhost:3334/spofy-api/payment/return?status=success   (the provider's return address:
+ *     goes back to the page an invoice was made on, or shows «Оплата получена» if there is none)
  *
  * Dev-only: not used by `npm run start:build` and not copied into the Docker image.
  */
@@ -14,6 +16,7 @@ import { fileURLToPath } from 'node:url'
 import { defineConfig, mergeConfig, type Plugin } from 'vite'
 
 import { renderNotFoundPage } from '../../backend/src/modules/spofy/not-found.page'
+import { renderReturnPage, returnStatus } from '../../backend/src/modules/spofy/return.page'
 import baseConfig from '../vite.config'
 import { appConfig, offer, panelPayload, SCENARIOS, type TScenario } from './mock-data'
 
@@ -55,6 +58,22 @@ function previewPlugin(): Plugin {
                         renderNotFoundPage({
                             acceptLanguage: req.headers['accept-language'],
                             botUrl: 'https://t.me/spofyvpnbot',
+                            supportUrl: 'https://t.me/spofysup'
+                        })
+                    )
+                }
+
+                // /spofy-api/payment/return?status=success|failed — where a payment provider returns to
+                if (/^\/spofy-api\/payment\/return(\?|$)/.test(url)) {
+                    res.setHeader('content-type', 'text/html; charset=utf-8')
+                    res.setHeader('cache-control', 'no-store')
+                    return res.end(
+                        renderReturnPage({
+                            acceptLanguage: req.headers['accept-language'],
+                            botUrl: 'https://t.me/spofyvpnbot',
+                            status: returnStatus(
+                                new URL(url, 'http://x').searchParams.get('status')
+                            ),
                             supportUrl: 'https://t.me/spofysup'
                         })
                     )

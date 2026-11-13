@@ -5,9 +5,10 @@ import { whenIdle } from '@shared/utils/when-idle'
 import { useAppConfig, useCurrentLang } from '@entities/app-config-store'
 import { useSubscription } from '@entities/subscription-info-store'
 
-import { track } from './checkout/api'
+import { track, trackOnce } from './checkout/api'
 import { useCheckoutStore } from './checkout/checkout-store'
 import { PendingBanner, usePendingPhase } from './checkout/pending'
+import { cameBackFromPayment } from './checkout/return'
 import { ConnectSection } from './components/connect-section'
 import { Header } from './components/header'
 import { MoreCard, SupportButton } from './components/more-card'
@@ -51,6 +52,17 @@ export function SpofyMainPage() {
     useEffect(() => {
         // one «page seen» per load; the server also counts it by platform
         if (checkout) track(user.shortUuid, 'view')
+    }, [checkout, user.shortUuid])
+    // Sent back here by the provider's «return» (see checkout/return.ts): show the invoice's
+    // status at once — the window the person left, «Оплачено» as soon as the money is in.
+    useEffect(() => {
+        if (!checkout || !cameBackFromPayment()) return
+        const { pending, openPayment, setAutoOpenedPaymentId } = useCheckoutStore.getState()
+        if (!pending || pending.shortUuid !== user.shortUuid) return
+        trackOnce(user.shortUuid, 'pay_return', pending.result.payment_id)
+        // the payment page has been visited: «Перейти к оплате» stays, but quietly
+        setAutoOpenedPaymentId(pending.result.payment_id)
+        openPayment()
     }, [checkout, user.shortUuid])
     const opened = useCheckoutStore((s) => s.opened)
     const setPending = useCheckoutStore((s) => s.setPending)

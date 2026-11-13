@@ -62,6 +62,16 @@ subscription has changed. The bridge in the bot never spends the user's balance,
 completed after payment (carts tagged `spofy_subpage`); the bot's global `AUTO_PURCHASE_AFTER_TOPUP_ENABLED`
 stays off.
 
+**After the payment** the provider sends the person back to this page, not to the cabinet (they
+never logged in there). The subscription link is a credential and is never given to a provider:
+with every checkout the backend passes the bot a neutral `return_url` —
+`https://sub.spofyltd.ru/spofy-api/payment/return` (no token; the bot adds `?method=…&status=…`) —
+and the page writes its own address into `localStorage` when the invoice is created. The return
+screen (`backend/src/modules/spofy/return.page.ts`) reads it and goes straight back; the page then
+opens the invoice's status («Оплачено»). Nothing stored (paid in another browser): «Оплата
+получена» with «Открыть бота». A bot without `return_url` support ignores the field. Try it on
+the preview stand: `/spofy-api/payment/return?status=success`.
+
 ## Design deviations from the brief (with reasons)
 - **Text-safe colour variants.** Warning / success / error on white and the accent on the dark
   surface fail AA as *text*. Fills (dots, bars, buttons) use the brand values; text uses
